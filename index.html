@@ -25,9 +25,13 @@
     z-index:10; display:none; backdrop-filter:blur(2px);
   }
   .btn.pressed { background:rgba(255,255,255,.55); }
+  .btn { transition: opacity .6s; }
+  .btn.faded { opacity:.14; }
+  .btn.faded.pressed { opacity:.5; }
   #btnL { left:max(16px, env(safe-area-inset-left)); }
   #btnR { left:calc(max(16px, env(safe-area-inset-left)) + 90px); }
   #btnJ { right:max(16px, env(safe-area-inset-right)); width:88px; height:88px; line-height:80px; font-size:22px; }
+  #btnF { right:calc(max(16px, env(safe-area-inset-right)) + 106px); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 8px); font-size:16px; background:rgba(255,120,80,.3); border-color:rgba(255,180,120,.65); }
 </style>
 </head>
 <body>
@@ -35,6 +39,7 @@
 <div class="btn" id="btnL">&#9664;</div>
 <div class="btn" id="btnR">&#9654;</div>
 <div class="btn" id="btnJ">JUMP</div>
+<div class="btn" id="btnF">FIRE</div>
 <script>
 "use strict";
 /* ============================== SETUP ============================== */
@@ -79,15 +84,20 @@ const SFX = {
   bump:  () => tone(110, .08, "square", .12),
   select:() => { tone(660, .09, "square", .10); setTimeout(() => tone(880, .14, "square", .10), 80); },
   clear: () => [523,659,784,1047,1319].forEach((f,i) => setTimeout(() => tone(f, .22, "square", .10), i*110)),
+  sprout:() => [392,494,587,698].forEach((f,i) => setTimeout(() => tone(f, .09, "square", .09), i*60)),
+  grow:  () => [262,330,392,523,659,784].forEach((f,i) => setTimeout(() => tone(f, .08, "square", .10), i*45)),
+  shrink:() => [784,523,392,262].forEach((f,i) => setTimeout(() => tone(f, .09, "square", .10), i*70)),
+  fire:  () => tone(680, .12, "sawtooth", .08, -420),
 };
 
 /* ============================== INPUT ============================== */
-const input = { left:false, right:false, jump:false, jumpPressed:false, anyTap:false };
+const input = { left:false, right:false, jump:false, jumpPressed:false, firePressed:false, anyTap:false };
 const keys = {};
 window.addEventListener("keydown", e => {
   if (["ArrowLeft","ArrowRight","ArrowUp","Space"].includes(e.code)) e.preventDefault();
   audio();
   if (!keys[e.code] && (e.code==="Space"||e.code==="ArrowUp"||e.code==="KeyZ"||e.code==="KeyW")) input.jumpPressed = true;
+  if (!keys[e.code] && (e.code==="KeyX"||e.code==="KeyB")) input.firePressed = true;
   keys[e.code] = true;
   input.anyTap = true;
 });
@@ -102,20 +112,36 @@ function syncKeys() {
 const touch = { left:false, right:false, jump:false };
 const btnL = document.getElementById("btnL"),
       btnR = document.getElementById("btnR"),
-      btnJ = document.getElementById("btnJ");
+      btnJ = document.getElementById("btnJ"),
+      btnF = document.getElementById("btnF");
+const allBtns = [btnL, btnR, btnJ, btnF];
 
-function bindBtn(el, prop, isJump) {
+// Controls fade to near-invisible a few seconds after first use (still tappable)
+let fadeScheduled = false;
+function scheduleFade() {
+  if (fadeScheduled) return;
+  fadeScheduled = true;
+  setTimeout(() => allBtns.forEach(b => b.classList.add("faded")), 3000);
+}
+function unfadeButtons() {
+  fadeScheduled = false;
+  allBtns.forEach(b => b.classList.remove("faded"));
+}
+
+function bindBtn(el, prop, onPress) {
   const set = on => {
-    if (on && isJump && !touch[prop]) input.jumpPressed = true;
+    if (on && onPress && !touch[prop]) onPress();
     touch[prop] = on;
     el.classList.toggle("pressed", on);
   };
-  el.addEventListener("pointerdown", e => { e.preventDefault(); audio(); set(true); }, {passive:false});
+  el.addEventListener("pointerdown", e => { e.preventDefault(); audio(); scheduleFade(); set(true); }, {passive:false});
   el.addEventListener("pointerup",     () => set(false));
   el.addEventListener("pointercancel", () => set(false));
   el.addEventListener("pointerleave",  () => set(false));
 }
-bindBtn(btnL, "left"); bindBtn(btnR, "right"); bindBtn(btnJ, "jump", true);
+bindBtn(btnL, "left"); bindBtn(btnR, "right");
+bindBtn(btnJ, "jump", () => { input.jumpPressed = true; });
+bindBtn(btnF, "fire", () => { input.firePressed = true; });
 
 cv.addEventListener("pointerdown", e => {
   e.preventDefault(); audio();
@@ -127,6 +153,12 @@ let tapX = -1, tapY = -1;
 
 function showButtons(on) {
   btnL.style.display = btnR.style.display = btnJ.style.display = on ? "block" : "none";
+  refreshFireBtn();
+}
+let fireBtnShown = false;
+function refreshFireBtn() {
+  const want = game.state === "play" && player.power === 2;
+  if (want !== fireBtnShown) { fireBtnShown = want; btnF.style.display = want ? "block" : "none"; }
 }
 
 /* ============================== CHARACTERS ============================== */
@@ -146,10 +178,23 @@ const CHARS = {
 };
 let heroKey = "jules";
 
-/* Draw a kid: feet centered at (0,0), facing right by default. */
-function drawKid(ctx, x, y, pal, frame, facing, airborne, walking) {
+const firePals = {};
+function firePal(key) {
+  if (!firePals[key]) {
+    const p = CHARS[key];
+    firePals[key] = Object.assign({}, p, {
+      shirt:"#fff6f3", shirtDark:p.shirt, cap:"#ff5e5e", capDark:"#d63c3c",
+    });
+  }
+  return firePals[key];
+}
+
+/* Draw a kid: feet centered at (0,0), facing right by default.
+   power: 0 small, 1 super (bigger), 2 fire (bigger + fire outfit) */
+function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   ctx.save();
   ctx.translate(x, y);
+  if (power > 0) ctx.scale(1.18, 1.32);
   if (facing < 0) ctx.scale(-1, 1);
   const r = (rx, ry, rw, rh, c) => { ctx.fillStyle = c; ctx.fillRect(rx, ry, rw, rh); };
 
@@ -194,6 +239,35 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking) {
   ctx.restore();
 }
 
+function drawPowerup(ctx, p) {
+  const x = p.x + p.w/2, y = p.y + p.h;
+  const r = (rx,ry,rw,rh,c)=>{ctx.fillStyle=c;ctx.fillRect(x+rx,y+ry,rw,rh);};
+  if (p.type === "mushroom") {
+    r(-4, -6, 8, 6, "#f7e8d2");                      // stalk
+    r(-3, -3, 1.5, 2, "#241a12"); r(1.5, -3, 1.5, 2, "#241a12");
+    r(-7, -12, 14, 7, "#e8453c");                    // cap
+    r(-6, -13, 12, 1, "#e8453c");
+    r(-5, -11, 3, 3, "#fff"); r(2, -11, 3, 3, "#fff"); r(-1.5, -8, 3, 2, "#fff");
+  } else {                                           // fire flower
+    r(-1, -7, 2, 7, "#3fae4e");                      // stem
+    r(-5, -4, 4, 2, "#3fae4e"); r(1, -3, 4, 2, "#3fae4e");
+    ctx.fillStyle = "#ff8a3c";
+    ctx.beginPath(); ctx.arc(x, y-10, 5.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#e8453c";
+    ctx.beginPath(); ctx.arc(x, y-10, 3.8, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#ffd76e";
+    ctx.beginPath(); ctx.arc(x, y-10, 2, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function drawFireball(ctx, f, t) {
+  ctx.fillStyle = "#ff8a3c";
+  ctx.beginPath(); ctx.arc(f.x + 2, f.y + 2, 3.2, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#ffd76e";
+  const a = t * 0.5;
+  ctx.beginPath(); ctx.arc(f.x + 2 + Math.cos(a)*1.2, f.y + 2 + Math.sin(a)*1.2, 1.6, 0, Math.PI*2); ctx.fill();
+}
+
 function drawGrump(ctx, x, y, frame, squashT) {
   ctx.save(); ctx.translate(x, y);
   const r = (rx,ry,rw,rh,c)=>{ctx.fillStyle=c;ctx.fillRect(rx,ry,rw,rh);};
@@ -223,22 +297,23 @@ function makeLevel(num) {
   const ground = (a, b) => { for (let x=a; x<=b; x++){ setT(x,13,"G"); setT(x,14,"#"); } };
   const brick  = (x, y) => setT(x, y, "=");
   const qb     = (x, y) => setT(x, y, "?");
+  const mb     = (x, y) => setT(x, y, "M");   // powerup block (looks like ?)
   const stone  = (x, y) => setT(x, y, "S");
   const coin   = (x, y) => setT(x, y, "o");
   const coins  = (x, y, n) => { for (let i=0;i<n;i++) coin(x+i, y); };
   const pipe   = (x, h) => { for (let yy=13-h; yy<13; yy++){ const c = yy===13-h ? "T":"P"; setT(x,yy,c); setT(x+1,yy,c); } };
   const stair  = (x, h, dir) => { for (let s=0;s<h;s++){ const cx = x + (dir<0 ? -s : s); for (let yy=12; yy>12-(s+1); yy--) stone(cx, yy); } };
-  const enemy  = x => enemies.push({ x:x*TILE, y:11*TILE, w:12, h:12, vx:-0.42, vy:0, dead:0, active:false, frame:0 });
+  const enemy  = x => enemies.push({ x:x*TILE, y:11*TILE, w:12, h:12, vx:-0.5, vy:0, dead:0, active:false, frame:0 });
 
   let flagX;
   if (num === 0) {
     ground(0, 45);
-    qb(12,9); brick(13,9); qb(14,9); coins(12,5,3);
+    mb(12,9); brick(13,9); qb(14,9); coins(12,5,3);
     enemy(18);
     pipe(24,2); pipe(32,3);
     enemy(29); enemy(37);
     ground(49, 75);                          // gap 46-48
-    brick(54,9); qb(55,9); brick(56,9); qb(57,9); brick(58,9);
+    brick(54,9); qb(55,9); brick(56,9); mb(57,9); brick(58,9);
     coins(54,5,5);
     enemy(60); enemy(61); enemy(68);
     pipe(70,2);
@@ -255,7 +330,7 @@ function makeLevel(num) {
     flagX = 138;
   } else {
     ground(0, 30);
-    qb(10,9); qb(12,9); coins(10,5,3);
+    qb(10,9); mb(12,9); coins(10,5,3);
     enemy(15); enemy(22);
     pipe(26,3);
     ground(34, 52);                          // gap 31-33
@@ -263,7 +338,7 @@ function makeLevel(num) {
     stone(44,6); stone(45,6); coins(44,3,2);
     enemy(40); enemy(46); enemy(47);
     ground(56, 80);                          // gap 53-55
-    pipe(60,2); pipe(68,4);
+    pipe(60,2); pipe(68,3);
     enemy(64); enemy(65);
     coins(72,8,5);
     stone(74,9); stone(75,9); stone(76,9);
@@ -271,7 +346,7 @@ function makeLevel(num) {
     stair(88, 3, 1);
     stone(95,8); stone(96,8); stone(97,8); coins(95,5,3);
     enemy(100); enemy(104); enemy(105);
-    brick(102,9); qb(103,9); brick(104,9);
+    brick(102,9); mb(103,9); brick(104,9);
     ground(114, Wd-1);                       // gap 111-113
     coins(116,8,4);
     enemy(120); enemy(126); enemy(127);
@@ -291,28 +366,35 @@ const game = {
   levelNum: 0, level: null,
   score: 0, coins: 0, lives: 3,
   timer: 0, camX: 0,
-  particles: [], pops: [],
+  particles: [], pops: [], powerups: [], fireballs: [],
   titleCards: [],
 };
 const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
-                 coyote:0, jumpBuf:0, animT:0, frame:0 };
+                 coyote:0, jumpBuf:0, animT:0, frame:0,
+                 power:0, inv:0, runCharge:0, runDir:0,
+                 jg:{ hold:0.125, fall:0.4375 } };
 
 function startLevel(n) {
   game.levelNum = n;
   game.level = makeLevel(n);
-  player.x = 2*TILE; player.y = 11*TILE;
+  player.h = player.power > 0 ? 24 : 16;
+  player.x = 2*TILE; player.y = 13*TILE - player.h;
   player.vx = 0; player.vy = 0; player.facing = 1; player.grounded = false;
+  player.inv = 0; player.runCharge = 0;
   game.camX = 0; game.particles = []; game.pops = []; game.timer = 0;
+  game.powerups = []; game.fireballs = [];
   game.state = "play";
   showButtons(true);
 }
 function goTitle() {
   game.state = "title"; game.score = 0; game.coins = 0; game.lives = 3; game.timer = 0;
+  player.power = 0;
+  unfadeButtons();
   showButtons(false);
 }
 
 /* ============================== PHYSICS ============================== */
-const SOLID = "#G=?USPT";
+const SOLID = "#G=?MUSPT";
 function tileAt(tx, ty) {
   const L = game.level;
   if (tx < 0 || tx >= L.width) return "#";
@@ -358,14 +440,33 @@ function bumpBlock(tx, ty) {
     L.grid[ty][tx] = "U";
     game.coins++; game.score += 100; SFX.coin();
     game.pops.push({ x:(tx+0.5)*TILE, y:ty*TILE, t:0 });
+  } else if (c === "M") {
+    L.grid[ty][tx] = "U";
+    game.score += 100; SFX.sprout();
+    // mushroom when small, fire flower when already big (like SMB)
+    game.powerups.push({ x:tx*TILE + 2, y:ty*TILE + 2, w:12, h:12,
+      vx:0.7, vy:0, type: player.power === 0 ? "mushroom" : "flower", rise:28 });
   } else if (c === "=") {
-    L.grid[ty][tx] = " ";
-    game.score += 50; SFX.brick();
-    for (let i = 0; i < 6; i++)
-      game.particles.push({ x:(tx+0.5)*TILE, y:(ty+0.5)*TILE,
-        vx:(i%2?1:-1)*(0.6+i*0.25), vy:-2.2-(i%3)*0.7, t:0, c:"#b46a36" });
+    if (player.power > 0) {                  // only big kids break bricks
+      L.grid[ty][tx] = " ";
+      game.score += 50; SFX.brick();
+      for (let i = 0; i < 6; i++)
+        game.particles.push({ x:(tx+0.5)*TILE, y:(ty+0.5)*TILE,
+          vx:(i%2?1:-1)*(0.6+i*0.25), vy:-2.2-(i%3)*0.7, t:0, c:"#b46a36" });
+    } else SFX.bump();
   } else if (isSolid(c)) {
     SFX.bump();
+  }
+}
+
+function applyDamage() {
+  if (player.inv > 0) return;
+  if (player.power > 0) {
+    player.power--;
+    if (player.power === 0) { player.y += 8; player.h = 16; }
+    player.inv = 120; SFX.shrink();
+  } else {
+    killPlayer();
   }
 }
 
@@ -382,33 +483,110 @@ function collectCoins() {
 }
 
 /* ============================== UPDATE ============================== */
+/* Super Mario Bros movement constants (px/frame @ 60fps, 16px tiles) */
+const WALK_MAX = 1.5625, RUN_MAX = 2.5625;
+const ACC_WALK = 0.0374, ACC_RUN = 0.0556, DEC_REL = 0.0508, DEC_SKID = 0.1016;
+const MAX_FALL = 4.0;
+/* SMB jump: initial velocity + gravity depend on takeoff speed */
+function jumpTier(speed) {
+  const s = Math.abs(speed);
+  if (s < 1.0)    return { v:-4.0, hold:0.125,   fall:0.4375  };
+  if (s < 2.3125) return { v:-4.0, hold:0.1172,  fall:0.40625 };
+  return            { v:-5.0, hold:0.15625, fall:0.5625  };
+}
+
+function setPower(n) {
+  if (n > 0 && player.h === 16) { player.y -= 8.01; player.h = 24; }
+  if (n === 0 && player.h === 24) { player.y += 8; player.h = 16; }
+  player.power = n;
+}
+
 function updatePlay() {
   syncKeys();
-  // run
-  const ACC = 0.28, MAXV = 2.35, FRIC = 0.82;
-  if (input.left)  { player.vx -= ACC; player.facing = -1; }
-  if (input.right) { player.vx += ACC; player.facing = 1; }
-  if (!input.left && !input.right) player.vx *= player.grounded ? FRIC : 0.96;
-  player.vx = Math.max(-MAXV, Math.min(MAXV, player.vx));
-  if (Math.abs(player.vx) < 0.05) player.vx = 0;
+  if (player.inv > 0) player.inv--;
 
-  // jump (buffer + coyote)
+  // --- horizontal: walk/auto-run with SMB accel, release decel and skid ---
+  const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+  if (dir !== 0) {
+    if (dir === player.runDir) player.runCharge++;
+    else { player.runCharge = 0; player.runDir = dir; }
+  } else player.runCharge = 0;
+  const running = player.runCharge > 30;            // hold a direction ~0.5s to run
+  const maxV = running ? RUN_MAX : WALK_MAX;
+
+  if (dir !== 0) {
+    player.facing = dir;
+    if (player.vx * dir < 0) {
+      player.vx += dir * (player.grounded ? DEC_SKID : ACC_RUN);   // skid turn
+    } else if (Math.abs(player.vx) < maxV) {
+      player.vx += dir * (running ? ACC_RUN : ACC_WALK);
+      if (Math.abs(player.vx) > maxV) player.vx = dir * maxV;
+    } else if (player.grounded && Math.abs(player.vx) > maxV) {
+      player.vx -= Math.sign(player.vx) * DEC_REL;                 // ease back to walk speed
+    }
+  } else if (player.grounded && player.vx !== 0) {
+    const s = Math.sign(player.vx);
+    player.vx -= s * DEC_REL;
+    if (player.vx * s < 0) player.vx = 0;
+  }
+
+  // --- jump (buffer + coyote for kid-friendliness) ---
   if (input.jumpPressed) { player.jumpBuf = 7; input.jumpPressed = false; }
-  if (player.grounded) player.coyote = 7;
+  if (player.grounded) { player.coyote = 5; player.jg = jumpTier(player.vx); }
   if (player.jumpBuf > 0 && player.coyote > 0) {
-    player.vy = -7.3; player.coyote = 0; player.jumpBuf = 0; SFX.jump();
+    const t = jumpTier(player.vx);
+    player.vy = t.v; player.jg = t;
+    player.coyote = 0; player.jumpBuf = 0; SFX.jump();
   }
   if (player.jumpBuf > 0) player.jumpBuf--;
   if (player.coyote > 0) player.coyote--;
 
-  // gravity (lighter while holding jump going up = variable height)
-  const rising = player.vy < 0 && input.jump;
-  player.vy += rising ? 0.27 : 0.46;
-  player.vy = Math.min(player.vy, 7);
+  // --- gravity: light while rising & holding jump, heavy otherwise (SMB) ---
+  player.vy += (player.vy < 0 && input.jump) ? player.jg.hold : player.jg.fall;
+  player.vy = Math.min(player.vy, MAX_FALL);
 
   player.hitWall = false;
   moveEntity(player, bumpBlock);
   collectCoins();
+
+  // --- fireballs ---
+  if (input.firePressed) {
+    input.firePressed = false;
+    if (player.power === 2 && game.fireballs.length < 2) {
+      game.fireballs.push({ x: player.x + (player.facing > 0 ? player.w : -5),
+        y: player.y + player.h * 0.35, w:4, h:4, vx: 3 * player.facing, vy: 1 });
+      SFX.fire();
+    }
+  }
+  for (const f of game.fireballs) {
+    f.vy = Math.min(f.vy + 0.3, 5);
+    f.hitWall = false;
+    moveEntity(f);
+    if (f.grounded) f.vy = -2.6;
+    if (f.hitWall || f.x < game.camX - 24 || f.x > game.camX + VIEW_W + 24 || f.y > LEVEL_H + 24) f.gone = true;
+  }
+  game.fireballs = game.fireballs.filter(f => !f.gone);
+
+  // --- powerups (mushrooms walk, flowers sit) ---
+  for (const p of game.powerups) {
+    if (p.rise > 0) { p.rise--; p.y -= 0.5; }
+    else if (p.type === "mushroom") {
+      p.vy = Math.min(p.vy + 0.4375, MAX_FALL);
+      p.hitWall = false;
+      moveEntity(p);
+      if (p.hitWall) p.vx = -p.vx;
+      if (p.y > LEVEL_H + 40) p.gone = true;
+    }
+    if (p.rise < 20 &&
+        player.x < p.x + p.w && player.x + player.w > p.x &&
+        player.y < p.y + p.h && player.y + player.h > p.y) {
+      p.gone = true; game.score += 1000; SFX.grow();
+      setPower(p.type === "flower" ? Math.min(2, player.power + 1) : Math.max(1, player.power));
+      game.pops.push({ x: p.x + p.w/2, y: p.y, t: 0 });
+    }
+  }
+  game.powerups = game.powerups.filter(p => !p.gone);
+  refreshFireBtn();
 
   // animation
   if (Math.abs(player.vx) > 0.3 && player.grounded) {
@@ -427,12 +605,21 @@ function updatePlay() {
       else continue;
     }
     if (e.dead > 0) { e.dead++; continue; }
-    e.vy = Math.min(e.vy + 0.46, 7);
+    e.vy = Math.min(e.vy + 0.4375, MAX_FALL);
     e.hitWall = false;
     moveEntity(e);
     if (e.hitWall) e.vx = -e.vx;
     e.frame = (Math.floor(game.timer / 14)) % 2;
     if (e.y > LEVEL_H + 60) { e.dead = 999; continue; }
+
+    // fireball hits
+    for (const f of game.fireballs) {
+      if (!f.gone && f.x < e.x + e.w && f.x + f.w > e.x &&
+          f.y < e.y + e.h && f.y + f.h > e.y) {
+        e.dead = 1; f.gone = true; game.score += 200; SFX.stomp();
+      }
+    }
+    if (e.dead > 0) continue;
 
     // player collision
     if (player.x < e.x + e.w && player.x + player.w > e.x &&
@@ -440,10 +627,11 @@ function updatePlay() {
       const feet = player.y + player.h;
       if (player.vy > 0.4 && feet - e.y < 9) {
         e.dead = 1; game.score += 200; SFX.stomp();
-        player.vy = -5.2;
-        if (input.jump) player.vy = -7;     // bounce higher if holding jump
+        const t = jumpTier(player.vx);
+        player.vy = t.v; player.jg = t;     // SMB-style bounce; hold jump to ride it higher
       } else {
-        killPlayer(); return;
+        applyDamage();
+        if (game.state !== "play") return;
       }
     }
   }
@@ -464,7 +652,7 @@ function updatePlay() {
 
 function killPlayer() {
   game.state = "dead"; game.timer = 0;
-  player.vy = -6.5; SFX.die();
+  player.vy = -6.5; player.power = 0; SFX.die();
   showButtons(false);
 }
 
@@ -520,7 +708,7 @@ function update() {
   }
   else if (game.state === "title") updateTitle();
 
-  input.anyTap = false; tapX = -1;
+  input.anyTap = false; input.firePressed = false; tapX = -1;
 }
 
 function updateTitle() {
@@ -550,7 +738,7 @@ function drawTile(c, tx, ty) {
       r(0,0,16,16,"#c1693a"); g.fillStyle="#8a4520";
       g.fillRect(x,y+7,16,2); g.fillRect(x,y+15,16,1);
       g.fillRect(x+7,y,2,7); g.fillRect(x+3,y+9,2,7); g.fillRect(x+11,y+9,2,7); break;
-    case "?":
+    case "?": case "M":
       r(0,0,16,16,"#e8a33d"); r(1,1,14,14,"#f6c14f");
       g.fillStyle="#8a5a12"; g.font="bold 10px monospace"; g.textAlign="center"; g.textBaseline="middle";
       g.fillText("?", x+8, y+9);
@@ -620,6 +808,8 @@ function drawFlag(fx) {
 function drawWorld() {
   const L = game.level, camX = game.camX;
   drawBackground(camX);
+  // powerups still rising are drawn first so the block hides them
+  for (const p of game.powerups) if (p.rise > 0) drawPowerup(g, p);
   const tx0 = Math.max(0, Math.floor(camX / TILE) - 1);
   const tx1 = Math.min(L.width - 1, Math.ceil((camX + VIEW_W) / TILE) + 1);
   for (let ty = 0; ty < ROWS; ty++)
@@ -628,6 +818,9 @@ function drawWorld() {
       if (c !== " ") drawTile(c, tx, ty);
     }
   drawFlag(L.flagX);
+
+  for (const p of game.powerups) if (p.rise <= 0) drawPowerup(g, p);
+  for (const f of game.fireballs) drawFireball(g, f, game.timer);
 
   for (const e of L.enemies) {
     if (!e.active || e.dead > 25) continue;
@@ -650,17 +843,17 @@ function drawWorld() {
     else g.fillRect(p.x - 2, p.y - 2, 4, 4);
   }
 
-  // player
-  const pal = CHARS[heroKey];
+  // player (flickers while invincible after taking a hit)
+  const pal = player.power === 2 ? firePal(heroKey) : CHARS[heroKey];
   if (game.state === "dead") {
     g.save();
     g.translate(player.x + player.w/2, player.y + player.h);
     g.scale(1, -1); g.translate(-(player.x + player.w/2), -(player.y + player.h) + player.h + 6);
-    drawKid(g, player.x + player.w/2, player.y + player.h, pal, 0, player.facing, true, false);
+    drawKid(g, player.x + player.w/2, player.y + player.h, pal, 0, player.facing, true, false, 0);
     g.restore();
-  } else {
+  } else if (!(player.inv > 0 && (game.timer >> 2) % 2 === 0)) {
     drawKid(g, player.x + player.w/2, player.y + player.h, pal,
-            player.frame, player.facing, !player.grounded, Math.abs(player.vx) > 0.3);
+            player.frame, player.facing, !player.grounded, Math.abs(player.vx) > 0.3, player.power);
   }
 }
 
@@ -857,6 +1050,8 @@ function frame(now) {
 }
 goTitle();
 requestAnimationFrame(frame);
+window.__g = { game, player, startLevel, update, draw, input, keys };   // debug handle
+
 </script>
 </body>
 </html>
