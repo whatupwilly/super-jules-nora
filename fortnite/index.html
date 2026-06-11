@@ -1036,7 +1036,17 @@ function update() {
     }
   }
   else if (game.state === "gameover") {
-    if (game.timer > 60 && input.anyTap) goTitle();
+    if (game.timer > 30 && tapX >= 0 && game.goHits) {
+      for (const h of game.goHits) {
+        if (tapX >= h.x && tapX <= h.x + h.w && tapY >= h.y && tapY <= h.y + h.h) {
+          SFX.select();
+          if (h.action === "continue") { game.lives = 3; startLevel(game.levelNum); }
+          else goTitle();
+          break;
+        }
+      }
+    }
+    if (keys["Enter"] && game.timer > 30) { SFX.select(); game.lives = 3; startLevel(game.levelNum); }
   }
   else if (game.state === "win") {
     if (game.timer % 50 === 0 && game.timer < 400) spawnConfetti(game.camX + VIEW_W/2, 30);
@@ -1517,6 +1527,36 @@ function centerCard(lines) {
   g.restore();
 }
 
+function drawGameOver() {
+  g.save();
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.fillStyle = "rgba(0,0,10,.6)"; g.fillRect(0, 0, W, H);
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = "900 " + Math.min(W/9, 48) + "px 'Avenir Next',Arial";
+  outlineText("GAME OVER", W/2, H*0.3, "#ff5e7e");
+  // continue button (same level, fresh lives, score kept)
+  const bw = Math.min(W*0.62, 310), bh = 56;
+  const bx = W/2 - bw/2, by = H*0.46;
+  const pulse = 1 + Math.sin(game.timer * 0.07) * 0.02;
+  g.save();
+  g.translate(W/2, by + bh/2); g.scale(pulse, pulse); g.translate(-W/2, -(by + bh/2));
+  g.fillStyle = "#ffd166"; roundRect(bx, by, bw, bh, 16); g.fill();
+  g.lineWidth = 4; g.strokeStyle = "#b8862c"; roundRect(bx, by, bw, bh, 16); g.stroke();
+  g.fillStyle = "#5a3c10"; g.font = "900 " + Math.min(bw/11, 23) + "px 'Avenir Next',Arial";
+  g.fillText("\u25b6 CONTINUE " + (game.level ? game.level.name : ""), W/2, by + bh/2);
+  g.restore();
+  // back-to-title link
+  const tw = Math.min(W*0.5, 240), th = 40, tx2 = W/2 - tw/2, ty2 = by + bh + 22;
+  g.fillStyle = "rgba(255,255,255,.16)"; roundRect(tx2, ty2, tw, th, 12); g.fill();
+  g.font = "700 " + Math.min(W/26, 16) + "px 'Avenir Next',Arial";
+  outlineText("back to title", W/2, ty2 + th/2, "#fff");
+  game.goHits = [
+    { x: bx, y: by, w: bw, h: bh, action: "continue" },
+    { x: tx2, y: ty2, w: tw, h: th, action: "title" },
+  ];
+  g.restore();
+}
+
 function drawTitle() {
   g.save();
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -1670,10 +1710,7 @@ function draw() {
   }
   hud();
 
-  if (game.state === "gameover") centerCard([
-    ["GAME OVER", Math.min(W/9, 48), "#ff5e7e"],
-    ["tap to try again", Math.min(W/24, 18), "#fff"],
-  ]);
+  if (game.state === "gameover") drawGameOver();
   if (game.state === "clear") centerCard(game.rescued ? [
     ["PEACH IS SAFE! \ud83d\udc36", Math.min(W/10, 40), "#ffd166"],
     ["you rescued the pug princess!", Math.min(W/24, 18), "#fff"],

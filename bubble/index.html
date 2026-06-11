@@ -694,7 +694,25 @@ function update() {
       else { game.state = "win"; game.timer = 0; showButtons(false); }
     }
   }
-  else if (game.state === "gameover") { if (game.timer > 60 && anyTap) goTitle(); }
+  else if (game.state === "gameover") {
+    if (game.timer > 30 && tapX >= 0 && game.goHits) {
+      for (const h of game.goHits) {
+        if (tapX >= h.x && tapX <= h.x + h.w && tapY >= h.y && tapY <= h.y + h.h) {
+          SFX.select();
+          if (h.action === "continue") {
+            for (const p of game.players) { p.lives = 3; p.out = false; }
+            loadLevel(game.levelNum); showButtons(true);
+          } else goTitle();
+          break;
+        }
+      }
+    }
+    if (keys["Enter"] && game.timer > 30) {
+      SFX.select();
+      for (const p of game.players) { p.lives = 3; p.out = false; }
+      loadLevel(game.levelNum); showButtons(true);
+    }
+  }
   else if (game.state === "win")      { if (game.timer > 90 && anyTap) goTitle(); }
   else if (game.state === "title")    updateTitle();
   anyTap = false; tapX = -1; touch.jumpPressed = false; touch.firePressed = false;
@@ -841,6 +859,32 @@ function centerCard(lines) {
   g.restore();
 }
 
+function drawGameOver() {
+  g.save();
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.fillStyle = "rgba(4,6,24,.6)"; g.fillRect(0, 0, W, H);
+  g.textAlign = "center"; g.textBaseline = "middle";
+  outlineText("GAME OVER", W/2, H*0.3, "#ff5e7e", Math.min(W/9, 46));
+  const bw = Math.min(W*0.62, 310), bh = 54;
+  const bx = W/2 - bw/2, by = H*0.46;
+  const pulse = 1 + Math.sin(game.timer * 0.07) * 0.02;
+  g.save();
+  g.translate(W/2, by + bh/2); g.scale(pulse, pulse); g.translate(-W/2, -(by + bh/2));
+  g.fillStyle = "#ffd166"; rrPath(g, bx, by, bw, bh, 16); g.fill();
+  g.lineWidth = 4; g.strokeStyle = "#b8862c"; rrPath(g, bx, by, bw, bh, 16); g.stroke();
+  g.fillStyle = "#5a3c10"; g.font = "900 " + Math.min(bw/11, 22) + "px 'Avenir Next',Arial";
+  g.fillText("\u25b6 CONTINUE ROUND " + (game.levelNum + 1), W/2, by + bh/2);
+  g.restore();
+  const tw = Math.min(W*0.5, 240), th = 38, tx2 = W/2 - tw/2, ty2 = by + bh + 20;
+  g.fillStyle = "rgba(255,255,255,.16)"; rrPath(g, tx2, ty2, tw, th, 12); g.fill();
+  outlineText("back to title", W/2, ty2 + th/2, "#fff", Math.min(W/26, 15), "700");
+  game.goHits = [
+    { x: bx, y: by, w: bw, h: bh, action: "continue" },
+    { x: tx2, y: ty2, w: tw, h: th, action: "title" },
+  ];
+  g.restore();
+}
+
 function drawTitle() {
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
   const grad = g.createLinearGradient(0, 0, 0, H);
@@ -977,10 +1021,7 @@ function draw() {
     ["ROUND CLEAR!", Math.min(W/10, 42), "#ffd166"],
     [game.levelNum + 1 < LEVELS.length ? "here comes round " + (game.levelNum + 2) + "..." : "one more surprise...", Math.min(W/24, 17), "#fff"],
   ]);
-  if (game.state === "gameover") centerCard([
-    ["GAME OVER", Math.min(W/9, 46), "#ff5e7e"],
-    ["tap to try again", Math.min(W/24, 17), "#fff"],
-  ]);
+  if (game.state === "gameover") drawGameOver();
 }
 
 /* ============================== MAIN LOOP ============================== */
