@@ -18,9 +18,11 @@
   }
   #game { display:block; width:100%; height:100%; image-rendering:pixelated; }
   #verlink {
-    position:fixed; right:14px; top:max(14px, env(safe-area-inset-top)); z-index:20;
+    position:fixed; right:14px; top:max(14px, env(safe-area-inset-top)); z-index:20; display:none;
+  }
+  #verlink a {
     color:#fff; font-weight:700; font-size:14px; text-decoration:none;
-    background:rgba(0,0,0,.28); padding:7px 14px; border-radius:16px; display:none;
+    background:rgba(0,0,0,.32); padding:7px 14px; border-radius:16px; margin-left:8px;
   }
   .btn {
     position:fixed; bottom:max(18px, env(safe-area-inset-bottom));
@@ -45,7 +47,7 @@
 <div class="btn" id="btnR">&#9654;</div>
 <div class="btn" id="btnJ">JUMP</div>
 <div class="btn" id="btnF">FIRE</div>
-<a id="verlink" href="hd/">✨ HD version</a>
+<div id="verlink"><a href="hd/">✨ HD</a><a href="fortnite/">⚡ Battle Royale</a></div>
 <script>
 "use strict";
 /* ============================== SETUP ============================== */
