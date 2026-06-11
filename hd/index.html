@@ -9,6 +9,7 @@
 <title>Super Jules &amp; Nora HD</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
+  #game, .btn, #verlink, #verlink a { touch-action:none; }
   html, body {
     width:100%; height:100%; overflow:hidden; background:#5c94fc;
     touch-action:none; -webkit-user-select:none; user-select:none;
@@ -156,7 +157,15 @@ cv.addEventListener("pointerdown", e => {
   input.anyTap = true;
   tapX = e.clientX; tapY = e.clientY;
 }, {passive:false});
-document.addEventListener("touchmove", e => e.preventDefault(), {passive:false});
+// block 1-finger scroll, but leave 2-finger pinch available so the page can always be un-zoomed
+document.addEventListener("touchmove", e => { if (e.touches.length < 2) e.preventDefault(); }, {passive:false});
+// iPad Safari ignores user-scalable=no and zooms on double-tap — suppress rapid second taps
+let lastTouchEnd = 0;
+document.addEventListener("touchend", e => {
+  const tnow = Date.now();
+  if (tnow - lastTouchEnd < 350) e.preventDefault();
+  lastTouchEnd = tnow;
+}, {passive:false});
 let tapX = -1, tapY = -1;
 
 function showButtons(on) {
