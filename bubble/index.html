@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Bubble Trouble — Jules &amp; Nora</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%; overflow:hidden; background:#101430;
+    touch-action:none; -webkit-user-select:none; user-select:none;
+    -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent;
+    font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;
+    position:fixed;
+  }
+  #game { display:block; width:100%; height:100%; }
+  #verlink {
+    position:fixed; right:14px; top:max(14px, env(safe-area-inset-top)); z-index:20; display:none;
+  }
+  #verlink a {
+    color:#fff; font-weight:700; font-size:14px; text-decoration:none;
+    background:rgba(0,0,0,.4); padding:7px 14px; border-radius:16px; margin-left:8px;
+  }
+  .btn {
+    position:fixed; bottom:max(18px, env(safe-area-inset-bottom));
+    width:72px; height:72px; border-radius:50%;
+    background:rgba(255,255,255,.2); border:3px solid rgba(255,255,255,.5);
+    color:#fff; font-size:30px; font-weight:800; text-align:center; line-height:66px;
+    z-index:10; display:none; backdrop-filter:blur(2px);
+    transition: opacity .6s;
+  }
+  .btn.pressed { background:rgba(255,255,255,.5); }
+  .btn.faded { opacity:.16; }
+  .btn.faded.pressed { opacity:.5; }
+  #btnL { left:max(16px, env(safe-area-inset-left)); }
+  #btnR { left:calc(max(16px, env(safe-area-inset-left)) + 90px); }
+  #btnJ { right:max(16px, env(safe-area-inset-right)); width:84px; height:84px; line-height:76px; font-size:20px; }
+  #btnB { right:calc(max(16px, env(safe-area-inset-right)) + 102px); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 8px);
+          font-size:30px; background:rgba(120,200,255,.3); border-color:rgba(170,225,255,.65); }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="btn" id="btnL">&#9664;</div>
+<div class="btn" id="btnR">&#9654;</div>
+<div class="btn" id="btnJ">JUMP</div>
+<div class="btn" id="btnB">&#9702;</div>
+<div id="verlink"><a href="../">🍄 Platformer</a></div>
+<script>
+"use strict";
+/* ============================== SETUP ============================== */
+const cv = document.getElementById("game");
+const g  = cv.getContext("2d");
+const TILE = 16, COLS = 20, ROWS = 14;
+const AW = COLS * TILE, AH = ROWS * TILE;          // 320 x 224 arena
+const COARSE = window.matchMedia && matchMedia("(pointer: coarse)").matches;
+
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+}
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 200));
+resize();
+
+/* arena placement: letterboxed, leaving room for touch controls in 1P mobile */
+function arenaBox() {
+  const reserve = (COARSE && game.players.length === 1 && game.state !== "title") ? 120 : 16;
+  const topPad = 26;
+  const s = Math.min(W / (AW + 8), (H - reserve - topPad) / AH);
+  return { s, ox: (W - AW * s) / 2, oy: topPad + (H - reserve - topPad - AH * s) / 2 };
+}
+
+/* ============================== AUDIO ============================== */
+let AC = null;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+  if (AC && AC.state === "suspended") AC.resume();
+}
+function tone(freq, dur, type, vol, slide) {
+  if (!AC) return;
+  const o = AC.createOscillator(), gn = AC.createGain(), t = AC.currentTime;
+  o.type = type || "square"; o.frequency.setValueAtTime(freq, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
+  gn.gain.setValueAtTime(vol || .12, t);
+  gn.gain.exponentialRampToValueAtTime(.001, t + dur);
+  o.connect(gn).connect(AC.destination); o.start(t); o.stop(t + dur + .02);
+}
+const SFX = {
+  blub:  () => { tone(420, .08, "sine", .1, 260); setTimeout(() => tone(620, .07, "sine", .07, 200), 50); },
+  pop:   () => tone(820, .07, "square", .09, 380),
+  trap:  () => { tone(500, .09, "triangle", .1, 160); setTimeout(() => tone(700, .09, "triangle", .08, 160), 70); },
+  fruit: () => { tone(990, .08, "square", .09); setTimeout(() => tone(1320, .2, "square", .09), 70); },
+  jump:  () => tone(330, .15, "square", .07, 250),
+  bounce:() => tone(520, .1, "square", .08, 200),
+  die:   () => { tone(520, .25, "square", .12, -300); setTimeout(() => tone(260, .4, "square", .1, -180), 200); },
+  clear: () => [523,659,784,1047,1319].forEach((f,i) => setTimeout(() => tone(f, .22, "square", .1), i*110)),
+  select:() => { tone(660, .09, "square", .1); setTimeout(() => tone(880, .14, "square", .1), 80); },
+  hurry: () => [880,740,880,740].forEach((f,i) => setTimeout(() => tone(f, .12, "square", .11), i*130)),
+};
+
+/* ============================== INPUT ============================== */
+const keys = {};
+window.addEventListener("keydown", e => {
+  if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Space"].includes(e.code)) e.preventDefault();
+  audio();
+  keys[e.code] = true;
+  anyTap = true;
+});
+window.addEventListener("keyup", e => { keys[e.code] = false; });
+let anyTap = false, tapX = -1, tapY = -1;
+
+const touch = { left:false, right:false, jump:false, jumpPressed:false, firePressed:false };
+const btnL = document.getElementById("btnL"), btnR = document.getElementById("btnR"),
+      btnJ = document.getElementById("btnJ"), btnB = document.getElementById("btnB");
+const allBtns = [btnL, btnR, btnJ, btnB];
+let fadeScheduled = false;
+function scheduleFade() {
+  if (fadeScheduled) return;
+  fadeScheduled = true;
+  setTimeout(() => allBtns.forEach(b => b.classList.add("faded")), 3000);
+}
+function bindBtn(el, prop, onPress) {
+  const set = on => {
+    if (on && onPress && !touch[prop]) onPress();
+    touch[prop] = on;
+    el.classList.toggle("pressed", on);
+  };
+  el.addEventListener("pointerdown", e => { e.preventDefault(); audio(); scheduleFade(); set(true); }, {passive:false});
+  el.addEventListener("pointerup",     () => set(false));
+  el.addEventListener("pointercancel", () => set(false));
+  el.addEventListener("pointerleave",  () => set(false));
+}
+bindBtn(btnL, "left"); bindBtn(btnR, "right");
+bindBtn(btnJ, "jump", () => { touch.jumpPressed = true; });
+bindBtn(btnB, "fire", () => { touch.firePressed = true; });
+function showButtons(on) {
+  const want = on && COARSE && game.players.length === 1;
+  allBtns.forEach(b => b.style.display = want ? "block" : "none");
+  if (!on) { fadeScheduled = false; allBtns.forEach(b => b.classList.remove("faded")); }
+}
+cv.addEventListener("pointerdown", e => {
+  e.preventDefault(); audio();
+  anyTap = true; tapX = e.clientX; tapY = e.clientY;
+}, {passive:false});
+document.addEventListener("touchmove", e => e.preventDefault(), {passive:false});
+
+/* ============================== CHARACTERS ============================== */
+const CHARS = {
+  jules: {
+    name: "JULES",
+    cap:"#f3d27a", capDark:"#d9b452", hair:"#3a2a1e", skin:"#f3c89f",
+    shirt:"#f59cc4", shirtDark:"#e074a8", legs:"#33408c", legsLow:"#33408c",
+    shoe:"#aacdec", sock:null, accent:"#e074a8",
+  },
+  nora: {
+    name: "NORA",
+    cap:"#1e6b4d", capDark:"#124a34", hair:"#2e2118", skin:"#f0c49a",
+    shirt:"#7fdcc4", shirtDark:"#4fbfa2", legs:"#7fdcc4", legsLow:"#f0c49a",
+    shoe:"#e9b7cd", sock:"#f5f1ea", accent:"#2f9e7e",
+  }
+};
+
+function rrPath(ctx, x, y, w, h, r) {
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/* chibi kid, feet at (0,0) — same friendly look as the HD platformer */
+function drawKid(ctx, x, y, pal, frame, facing, airborne, walking) {
+  ctx.save();
+  ctx.translate(x, y);
+  if (facing < 0) ctx.scale(-1, 1);
+  const R = (rx, ry, rw, rh, rad, c) => { ctx.fillStyle = c; rrPath(ctx, rx, ry, rw, rh, rad); ctx.fill(); };
+  const legs = airborne ? [[-4.6, -8], [2, -7]]
+             : (walking && frame) ? [[-6, -7.4], [3, -7.4]]
+             : [[-4.2, -7.4], [1.4, -7.4]];
+  for (const [lx, ly] of legs) {
+    R(lx, ly, 3.4, 4.4, 1.5, pal.legs);
+    R(lx, ly + 3.2, 3.4, 3.2, 1.2, pal.legsLow);
+    if (pal.sock) R(lx - 0.2, ly + 4.6, 3.8, 1.7, 0.8, pal.sock);
+    R(lx - 1, ly + 5.8, 5.4, 2.4, 1.4, pal.shoe);
+  }
+  const sh = ctx.createLinearGradient(0, -13.5, 0, -4);
+  sh.addColorStop(0, pal.shirt); sh.addColorStop(1, pal.shirtDark);
+  ctx.fillStyle = sh;
+  rrPath(ctx, -6.2, -13.5, 12.4, 9.2, 3); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.16)";
+  rrPath(ctx, -5.4, -13, 10.8, 2.6, 2); ctx.fill();
+  const armY = airborne ? -16.5 : -12.8;
+  for (const s of [-1, 1]) {
+    R(s < 0 ? -8.6 : 6.2, armY, 2.5, 5.4, 1.25, pal.shirt);
+    ctx.fillStyle = pal.skin;
+    ctx.beginPath();
+    ctx.arc(s < 0 ? -7.35 : 7.45, armY + (airborne ? -0.4 : 5.6), 1.45, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.fillStyle = pal.hair;
+  ctx.beginPath(); ctx.ellipse(-0.2, -17.4, 6.5, 5.7, 0, 0, Math.PI*2); ctx.fill();
+  R(-6.7, -18.5, 2.7, 9.2, 1.3, pal.hair);
+  R(4.1, -18.5, 2.7, 9.2, 1.3, pal.hair);
+  ctx.fillStyle = pal.skin;
+  ctx.beginPath(); ctx.ellipse(1, -16.2, 4.7, 4.3, 0, 0, Math.PI*2); ctx.fill();
+  const capG = ctx.createLinearGradient(0, -25.5, 0, -19);
+  capG.addColorStop(0, pal.cap); capG.addColorStop(1, pal.capDark);
+  ctx.fillStyle = capG;
+  ctx.beginPath(); ctx.arc(0, -19.6, 6.3, Math.PI, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = pal.capDark;
+  rrPath(ctx, -6.3, -20.4, 12.6, 1.5, 0.75); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6.6, -19.9, 3.5, 1.25, -0.12, 0, Math.PI*2); ctx.fill();
+  for (const ex of [-0.9, 3.3]) {
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.ellipse(ex, -16.6, 1.3, 1.6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#2a1c12";
+    ctx.beginPath(); ctx.arc(ex + 0.45, -16.4, 0.85, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = "rgba(255,110,125,.3)";
+  ctx.beginPath(); ctx.arc(-2.1, -14.3, 1.05, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(4.4, -14.3, 1.05, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "#b35a4a"; ctx.lineWidth = 0.7; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(1.2, -14.6, 1.7, 0.2*Math.PI, 0.8*Math.PI); ctx.stroke();
+  ctx.restore();
+}
+
+function drawGrump(ctx, x, y, frame, angry, scale) {
+  ctx.save(); ctx.translate(x, y);
+  if (scale) ctx.scale(scale, scale);
+  const body0 = angry ? "#d8694a" : "#c1763f", body1 = angry ? "#9e3520" : "#7e4017";
+  const off = frame ? 0.9 : -0.9;
+  ctx.fillStyle = angry ? "#6e1f10" : "#4f2a14";
+  rrPath(ctx, -6.6 + off, -2.5, 5.4, 2.5, 1.2); ctx.fill();
+  rrPath(ctx, 1.2 - off, -2.5, 5.4, 2.5, 1.2); ctx.fill();
+  const gr = ctx.createRadialGradient(-2, -9.5, 1, 0, -7.2, 9);
+  gr.addColorStop(0, body0); gr.addColorStop(1, body1);
+  ctx.fillStyle = gr;
+  ctx.beginPath(); ctx.ellipse(0, -7.4, 7, 6, 0, 0, Math.PI*2); ctx.fill();
+  for (const s of [-1, 1]) {
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.ellipse(s*2.6, -8.6, 1.7, 2, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = angry ? "#c81e1e" : "#241a12";
+    ctx.beginPath(); ctx.arc(s*2.6, -8.1, 0.9, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.strokeStyle = "#3c2410"; ctx.lineWidth = 1.1; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-4.4, -11.8); ctx.lineTo(-1.2, -10.6);
+  ctx.moveTo(4.4, -11.8); ctx.lineTo(1.2, -10.6);
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, -3.4, 1.7, 1.15*Math.PI, 1.85*Math.PI); ctx.stroke();
+  ctx.restore();
+}
+
+/* ============================== LEVELS ============================== */
+const LEVELS = [
+  { hue: 215, rows: [
+    "####################",
+    "#                  #",
+    "#                  #",
+    "#  ------  ------  #",
+    "#                  #",
+    "#                  #",
+    "#------      ------#",
+    "#                  #",
+    "#                  #",
+    "#  ------  ------  #",
+    "#                  #",
+    "#                  #",
+    "#                  #",
+    "####################"],
+    enemies: [[4,2],[15,2],[9,7]] },
+  { hue: 150, rows: [
+    "####################",
+    "#                  #",
+    "#                  #",
+    "#----    --    ----#",
+    "#                  #",
+    "#        --        #",
+    "#   --        --   #",
+    "#                  #",
+    "#----    --    ----#",
+    "#                  #",
+    "#                  #",
+    "#    ---    ---    #",
+    "#                  #",
+    "####################"],
+    enemies: [[2,2],[17,2],[9,4],[9,7]] },
+  { hue: 35, rows: [
+    "####################",
+    "#                  #",
+    "#   --------       #",
+    "#                  #",
+    "#       --------   #",
+    "#                  #",
+    "#   --------       #",
+    "#                  #",
+    "#       --------   #",
+    "#                  #",
+    "#   --------       #",
+    "#                  #",
+    "#                  #",
+    "####################"],
+    enemies: [[6,1],[10,3],[6,5],[10,7],[6,9]] },
+  { hue: 285, rows: [
+    "####################",
+    "#                  #",
+    "#---            ---#",
+    "#                  #",
+    "#      ------      #",
+    "#      #    #      #",
+    "#---   #    #   ---#",
+    "#      #    #      #",
+    "#      ------      #",
+    "#                  #",
+    "#---            ---#",
+    "#     --    --     #",
+    "#                  #",
+    "####################"],
+    enemies: [[2,1],[17,1],[8,3],[11,3],[2,9],[17,9]] },
+  { hue: 0, rows: [
+    "####################",
+    "#                  #",
+    "# ----        ---- #",
+    "#      ------      #",
+    "#                  #",
+    "#  --          --  #",
+    "#       ----       #",
+    "#  --          --  #",
+    "#                  #",
+    "#      ------      #",
+    "# ----        ---- #",
+    "#                  #",
+    "#                  #",
+    "####################"],
+    enemies: [[3,1],[16,1],[9,2],[4,4],[15,4],[9,5],[9,8]] },
+];
+const FRUITS = ["🍓","🍌","🍉","🍇","🍒"];
+
+/* ============================== STATE ============================== */
+const game = {
+  state: "title",       // title | play | clear | gameover | win
+  levelNum: 0, grid: null, hue: 215,
+  enemies: [], bubbles: [], fruits: [], popups: [], particles: [],
+  players: [], timer: 0, levelTimer: 0, hurry: false,
+  titleHits: [],
+};
+
+const KEYMAPS = [
+  { left:["KeyA"], right:["KeyD"], jump:["KeyW","Space"], fire:["KeyF","KeyG"] },
+  { left:["ArrowLeft"], right:["ArrowRight"], jump:["ArrowUp"], fire:["KeyL","KeyK"] },
+];
+const SPAWNS = [[2.5 * TILE, 12 * TILE], [16.5 * TILE, 12 * TILE]];
+
+function makePlayer(charKey, idx) {
+  return {
+    charKey, idx, pal: CHARS[charKey], km: KEYMAPS[idx],
+    x: SPAWNS[idx][0], y: SPAWNS[idx][1] - 14, w: 10, h: 14,
+    vx: 0, vy: 0, facing: idx === 0 ? 1 : -1, grounded: false,
+    lives: 3, score: 0, inv: 0, cool: 0, animT: 0, frame: 0,
+    dying: 0, out: false, prev: {},
+  };
+}
+
+function startGame(mode, soloChar) {
+  game.players = mode === 2
+    ? [makePlayer("jules", 0), makePlayer("nora", 1)]
+    : [makePlayer(soloChar || "jules", 0)];
+  game.levelNum = 0;
+  loadLevel(0);
+  document.getElementById("verlink").style.display = "none";
+  showButtons(true);
+}
+function loadLevel(n) {
+  const L = LEVELS[n];
+  game.levelNum = n; game.grid = L.rows.map(r => r.split("")); game.hue = L.hue;
+  game.enemies = L.enemies.map(([tx, ty]) => ({
+    x: tx*TILE + 2, y: ty*TILE + 2, w: 12, h: 12, vx: 0.5 * (tx < COLS/2 ? 1 : -1),
+    vy: 0, grounded: false, trapped: false, angry: false, dead: false,
+    frame: 0, jumpT: 120 + ((tx * 37) % 160),
+  }));
+  game.bubbles = []; game.fruits = []; game.popups = []; game.particles = [];
+  game.levelTimer = 0; game.hurry = false;
+  for (const p of game.players) {
+    if (p.out) continue;
+    p.x = SPAWNS[p.idx][0]; p.y = SPAWNS[p.idx][1] - p.h;
+    p.vx = 0; p.vy = 0; p.dying = 0; p.inv = 90;
+  }
+  game.state = "play";
+}
+function goTitle() {
+  game.state = "title"; game.players = [];
+  document.getElementById("verlink").style.display = "block";
+  showButtons(false);
+}
+
+/* ============================== PHYSICS ============================== */
+function cell(tx, ty) {
+  if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) return "#";
+  return game.grid[ty][tx];
+}
+function moveActor(e) {
+  e.x += e.vx;
+  let x0 = Math.floor(e.x / TILE), x1 = Math.floor((e.x + e.w - 0.01) / TILE);
+  let y0 = Math.floor(e.y / TILE), y1 = Math.floor((e.y + e.h - 0.01) / TILE);
+  e.hitWall = false;
+  if (e.vx > 0) {
+    for (let ty = y0; ty <= y1; ty++) if (cell(x1, ty) === "#") { e.x = x1*TILE - e.w - 0.01; e.hitWall = true; break; }
+  } else if (e.vx < 0) {
+    for (let ty = y0; ty <= y1; ty++) if (cell(x0, ty) === "#") { e.x = (x0+1)*TILE + 0.01; e.hitWall = true; break; }
+  }
+  const prevFeet = e.y + e.h;
+  e.y += e.vy;
+  x0 = Math.floor(e.x / TILE); x1 = Math.floor((e.x + e.w - 0.01) / TILE);
+  e.grounded = false;
+  if (e.vy > 0) {
+    const ty = Math.floor((e.y + e.h - 0.01) / TILE);
+    for (let tx = x0; tx <= x1; tx++) {
+      const c = cell(tx, ty);
+      if (c === "#" || (c === "-" && prevFeet <= ty*TILE + 0.6)) {
+        e.y = ty*TILE - e.h; e.vy = 0; e.grounded = true; break;
+      }
+    }
+  } else if (e.vy < 0) {
+    const ty = Math.floor(e.y / TILE);
+    for (let tx = x0; tx <= x1; tx++) if (cell(tx, ty) === "#") {
+      e.y = (ty+1)*TILE + 0.01; e.vy = 0; break;
+    }
+  }
+}
+function floorAhead(e) {
+  const tx = Math.floor((e.x + e.w/2 + Math.sign(e.vx) * (e.w/2 + 3)) / TILE);
+  const ty = Math.floor((e.y + e.h + 2) / TILE);
+  const c = cell(tx, ty);
+  return c === "#" || c === "-";
+}
+
+/* ============================== UPDATE ============================== */
+const GRAV = 0.22, MAXFALL = 3.1, JUMP_V = -5.05, MOVE = 1.4;
+
+function pressed(p, action) {
+  // edge-detected key press for this player (+touch feeds player 0)
+  let hit = false;
+  for (const k of p.km[action]) {
+    if (keys[k] && !p.prev[k]) hit = true;
+  }
+  if (p.idx === 0) {
+    if (action === "jump" && touch.jumpPressed) hit = true;
+    if (action === "fire" && touch.firePressed) hit = true;
+  }
+  return hit;
+}
+function held(p, action) {
+  let h = p.km[action].some(k => keys[k]);
+  if (p.idx === 0) {
+    if (action === "left") h = h || touch.left;
+    if (action === "right") h = h || touch.right;
+    if (action === "jump") h = h || touch.jump;
+  }
+  return h;
+}
+
+function updatePlayer(p) {
+  if (p.out) return;
+  if (p.dying > 0) {
+    p.dying++;
+    p.vy = Math.min(p.vy + 0.18, 3);
+    p.y += p.vy; p.x += p.vx;
+    if (p.dying > 100) {
+      p.lives--;
+      if (p.lives <= 0) { p.out = true; }
+      else {
+        p.x = SPAWNS[p.idx][0]; p.y = SPAWNS[p.idx][1] - p.h;
+        p.vx = 0; p.vy = 0; p.dying = 0; p.inv = 150;
+      }
+    }
+    return;
+  }
+  if (p.inv > 0) p.inv--;
+  if (p.cool > 0) p.cool--;
+
+  const dir = (held(p, "right") ? 1 : 0) - (held(p, "left") ? 1 : 0);
+  if (dir !== 0) { p.vx += dir * 0.25; p.facing = dir; }
+  else p.vx *= p.grounded ? 0.72 : 0.9;
+  p.vx = Math.max(-MOVE, Math.min(MOVE, p.vx));
+  if (Math.abs(p.vx) < 0.04) p.vx = 0;
+
+  if (pressed(p, "jump") && p.grounded) { p.vy = JUMP_V; SFX.jump(); }
+  p.vy = Math.min(p.vy + GRAV, MAXFALL);
+  moveActor(p);
+
+  // blow a bubble
+  if (pressed(p, "fire") && p.cool === 0 && game.state === "play" &&
+      game.bubbles.filter(b => b.owner === p.idx && !b.popping).length < 6) {
+    game.bubbles.push({
+      x: p.x + p.w/2 + p.facing * 10, y: p.y + p.h/2 + 1, r: 7.5,
+      vx: 3.1 * p.facing, age: 0, owner: p.idx, enemy: null,
+      wob: Math.random() * Math.PI * 2, popping: 0,
+    });
+    p.cool = 20; SFX.blub();
+  }
+
+  // walk animation
+  if (Math.abs(p.vx) > 0.3 && p.grounded) {
+    p.animT += Math.abs(p.vx);
+    if (p.animT > 6) { p.animT = 0; p.frame = 1 - p.frame; }
+  } else p.frame = 0;
+
+  // enemy contact
+  if (p.inv === 0) {
+    for (const e of game.enemies) {
+      if (e.dead || e.trapped) continue;
+      if (p.x < e.x + e.w && p.x + p.w > e.x && p.y < e.y + e.h && p.y + p.h > e.y) {
+        p.dying = 1; p.vy = -4; p.vx = 0; SFX.die();
+        break;
+      }
+    }
+  }
+  // remember key states for edge detection
+  for (const a of ["jump", "fire"]) for (const k of p.km[a]) p.prev[k] = !!keys[k];
+}
+
+function popBubble(b, byPlayer) {
+  if (b.popping) return;
+  b.popping = 1;
+  SFX.pop();
+  for (let i = 0; i < 6; i++)
+    game.particles.push({ x: b.x, y: b.y, vx: Math.cos(i*1.05)*1.4, vy: Math.sin(i*1.05)*1.4 - 0.4, t: 0,
+      c: "rgba(170,220,255,.9)" });
+  if (b.enemy) {
+    b.enemy.dead = true;
+    const fruit = FRUITS[(game.levelNum + game.fruits.length) % FRUITS.length];
+    game.fruits.push({ x: b.x - 7, y: b.y - 7, w: 14, h: 14, vy: 0, t: 0, icon: fruit, grounded: false });
+    if (byPlayer) { byPlayer.score += 700; addPopup(b.x, b.y, "700"); }
+  } else if (byPlayer) {
+    byPlayer.score += 10;
+  }
+  // chain: pop neighbours
+  for (const o of game.bubbles) {
+    if (o !== b && !o.popping && Math.hypot(o.x - b.x, o.y - b.y) < 22)
+      setTimeout(() => popBubble(o, byPlayer), 60);
+  }
+}
+function addPopup(x, y, txt) { game.popups.push({ x, y, txt, t: 0 }); }
+
+function updateBubbles() {
+  for (const b of game.bubbles) {
+    if (b.popping) { b.popping++; continue; }
+    b.age++;
+    if (b.age < 32) {                          // shot phase: travels, can trap
+      b.x += b.vx; b.vx *= 0.92;
+      const tx = Math.floor((b.x + Math.sign(b.vx) * b.r) / TILE), ty = Math.floor(b.y / TILE);
+      if (cell(tx, ty) === "#") b.vx = 0;
+      if (!b.enemy) {
+        for (const e of game.enemies) {
+          if (e.dead || e.trapped) continue;
+          // circle-vs-rect with generous slack
+          const nx = Math.max(e.x, Math.min(b.x, e.x + e.w));
+          const ny = Math.max(e.y, Math.min(b.y, e.y + e.h));
+          if (Math.hypot(b.x - nx, b.y - ny) < b.r + 6) {
+            b.enemy = e; e.trapped = true; SFX.trap();
+            break;
+          }
+        }
+      }
+    } else {                                   // float phase
+      b.wob += 0.05;
+      const targetY = 24 + b.r;
+      if (b.y > targetY) b.y -= b.enemy ? 0.5 : 0.6;
+      else b.y = targetY + Math.sin(b.wob) * 1.5;
+      b.x += Math.sin(b.wob * 0.7) * 0.18 + (AW/2 - b.x) * 0.0008;
+      const tx = Math.floor(b.x / TILE), ty = Math.floor((b.y - b.r) / TILE);
+      if (cell(tx, ty) === "#" && b.y - b.r < (ty+1)*TILE) b.y = (ty+1)*TILE + b.r;
+    }
+    if (b.enemy) { b.enemy.x = b.x - b.enemy.w/2; b.enemy.y = b.y - b.enemy.h/2; }
+    // timeout: empty bubbles burst, trapped enemies escape angry
+    const maxAge = b.enemy ? 560 : 420;
+    if (b.age > maxAge) {
+      if (b.enemy) {
+        b.enemy.trapped = false; b.enemy.angry = true;
+        b.enemy.vx = (b.enemy.vx < 0 ? -1 : 1) * 0.8;
+        b.enemy.vy = 0; b.enemy = null;
+      }
+      popBubble(b, null);
+    }
+    // players: bounce or pop
+    for (const p of game.players) {
+      if (p.out || p.dying) continue;
+      const cx = p.x + p.w/2, cyT = p.y, cyB = p.y + p.h;
+      const dx = Math.abs(cx - b.x);
+      if (dx < b.r + 5 && cyB > b.y - b.r - 2 && cyT < b.y + b.r + 2) {
+        if (p.vy > 0.5 && cyB < b.y + 2 && held(p, "jump")) {
+          p.vy = JUMP_V * 0.92; SFX.bounce();          // bubble bounce
+          b.y += 3;
+        } else if (b.age > 14 || b.owner !== p.idx) {
+          popBubble(b, p);
+        }
+      }
+    }
+  }
+  game.bubbles = game.bubbles.filter(b => b.popping < 12);
+  // gentle bubble separation
+  for (let i = 0; i < game.bubbles.length; i++) for (let j = i+1; j < game.bubbles.length; j++) {
+    const a = game.bubbles[i], c = game.bubbles[j];
+    if (a.popping || c.popping || a.age < 32 || c.age < 32) continue;
+    const dx = c.x - a.x, dy = c.y - a.y, d = Math.hypot(dx, dy);
+    if (d > 0 && d < 15) { const push = (15 - d) * 0.06; a.x -= dx/d*push; c.x += dx/d*push; }
+  }
+}
+
+function updateEnemies() {
+  for (const e of game.enemies) {
+    if (e.dead || e.trapped) continue;
+    const sp = e.angry ? 0.85 : 0.5;
+    e.vx = Math.sign(e.vx || 1) * sp;
+    e.vy = Math.min(e.vy + GRAV, MAXFALL);
+    moveActor(e);
+    if (e.hitWall) e.vx = -e.vx;
+    if (e.grounded && !floorAhead(e) && ((e.jumpT % 3) !== 0)) e.vx = -e.vx;   // usually turn at edges
+    e.jumpT--;
+    if (e.jumpT <= 0 && e.grounded) {
+      e.jumpT = 150 + ((e.x * 13) % 130);
+      if ((e.jumpT % 2) === 0) e.vy = -4.7;     // occasional hop up to a platform
+    }
+    e.frame = Math.floor(game.timer / 12) % 2;
+  }
+}
+
+function updateFruits() {
+  for (const f of game.fruits) {
+    f.t++;
+    if (!f.grounded) {
+      f.vy = Math.min(f.vy + GRAV, 3);
+      const e = { x: f.x, y: f.y, w: f.w, h: f.h, vx: 0, vy: f.vy };
+      moveActor(e);
+      f.x = e.x; f.y = e.y; f.vy = e.vy; f.grounded = e.grounded;
+    }
+    for (const p of game.players) {
+      if (p.out || p.dying) continue;
+      if (p.x < f.x + f.w && p.x + p.w > f.x && p.y < f.y + f.h && p.y + p.h > f.y) {
+        f.got = true; p.score += 500; addPopup(f.x + 7, f.y, "500"); SFX.fruit();
+      }
+    }
+  }
+  game.fruits = game.fruits.filter(f => !f.got && f.t < 700);
+}
+
+function updatePlay() {
+  game.levelTimer++;
+  if (!game.hurry && game.levelTimer > 2700) {
+    game.hurry = true; SFX.hurry();
+    for (const e of game.enemies) if (!e.dead) e.angry = true;
+  }
+  for (const p of game.players) updatePlayer(p);
+  updateEnemies();
+  updateBubbles();
+  updateFruits();
+
+  if (game.players.every(p => p.out)) { game.state = "gameover"; game.timer = 0; showButtons(false); return; }
+  if (game.enemies.every(e => e.dead) && game.fruits.length === 0) {
+    game.state = "clear"; game.timer = 0; SFX.clear();
+  }
+}
+
+function update() {
+  game.timer++;
+  for (const pt of game.particles) { pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.06; pt.t++; }
+  game.particles = game.particles.filter(pt => pt.t < 40);
+  for (const pp of game.popups) pp.t++;
+  game.popups = game.popups.filter(pp => pp.t < 50);
+
+  if (game.state === "play") updatePlay();
+  else if (game.state === "clear") {
+    for (const p of game.players) updatePlayer(p);
+    if (game.timer > 130) {
+      if (game.levelNum + 1 < LEVELS.length) loadLevel(game.levelNum + 1);
+      else { game.state = "win"; game.timer = 0; showButtons(false); }
+    }
+  }
+  else if (game.state === "gameover") { if (game.timer > 60 && anyTap) goTitle(); }
+  else if (game.state === "win")      { if (game.timer > 90 && anyTap) goTitle(); }
+  else if (game.state === "title")    updateTitle();
+  anyTap = false; tapX = -1; touch.jumpPressed = false; touch.firePressed = false;
+}
+
+function updateTitle() {
+  if (tapX >= 0) {
+    for (const h of game.titleHits) {
+      if (tapX >= h.x && tapX <= h.x + h.w && tapY >= h.y && tapY <= h.y + h.h) {
+        SFX.select();
+        if (h.mode === 2) startGame(2);
+        else startGame(1, h.char);
+        return;
+      }
+    }
+  }
+  if (keys["Digit1"] || keys["Enter"]) { SFX.select(); startGame(1, "jules"); }
+  else if (keys["Digit2"]) { SFX.select(); startGame(2); }
+}
+
+/* ============================== DRAW ============================== */
+const SPR = {};
+function tileSprite(c, hue) {
+  const key = c + hue;
+  if (SPR[key]) return SPR[key];
+  const R = 48, s = document.createElement("canvas");
+  s.width = R; s.height = c === "-" ? 20 : R;
+  const t = s.getContext("2d");
+  if (c === "#") {
+    const grd = t.createLinearGradient(0, 0, R, R);
+    grd.addColorStop(0, "hsl(" + hue + ",45%,58%)"); grd.addColorStop(1, "hsl(" + hue + ",50%,38%)");
+    t.fillStyle = grd; t.fillRect(0, 0, R, R);
+    t.fillStyle = "rgba(255,255,255,.3)"; t.fillRect(2, 2, R-4, 5); t.fillRect(2, 2, 5, R-4);
+    t.fillStyle = "rgba(10,10,40,.3)"; t.fillRect(2, R-7, R-4, 5); t.fillRect(R-7, 2, 5, R-4);
+    t.fillStyle = "rgba(255,255,255,.14)";
+    t.beginPath(); t.arc(R*0.32, R*0.34, 6, 0, Math.PI*2); t.fill();
+  } else {
+    const grd = t.createLinearGradient(0, 0, 0, 20);
+    grd.addColorStop(0, "hsl(" + hue + ",55%,66%)"); grd.addColorStop(1, "hsl(" + hue + ",50%,42%)");
+    t.fillStyle = grd;
+    rrPath(t, 0, 0, R, 18, 7); t.fill();
+    t.fillStyle = "rgba(255,255,255,.4)";
+    rrPath(t, 3, 2, R-6, 5, 3); t.fill();
+  }
+  SPR[key] = s;
+  return s;
+}
+
+function drawArenaBackground() {
+  const grad = g.createLinearGradient(0, 0, 0, AH);
+  grad.addColorStop(0, "#1a2150"); grad.addColorStop(1, "#283a78");
+  g.fillStyle = grad; g.fillRect(0, 0, AW, AH);
+  // ambient drifting micro-bubbles
+  for (let i = 0; i < 16; i++) {
+    const bx = ((i * 53.7) + Math.sin(game.timer * 0.006 + i) * 10) % AW;
+    const by = AH - ((game.timer * (0.12 + (i % 4) * 0.05) + i * 47) % (AH + 20));
+    g.strokeStyle = "rgba(150,190,255,.12)";
+    g.lineWidth = 1;
+    g.beginPath(); g.arc(bx, by, 2 + (i % 3), 0, Math.PI*2); g.stroke();
+  }
+}
+
+function drawTiles() {
+  for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+    const c = game.grid[ty][tx];
+    if (c === "#") g.drawImage(tileSprite("#", game.hue), tx*TILE, ty*TILE, TILE, TILE);
+    else if (c === "-") g.drawImage(tileSprite("-", game.hue), tx*TILE, ty*TILE, TILE, 6.5);
+  }
+}
+
+function drawBubble(b) {
+  g.save();
+  const grow = Math.min(1, b.age / 8);
+  const r = b.r * (b.popping ? 1 + b.popping * 0.12 : grow);
+  g.globalAlpha = b.popping ? Math.max(0, 1 - b.popping / 10) : 0.95;
+  if (b.enemy) drawGrump(g, b.x, b.y + 5.5, 0, b.enemy.angry, 0.8);
+  const bg = g.createRadialGradient(b.x - r*0.35, b.y - r*0.4, r*0.15, b.x, b.y, r);
+  bg.addColorStop(0, "rgba(220,240,255,.5)");
+  bg.addColorStop(0.75, "rgba(140,190,255,.18)");
+  bg.addColorStop(1, "rgba(150,200,255,.42)");
+  g.fillStyle = bg;
+  g.beginPath(); g.arc(b.x, b.y, r, 0, Math.PI*2); g.fill();
+  g.strokeStyle = "rgba(210,235,255,.8)"; g.lineWidth = 1;
+  g.beginPath(); g.arc(b.x, b.y, r, 0, Math.PI*2); g.stroke();
+  g.fillStyle = "rgba(255,255,255,.85)";
+  g.beginPath(); g.ellipse(b.x - r*0.38, b.y - r*0.42, r*0.22, r*0.13, -0.6, 0, Math.PI*2); g.fill();
+  g.restore();
+}
+
+function drawPlayers() {
+  for (const p of game.players) {
+    if (p.out) continue;
+    if (p.dying > 0) {
+      g.save();
+      g.translate(p.x + p.w/2, p.y + p.h);
+      g.rotate(p.dying * 0.12);
+      drawKid(g, 0, 0, p.pal, 0, p.facing, true, false);
+      g.restore();
+      continue;
+    }
+    if (p.inv > 0 && (game.timer >> 2) % 2 === 0) continue;
+    drawKid(g, p.x + p.w/2, p.y + p.h, p.pal, p.frame, p.facing, !p.grounded, Math.abs(p.vx) > 0.3);
+  }
+}
+
+function outlineText(t, x, y, color, size, weight) {
+  g.font = (weight || "800") + " " + size + "px 'Avenir Next',Arial";
+  g.lineWidth = Math.max(3, size / 5); g.strokeStyle = "rgba(0,0,20,.5)"; g.lineJoin = "round";
+  g.strokeText(t, x, y); g.fillStyle = color; g.fillText(t, x, y);
+}
+
+function drawHud(box) {
+  g.save();
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.textBaseline = "top";
+  const y = Math.max(8, box.oy - 24);
+  const p1 = game.players[0];
+  g.textAlign = "left";
+  outlineText(p1.pal.name + "  " + "♥".repeat(Math.max(0, p1.lives)), box.ox + 4, y, p1.pal.accent, 14);
+  outlineText(String(p1.score).padStart(6, "0"), box.ox + 4, y + 16, "#fff", 11, "700");
+  if (game.players[1]) {
+    const p2 = game.players[1];
+    g.textAlign = "right";
+    outlineText("♥".repeat(Math.max(0, p2.lives)) + "  " + p2.pal.name, box.ox + AW * box.s - 4, y, p2.pal.accent, 14);
+    outlineText(String(p2.score).padStart(6, "0"), box.ox + AW * box.s - 4, y + 16, "#fff", 11, "700");
+  }
+  g.textAlign = "center";
+  outlineText("ROUND " + (game.levelNum + 1), W / 2, y, "#ffd166", 14);
+  if (game.hurry && (game.timer >> 4) % 2 === 0)
+    outlineText("HURRY UP!", W / 2, y + 18, "#ff5e7e", 13);
+  g.restore();
+}
+
+function centerCard(lines) {
+  g.save();
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.fillStyle = "rgba(4,6,24,.55)"; g.fillRect(0, 0, W, H);
+  g.textAlign = "center"; g.textBaseline = "middle";
+  let y = H/2 - (lines.length - 1) * 24;
+  for (const [txt, size, col] of lines) {
+    outlineText(txt, W/2, y, col, size);
+    y += size + 20;
+  }
+  g.restore();
+}
+
+function drawTitle() {
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const grad = g.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "#141a44"); grad.addColorStop(1, "#2c4086");
+  g.fillStyle = grad; g.fillRect(0, 0, W, H);
+  // rising bubbles
+  for (let i = 0; i < 22; i++) {
+    const bx = ((i * 89.3) + Math.sin(game.timer * 0.008 + i) * 16) % W;
+    const by = H - ((game.timer * (0.3 + (i % 5) * 0.12) + i * 97) % (H + 60));
+    const r = 3 + (i % 5) * 2.5;
+    g.strokeStyle = "rgba(150,200,255," + (0.1 + (i % 3) * 0.08) + ")";
+    g.lineWidth = 1.2;
+    g.beginPath(); g.arc(bx, by, r, 0, Math.PI*2); g.stroke();
+    g.fillStyle = "rgba(255,255,255,.12)";
+    g.beginPath(); g.ellipse(bx - r*0.35, by - r*0.4, r*0.25, r*0.15, -0.6, 0, Math.PI*2); g.fill();
+  }
+  g.textAlign = "center"; g.textBaseline = "middle";
+  const big = Math.min(W/8, H * 0.1, 58);
+  outlineText("BUBBLE", W/2, H*0.11, "#7fd4ff", big);
+  outlineText("TROUBLE", W/2, H*0.11 + big + 4, "#ff9cc0", big);
+  outlineText("starring Jules & Nora", W/2, H*0.11 + big*2 + 12, "#fff", Math.min(W/24, 17), "700");
+
+  game.titleHits = [];
+  const cw = Math.min(W * 0.3, 150, H * 0.34), ch = cw * 1.1;
+  const cy = H * 0.52;
+  ["jules", "nora"].forEach((k, i) => {
+    const cxp = W/2 + (i === 0 ? -1 : 1) * (cw/2 + 12);
+    const sx = cxp - cw/2, sy = cy - ch/2;
+    const bounce = Math.sin(game.timer * 0.08 + i * 2) * 4;
+    g.fillStyle = "rgba(255,255,255,.94)";
+    rrPath(g, sx, sy, cw, ch, 14); g.fill();
+    g.lineWidth = 4; g.strokeStyle = i === 0 ? "#f59cc4" : "#4fbfa2";
+    rrPath(g, sx, sy, cw, ch, 14); g.stroke();
+    g.save();
+    g.translate(cxp, sy + ch * 0.6 + bounce);
+    const ks = cw / 46;
+    g.scale(ks, ks);
+    drawKid(g, 0, 0, CHARS[k], Math.floor(game.timer/20) % 2, 1, false, true);
+    g.restore();
+    outlineText("1P  " + CHARS[k].name, cxp, sy + ch - cw/8, i === 0 ? "#e074a8" : "#2f9e7e", cw/7.5);
+    game.titleHits.push({ x: sx, y: sy, w: cw, h: ch, mode: 1, char: k });
+  });
+  // 2-player button
+  const bw = Math.min(W * 0.62, 320), bh = 54;
+  const bx = W/2 - bw/2, by = cy + ch/2 + 24;
+  const pulse = 1 + Math.sin(game.timer * 0.07) * 0.02;
+  g.save();
+  g.translate(W/2, by + bh/2); g.scale(pulse, pulse); g.translate(-W/2, -(by + bh/2));
+  g.fillStyle = "#ffd166";
+  rrPath(g, bx, by, bw, bh, 16); g.fill();
+  g.lineWidth = 4; g.strokeStyle = "#b8862c";
+  rrPath(g, bx, by, bw, bh, 16); g.stroke();
+  g.fillStyle = "#5a3c10"; g.font = "900 " + Math.min(bw/11, 24) + "px 'Avenir Next',Arial";
+  g.fillText("▶ 2 PLAYERS ◀", W/2, by + bh/2);
+  g.restore();
+  game.titleHits.push({ x: bx, y: by, w: bw, h: bh, mode: 2 });
+
+  outlineText(COARSE ? "tap a card to play solo" : "P1: WASD + F to bubble      P2: arrows + L to bubble",
+              W/2, by + bh + 28, "#cfe2ff", Math.min(W/30, 14), "700");
+  outlineText("trap the grumps in bubbles, then pop them!", W/2, by + bh + 50, "#8fb0e8", Math.min(W/32, 12), "600");
+  outlineText("made with ♥ for Jules & Nora", W/2, H - 14, "#ffd7e6", 12, "600");
+}
+
+function drawWin() {
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const grad = g.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "#2b3a8f"); grad.addColorStop(1, "#7d6ad9");
+  g.fillStyle = grad; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 40; i++) {
+    const sx = (i * 97.3) % W, sy = (i * 53.7) % (H*0.55);
+    const tw = Math.sin(game.timer * 0.07 + i) * 0.5 + 0.5;
+    g.fillStyle = "rgba(255,255,240," + (0.3 + tw*0.7) + ")";
+    g.fillRect(sx, sy, 2.5, 2.5);
+  }
+  g.textAlign = "center"; g.textBaseline = "middle";
+  outlineText("YOU WIN!", W/2, H*0.2, "#ffd166", Math.min(W/8, 54));
+  outlineText("all the grumps are bubbled!", W/2, H*0.3, "#fff", Math.min(W/22, 20), "700");
+  const ks = Math.min(W, H) / 115;
+  [["jules", -1], ["nora", 1]].forEach(([k, side]) => {
+    g.save();
+    const hop = Math.abs(Math.sin(game.timer * 0.1 + (side+1))) * 14;
+    g.translate(W/2 + side * Math.min(W*0.16, 90), H*0.6 - hop);
+    g.scale(ks, ks);
+    drawKid(g, 0, 0, CHARS[k], 0, -side, true, false);
+    g.restore();
+  });
+  let scoreLine = game.players.map(p => p.pal.name + " " + p.score).join("    ");
+  outlineText(scoreLine, W/2, H*0.76, "#fff", Math.min(W/18, 24));
+  if (game.timer > 90 && Math.floor(game.timer/30) % 2 === 0)
+    outlineText("tap to play again", W/2, H*0.86, "#aee0ff", Math.min(W/24, 17), "700");
+}
+
+function draw() {
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = "#101430"; g.fillRect(0, 0, W, H);
+
+  if (game.state === "title") { drawTitle(); return; }
+  if (game.state === "win")   { drawWin(); return; }
+
+  const box = arenaBox();
+  g.setTransform(DPR * box.s, 0, 0, DPR * box.s, box.ox * DPR, box.oy * DPR);
+  drawArenaBackground();
+  drawTiles();
+
+  for (const f of game.fruits) {
+    g.font = "13px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(f.icon, f.x + f.w/2, f.y + f.h/2 + 1);
+  }
+  for (const e of game.enemies) {
+    if (e.dead || e.trapped) continue;
+    drawGrump(g, e.x + e.w/2, e.y + e.h, e.frame, e.angry);
+  }
+  drawPlayers();
+  for (const b of game.bubbles) drawBubble(b);
+  for (const pt of game.particles) {
+    g.globalAlpha = Math.max(0, 1 - pt.t / 40);
+    g.fillStyle = pt.c; g.fillRect(pt.x - 1.5, pt.y - 1.5, 3, 3);
+    g.globalAlpha = 1;
+  }
+  for (const pp of game.popups) {
+    g.globalAlpha = Math.max(0, 1 - pp.t / 50);
+    g.font = "800 9px 'Avenir Next',Arial"; g.textAlign = "center";
+    g.fillStyle = "#fff"; g.fillText(pp.txt, pp.x, pp.y - pp.t * 0.5);
+    g.globalAlpha = 1;
+  }
+  // arena frame
+  g.strokeStyle = "rgba(140,180,255,.35)"; g.lineWidth = 2;
+  g.strokeRect(-1, -1, AW + 2, AH + 2);
+
+  drawHud(box);
+
+  if (game.state === "clear") centerCard([
+    ["ROUND CLEAR!", Math.min(W/10, 42), "#ffd166"],
+    [game.levelNum + 1 < LEVELS.length ? "here comes round " + (game.levelNum + 2) + "..." : "one more surprise...", Math.min(W/24, 17), "#fff"],
+  ]);
+  if (game.state === "gameover") centerCard([
+    ["GAME OVER", Math.min(W/9, 46), "#ff5e7e"],
+    ["tap to try again", Math.min(W/24, 17), "#fff"],
+  ]);
+}
+
+/* ============================== MAIN LOOP ============================== */
+let last = performance.now(), acc = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  acc += Math.min(now - last, 100); last = now;
+  const STEP = 1000 / 60;
+  let steps = 0;
+  while (acc >= STEP && steps < 5) { update(); acc -= STEP; steps++; }
+  if (steps === 5) acc = 0;
+  draw();
+}
+goTitle();
+requestAnimationFrame(frame);
+window.__g = { game, startGame, loadLevel, update, draw, keys, touch };   // debug handle
+</script>
+</body>
+</html>
