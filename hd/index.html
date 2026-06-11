@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Super Jules &amp; Nora HD</title>
+<title>Super Young Sisters HD</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   #game, .btn, #verlink, #verlink a { touch-action:none; }
@@ -383,9 +383,97 @@ function drawGrump(ctx, x, y, frame, squashT) {
   ctx.restore();
 }
 
+
+function drawBowser(ctx, B) {
+  ctx.save();
+  ctx.translate(B.x + B.w/2, B.y + B.h);
+  if (B.dead) ctx.scale(1, -1);
+  if ((B.facing || -1) < 0) ctx.scale(-1, 1);
+  const flash = !B.dead && B.stun > 0 && (B.stun >> 2) % 2 === 0;
+  ctx.fillStyle = "#c9a23c";
+  rrPath(ctx, -12, -7, 8, 7, 2.5); ctx.fill();
+  rrPath(ctx, 4, -7, 8, 7, 2.5); ctx.fill();
+  const sg = ctx.createRadialGradient(-5, -20, 2, -3, -16, 15);
+  sg.addColorStop(0, flash ? "#c8ffc8" : "#6cc873");
+  sg.addColorStop(1, flash ? "#7ed084" : "#2c7a36");
+  ctx.fillStyle = sg;
+  ctx.beginPath(); ctx.ellipse(-3, -16, 11.5, 10.5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#f3eedd";
+  for (const [px, py] of [[-11.5, -24], [-5, -26.5], [1.5, -24]]) {
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + 2.4, py - 4.5); ctx.lineTo(px + 4.8, py);
+    ctx.closePath(); ctx.fill();
+  }
+  const bg2 = ctx.createLinearGradient(0, -20, 0, -2);
+  bg2.addColorStop(0, "#f5e2b2"); bg2.addColorStop(1, "#d8b87e");
+  ctx.fillStyle = bg2;
+  ctx.beginPath(); ctx.ellipse(5, -11, 7, 9, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = flash ? "#c8ffc8" : "#8fce58";
+  ctx.beginPath(); ctx.ellipse(9, -26, 7, 6, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#e8632c";
+  ctx.beginPath(); ctx.ellipse(6, -31.5, 4.5, 2.5, -0.3, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#f3eedd";
+  ctx.beginPath(); ctx.moveTo(3, -29); ctx.lineTo(2, -34.5); ctx.lineTo(6.5, -31); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(14, -30); ctx.lineTo(16.5, -34.5); ctx.lineTo(17, -29.5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.ellipse(11.5, -27.5, 1.8, 2.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#c81e1e";
+  ctx.beginPath(); ctx.arc(12, -27, 1, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "#5a2c10"; ctx.lineWidth = 1.1; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(9, -30.5); ctx.lineTo(13.5, -29.2); ctx.stroke();
+  ctx.fillStyle = "#cfe0a8";
+  rrPath(ctx, 12, -25, 6.5, 5, 2); ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(13.5, -21.5, 4, 1.4);
+  ctx.restore();
+}
+
+function drawFlame(ctx, fl) {
+  const cx = fl.x + fl.w/2, cy = fl.y + fl.h/2;
+  const fg2 = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 9);
+  fg2.addColorStop(0, "#fff3c0"); fg2.addColorStop(0.5, "#ffb03c"); fg2.addColorStop(1, "rgba(232,90,32,0)");
+  ctx.fillStyle = fg2;
+  ctx.beginPath(); ctx.ellipse(cx, cy, 9, 5.5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#ff8a3c";
+  ctx.beginPath(); ctx.ellipse(cx, cy, 5, 2.6, 0, 0, Math.PI*2); ctx.fill();
+}
+
+function drawPug(ctx, cx, feetY) {
+  ctx.save(); ctx.translate(cx, feetY);
+  const bg3 = ctx.createLinearGradient(0, -9, 0, 0);
+  bg3.addColorStop(0, "#e3c08c"); bg3.addColorStop(1, "#c3a06a");
+  ctx.fillStyle = bg3;
+  ctx.beginPath(); ctx.ellipse(0, -4.6, 6, 4.4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "#c3a06a"; ctx.lineWidth = 1.8; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(5.4, -8, 2, 0.4, Math.PI * 1.5); ctx.stroke();
+  ctx.fillStyle = "#c3a06a";
+  for (const lx of [-4.4, -1.4, 1.6, 4]) ctx.fillRect(lx, -2, 1.8, 2);
+  ctx.fillStyle = "#e3c08c";
+  ctx.beginPath(); ctx.ellipse(-5.6, -8.4, 4.4, 4.2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#4a3828";
+  ctx.beginPath(); ctx.ellipse(-6.4, -6.6, 2.6, 2.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#241a12";
+  ctx.beginPath(); ctx.arc(-7.6, -7, 0.7, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#3a2a1c";
+  ctx.beginPath(); ctx.ellipse(-8.4, -11.6, 1.6, 2, 0.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-2.6, -11.8, 1.6, 2, -0.4, 0, Math.PI*2); ctx.fill();
+  for (const ex of [-7.8, -4.2]) {
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(ex, -9.2, 1.25, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#241a12";
+    ctx.beginPath(); ctx.arc(ex + 0.2, -9, 0.85, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    ctx.beginPath(); ctx.arc(ex - 0.2, -9.5, 0.3, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = "#e8748c";
+  rrPath(ctx, -7.2, -5.2, 1.8, 2.4, 0.9); ctx.fill();
+  ctx.fillStyle = "#ff5e7e";
+  ctx.fillRect(-8.8, -5, 6.4, 1.4);
+  ctx.restore();
+}
+
 /* ============================== LEVELS ============================== */
 function makeLevel(num) {
-  const widths = [150, 170];
+  const widths = [150, 170, 170, 140];
   const Wd = widths[num] || 150;
   const grid = Array.from({length: ROWS}, () => Array(Wd).fill(" "));
   const enemies = [];
@@ -399,9 +487,9 @@ function makeLevel(num) {
   const coins  = (x, y, n) => { for (let i=0;i<n;i++) coin(x+i, y); };
   const pipe   = (x, h) => { for (let yy=13-h; yy<13; yy++){ const c = yy===13-h ? "T":"P"; setT(x,yy,c); setT(x+1,yy,c); } };
   const stair  = (x, h, dir) => { for (let s=0;s<h;s++){ const cx = x + (dir<0 ? -s : s); for (let yy=12; yy>12-(s+1); yy--) stone(cx, yy); } };
-  const enemy  = x => enemies.push({ x:x*TILE, y:11*TILE, w:12, h:12, vx:-0.5, vy:0, dead:0, active:false, frame:0 });
+  const enemy  = (x, ty = 11) => enemies.push({ x:x*TILE, y:ty*TILE, w:12, h:12, vx:-0.5, vy:0, dead:0, active:false, frame:0 });
 
-  let flagX;
+  let flagX = null, boss = null, cageX = null;
   if (num === 0) {
     ground(0, 45);
     mb(12,9); brick(13,9); qb(14,9); coins(12,5,3);
@@ -424,7 +512,7 @@ function makeLevel(num) {
     qb(118,9);
     stair(126, 5, 1);
     flagX = 138;
-  } else {
+  } else if (num === 1) {
     ground(0, 30);
     qb(10,9); mb(12,9); coins(10,5,3);
     enemy(15); enemy(22);
@@ -451,10 +539,53 @@ function makeLevel(num) {
     enemy(146); enemy(150);
     stair(150, 6, 1);
     flagX = 160;
+  } else if (num === 2) {                    // 1-3: night-sky athletic
+    ground(0, 15);
+    enemy(8);
+    stone(18,10); stone(19,10); stone(20,10); stone(21,10); coins(18,7,4);
+    stone(24,8); stone(25,8); stone(26,8);
+    stone(30,10); stone(31,10); stone(32,10); stone(33,10); enemy(31, 8);
+    ground(36, 48); enemy(40); stair(44, 3, 1);
+    stone(51,10); stone(52,10); stone(53,10); stone(54,10); coins(51,7,4);
+    stone(57,7); stone(58,7); stone(59,7);
+    ground(63, 75); enemy(68); enemy(72);
+    stone(78,9); stone(79,9); stone(80,9);
+    stone(83,11); stone(84,11); stone(85,11);
+    stone(88,8); stone(89,8); stone(90,8); stone(91,8); coins(88,5,4);
+    ground(95, 110); enemy(100); enemy(104); stair(106, 4, 1);
+    ground(114, 135);
+    brick(118,9); brick(119,9); mb(120,9); brick(121,9); brick(122,9);
+    coins(118,5,5);
+    enemy(126); enemy(130); enemy(131);
+    stone(139,10); stone(140,10); stone(141,10);
+    ground(144, Wd-1); stair(154, 5, 1);
+    flagX = 164;
+  } else {                                   // 1-4: Bowser's castle — save Peach the pug!
+    const cground = (a, b) => { for (let x=a; x<=b; x++){ stone(x,13); stone(x,14); } };
+    for (let x = 0; x < 133; x++) brick(x, 1);          // castle ceiling
+    cground(0, 15);
+    enemy(10);
+    stone(17,11);                                       // stepping stones over the lava
+    cground(19, 28); mb(24,9);
+    stone(30,11);
+    cground(32, 45); stone(36,2); stone(36,3); enemy(40);
+    stone(47,11);
+    cground(49, 62); stone(52,2); stone(52,3); enemy(56); enemy(58);
+    stone(64,11);
+    cground(66, 96);
+    brick(72,9); brick(73,9); brick(74,9); coins(72,6,3);
+    enemy(78); enemy(84);
+    stone(88,2); stone(88,3);
+    cground(97, Wd-1);                                  // Bowser's bridge and the cage
+    coins(100,8,3);
+    boss = { x: 112 * TILE };
+    cageX = 126;
+    for (let x = 133; x < Wd; x++) for (let y = 2; y <= 12; y++) stone(x, y);
   }
-  return { grid, width: Wd, enemies, flagX, name: "1-" + (num+1) };
+  return { grid, width: Wd, enemies, flagX, name: "1-" + (num+1), boss, cageX,
+           theme: num === 2 ? "night" : num === 3 ? "castle" : "day" };
 }
-const LEVEL_COUNT = 2;
+const LEVEL_COUNT = 4;
 
 /* ============================== GAME STATE ============================== */
 const game = {
@@ -462,7 +593,8 @@ const game = {
   levelNum: 0, level: null,
   score: 0, coins: 0, lives: 3,
   timer: 0, camX: 0,
-  particles: [], pops: [], powerups: [], fireballs: [],
+  particles: [], pops: [], powerups: [], fireballs: [], bossFlames: [],
+  boss: null, pug: null, rescued: false,
   titleCards: [],
 };
 const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
@@ -478,14 +610,22 @@ function startLevel(n) {
   player.vx = 0; player.vy = 0; player.facing = 1; player.grounded = false;
   player.inv = 0; player.runCharge = 0;
   game.camX = 0; game.particles = []; game.pops = []; game.timer = 0;
-  game.powerups = []; game.fireballs = [];
+  game.powerups = []; game.fireballs = []; game.bossFlames = [];
+  game.rescued = false;
+  game.boss = null; game.pug = null;
+  if (game.level.boss) {
+    game.boss = { x: game.level.boss.x, baseX: game.level.boss.x, y: 13*TILE - 28,
+                  w: 26, h: 28, vx: -0.3, vy: 0, facing: -1,
+                  hp: 3, stun: 0, fireT: 130, hopT: 110, dead: false, deadT: 0, active: false };
+    game.pug = { x: game.level.cageX * TILE + 8, free: false, hopT: 0 };
+  }
   game.state = "play";
   document.getElementById("verlink").style.display = "none";
   showButtons(true);
 }
 function goTitle() {
   game.state = "title"; game.score = 0; game.coins = 0; game.lives = 3; game.timer = 0;
-  player.power = 0;
+  player.power = 0; game.rescued = false;
   unfadeButtons();
   document.getElementById("verlink").style.display = "block";
   showButtons(false);
@@ -566,6 +706,13 @@ function applyDamage() {
   } else {
     killPlayer();
   }
+}
+
+function bossHit() {
+  const B = game.boss;
+  B.hp--; B.stun = 50; SFX.stomp();
+  game.score += 500;
+  if (B.hp <= 0) { B.dead = true; B.deadT = 0; B.vy = -4.5; game.score += 5000; SFX.clear(); }
 }
 
 function collectCoins() {
@@ -735,8 +882,73 @@ function updatePlay() {
   }
   L.enemies = L.enemies.filter(e => e.dead < 26 || !e.active);
 
+  // --- Bowser (castle boss) ---
+  const B = game.boss;
+  if (B && !B.dead) {
+    if (!B.active && B.x < game.camX + VIEW_W + 60) B.active = true;
+    if (B.active) {
+      if (B.stun > 0) B.stun--;
+      B.facing = player.x + player.w/2 < B.x + B.w/2 ? -1 : 1;
+      B.x += B.vx;
+      if (B.x < B.baseX - 30 || B.x > B.baseX + 30) B.vx = -B.vx;
+      B.vy = Math.min(B.vy + 0.3, 5);
+      B.y += B.vy;
+      const floorY = 13*TILE - B.h;
+      if (B.y >= floorY) { B.y = floorY; B.vy = 0; }
+      if (--B.hopT <= 0) { B.hopT = 130 + (game.timer % 70); B.vy = -3.4; }
+      if (--B.fireT <= 0) {
+        B.fireT = 150;
+        game.bossFlames.push({ x: B.x + (B.facing > 0 ? B.w + 2 : -14), y: B.y + 7,
+                               w: 12, h: 6, vx: 1.5 * B.facing });
+        SFX.brick();
+      }
+      for (const f of game.fireballs) {
+        if (!f.gone && B.stun === 0 && f.x < B.x + B.w && f.x + f.w > B.x &&
+            f.y < B.y + B.h && f.y + f.h > B.y) { f.gone = true; bossHit(); }
+      }
+      if (player.x < B.x + B.w && player.x + player.w > B.x &&
+          player.y < B.y + B.h && player.y + player.h > B.y) {
+        const feet = player.y + player.h;
+        if (player.vy > 0.4 && feet - B.y < 14) {
+          const t = jumpTier(player.vx);
+          player.vy = t.v; player.jg = t;       // bounce off his head
+          if (B.stun === 0) bossHit();
+        } else if (B.stun < 30) {
+          applyDamage();
+          if (game.state !== "play") return;
+        }
+      }
+    }
+  } else if (B && B.dead && B.y < LEVEL_H + 80) {
+    B.deadT++; B.vy = Math.min(B.vy + 0.25, 6); B.y += B.vy;
+  }
+  for (const fl of game.bossFlames) {
+    fl.x += fl.vx;
+    if (fl.x < game.camX - 30 || fl.x > game.camX + VIEW_W + 30) fl.gone = true;
+    else if (player.inv === 0 &&
+        player.x < fl.x + fl.w && player.x + player.w > fl.x &&
+        player.y < fl.y + fl.h && player.y + player.h > fl.y) {
+      fl.gone = true;
+      applyDamage();
+      if (game.state !== "play") return;
+    }
+  }
+  game.bossFlames = game.bossFlames.filter(fl => !fl.gone);
+
+  // --- Peach the pug, waiting in her cage ---
+  if (game.pug) {
+    if (!game.pug.free && game.boss.dead && game.boss.deadT > 40) { game.pug.free = true; SFX.sprout(); }
+    if (game.pug.free) {
+      game.pug.hopT++;
+      if (Math.abs(player.x + player.w/2 - game.pug.x) < 14 && player.y + player.h > 11*TILE) {
+        game.state = "clear"; game.timer = 0; game.rescued = true; game.score += 5000;
+        SFX.clear(); spawnConfetti(game.pug.x, 100); showButtons(false);
+      }
+    }
+  }
+
   // flag
-  if (player.x + player.w/2 >= L.flagX * TILE) {
+  if (L.flagX && player.x + player.w/2 >= L.flagX * TILE) {
     game.state = "clear"; game.timer = 0; game.score += 1000; SFX.clear();
     spawnConfetti(L.flagX * TILE, 80);
     showButtons(false);
@@ -951,6 +1163,39 @@ function bgLayer(camX, p, period, fn) {
 }
 
 function drawBackground(camX) {
+  const theme = game.level.theme || "day";
+  if (theme === "castle") {
+    const cgr = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
+    cgr.addColorStop(0, "#140a10"); cgr.addColorStop(1, "#43161c");
+    g.fillStyle = cgr;
+    g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
+    return;
+  }
+  if (theme === "night") {
+    const ngr = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
+    ngr.addColorStop(0, "#0e1638"); ngr.addColorStop(1, "#33437e");
+    g.fillStyle = ngr;
+    g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
+    for (let i = 0; i < 50; i++) {
+      const sx = camX + ((i * 89.7) % VIEW_W), sy = (i * 47.3) % 170;
+      const tw = Math.sin(game.timer * 0.05 + i) * 0.5 + 0.5;
+      g.fillStyle = "rgba(255,255,235," + (0.25 + tw * 0.6) + ")";
+      g.fillRect(sx, sy, 1.6, 1.6);
+    }
+    const mx = camX + VIEW_W * 0.8;
+    g.fillStyle = "#f2ecd8";
+    g.beginPath(); g.arc(mx, 36, 11, 0, Math.PI*2); g.fill();
+    g.fillStyle = "#0e1638";
+    g.beginPath(); g.arc(mx + 5, 33, 9, 0, Math.PI*2); g.fill();
+    const hx2 = -((camX * 0.4) % 220);
+    g.fillStyle = "#1c3a4e";
+    for (let i = -1; i < VIEW_W / 220 + 2; i++) {
+      const bx = camX + hx2 + i * 220;
+      g.beginPath(); g.arc(bx + 60, 208, 44, Math.PI, 0); g.fill();
+      g.beginPath(); g.arc(bx + 170, 208, 26, Math.PI, 0); g.fill();
+    }
+    return;
+  }
   // atmospheric sky
   const grad = g.createLinearGradient(0, -VIEW_H, 0, 208);
   grad.addColorStop(0, "#4f8fd4"); grad.addColorStop(0.55, "#8cbce8"); grad.addColorStop(1, "#e4f1f7");
@@ -1052,6 +1297,36 @@ function softShadow(cx, feetY, w) {
   g.beginPath(); g.ellipse(cx, feetY + 0.8, w, 1.7, 0, 0, Math.PI*2); g.fill();
 }
 
+function drawLava(tx0, tx1) {
+  const t = game.timer;
+  for (let tx = tx0; tx <= tx1; tx++) {
+    if (tileAt(tx, 13) !== " " || tileAt(tx, 14) !== " ") continue;
+    const x = tx * TILE;
+    const fl = Math.sin(t * 0.08 + tx * 1.7) * 2;
+    g.fillStyle = "#e84a1a";
+    g.fillRect(x, LEVEL_H - 8 + fl * 0.3, TILE, 12);
+    g.fillStyle = "#ffb02a";
+    g.fillRect(x + 2, LEVEL_H - 9 + fl * 0.5, 4, 3);
+    g.fillRect(x + 9, LEVEL_H - 8 - fl * 0.5, 4, 3);
+  }
+}
+
+function drawCagePug() {
+  const p = game.pug, gy = 13 * TILE;
+  const hop = p.free ? -Math.abs(Math.sin(p.hopT * 0.15)) * 6 : 0;
+  drawPug(g, p.x, gy + hop);
+  if (!p.free) {
+    g.fillStyle = "#caa23c";
+    g.fillRect(p.x - 13, gy - 30, 26, 3);
+    g.fillRect(p.x - 13, gy - 2, 26, 2);
+    for (let i = 0; i <= 5; i++) g.fillRect(p.x - 13 + i * 4.8, gy - 28, 1.8, 26);
+  } else if ((game.timer >> 3) % 2 === 0) {
+    g.fillStyle = "#ff5e7e";
+    g.font = "bold 9px monospace"; g.textAlign = "center"; g.textBaseline = "alphabetic";
+    g.fillText("\u2665", p.x, gy - 24 + Math.sin(game.timer * 0.1) * 2);
+  }
+}
+
 function drawWorld() {
   const L = game.level, camX = game.camX;
   drawBackground(camX);
@@ -1064,7 +1339,8 @@ function drawWorld() {
       const c = L.grid[ty][tx];
       if (c !== " ") drawTile(c, tx, ty);
     }
-  drawFlag(L.flagX);
+  if (L.theme === "castle") drawLava(tx0, tx1);
+  if (L.flagX) drawFlag(L.flagX);
 
   for (const p of game.powerups) if (p.rise <= 0) {
     if (p.type === "mushroom") softShadow(p.x + p.w/2, p.y + p.h, 6);
@@ -1077,6 +1353,10 @@ function drawWorld() {
     if (e.grounded) softShadow(e.x + e.w/2, e.y + e.h, 6.5);
     drawGrump(g, e.x + e.w/2, e.y + e.h, e.frame, e.dead);
   }
+
+  if (game.pug) drawCagePug();
+  if (game.boss && game.boss.y < LEVEL_H + 60) drawBowser(g, game.boss);
+  for (const fl of game.bossFlames) drawFlame(g, fl);
 
   // coin pops
   for (const c of game.pops) {
@@ -1164,7 +1444,7 @@ function drawTitle() {
   const ty1 = H * 0.10;
   g.font = "900 " + big + "px 'Avenir Next',Arial";
   outlineText("SUPER", W/2, ty1, "#ffd166");
-  outlineText("JULES & NORA", W/2, ty1 + big + 6, "#ff5e7e");
+  outlineText("YOUNG SISTERS", W/2, ty1 + big + 6, "#ff5e7e");
   g.font = "800 " + Math.min(W/24, 18) + "px 'Avenir Next',Arial";
   outlineText("✦ HD EDITION ✦", W/2, ty1 + big*1.72 + 12, "#bfe2ff");
   if (H > W * 0.9) {
@@ -1226,7 +1506,7 @@ function drawWinScreen() {
   g.font = "900 " + Math.min(W/8, 56) + "px 'Avenir Next',Arial";
   outlineText("YOU WIN!", W/2, H*0.22, "#ffd166");
   g.font = "700 " + Math.min(W/20, 22) + "px 'Avenir Next',Arial";
-  outlineText("Jules & Nora save the day!", W/2, H*0.32, "#fff");
+  outlineText("Jules & Nora saved Peach the pug!", W/2, H*0.32, "#fff");
 
   // both kids celebrating
   const ks = Math.min(W, H) / 110;
@@ -1238,6 +1518,14 @@ function drawWinScreen() {
     drawKid(g, 0, 0, CHARS[k], 0, -side, true, false);
     g.restore();
   });
+
+  // Peach the pug, safe at last
+  g.save();
+  const pugHop = Math.abs(Math.sin(game.timer * 0.12)) * 10;
+  g.translate(W/2, H*0.62 - pugHop);
+  g.scale(ks * 0.9, ks * 0.9);
+  drawPug(g, 0, 0);
+  g.restore();
 
   g.font = "800 " + Math.min(W/16, 26) + "px 'Avenir Next',Arial";
   outlineText("SCORE " + game.score + "   ●×" + game.coins, W/2, H*0.76, "#fff");
@@ -1290,7 +1578,10 @@ function draw() {
     ["GAME OVER", Math.min(W/9, 48), "#ff5e7e"],
     ["tap to try again", Math.min(W/24, 18), "#fff"],
   ]);
-  if (game.state === "clear") centerCard([
+  if (game.state === "clear") centerCard(game.rescued ? [
+    ["PEACH IS SAFE! \ud83d\udc36", Math.min(W/10, 40), "#ffd166"],
+    ["you rescued the pug princess!", Math.min(W/24, 18), "#fff"],
+  ] : [
     ["LEVEL CLEAR!", Math.min(W/10, 44), "#ffd166"],
     [(game.levelNum + 1 < LEVEL_COUNT ? "get ready for " + (game.levelNum+2) + "..." : "one more surprise..."), Math.min(W/24, 18), "#fff"],
   ]);
