@@ -97,6 +97,7 @@ const SFX = {
   grow:  () => [262,330,392,523,659,784].forEach((f,i) => setTimeout(() => tone(f, .08, "square", .10), i*45)),
   shrink:() => [784,523,392,262].forEach((f,i) => setTimeout(() => tone(f, .09, "square", .10), i*70)),
   fire:  () => tone(680, .12, "sawtooth", .08, -420),
+  swim:  () => tone(360, .12, "sine", .10, 240),
 };
 
 /* ============================== INPUT ============================== */
@@ -486,8 +487,9 @@ function drawPug(ctx, cx, feetY) {
 }
 
 /* ============================== LEVELS ============================== */
+function lvName(n) { return "ZONE " + ((n >> 2) + 1) + "-" + (n % 4 + 1); }
 function makeLevel(num) {
-  const widths = [150, 170, 170, 140];
+  const widths = [150, 170, 170, 140, 175, 160, 168, 140];
   const Wd = widths[num] || 150;
   const grid = Array.from({length: ROWS}, () => Array(Wd).fill(" "));
   const enemies = [];
@@ -502,8 +504,12 @@ function makeLevel(num) {
   const pipe   = (x, h) => { for (let yy=13-h; yy<13; yy++){ const c = yy===13-h ? "T":"P"; setT(x,yy,c); setT(x+1,yy,c); } };
   const stair  = (x, h, dir) => { for (let s=0;s<h;s++){ const cx = x + (dir<0 ? -s : s); for (let yy=12; yy>12-(s+1); yy--) stone(cx, yy); } };
   const enemy  = (x, ty = 11) => enemies.push({ x:x*TILE, y:ty*TILE, w:12, h:12, vx:-0.5, vy:0, dead:0, active:false, frame:0 });
+  const fishE  = (x, ty) => enemies.push({ x:x*TILE, y:ty*TILE, w:14, h:10, vx:-0.45, vy:0, dead:0, active:false, frame:0, fish:true, ph: x % 9 });
+  const leaper = (x) => enemies.push({ x:x*TILE, homeX:x*TILE, y:LEVEL_H+30, w:14, h:11, vx:0, vy:0, dead:0, active:false, frame:0, leap:true, leapT: 30 + (x * 13) % 90 });
+  const firebars = [];
+  const fbar   = (x, y, len) => firebars.push({ cx:x*TILE+8, cy:y*TILE+8, len: len || 4, sp:0.035, ph: x * 0.7 });
 
-  let flagX = null, boss = null, cageX = null;
+  let flagX = null, boss = null, cageX = null, bossHp = 3;
   if (num === 0) {
     ground(0, 45);
     mb(12,9); brick(13,9); qb(14,9); coins(12,5,3);
@@ -574,7 +580,7 @@ function makeLevel(num) {
     stone(139,10); stone(140,10); stone(141,10);
     ground(144, Wd-1); stair(154, 5, 1);
     flagX = 164;
-  } else {                                   // the castle — save Peach the pug!
+  } else if (num === 3) {                    // 1-4: the castle — save Peach the pug!
     const cground = (a, b) => { for (let x=a; x<=b; x++){ stone(x,13); stone(x,14); } };
     for (let x = 0; x < 133; x++) brick(x, 1);          // castle ceiling
     cground(0, 15);
@@ -595,11 +601,112 @@ function makeLevel(num) {
     boss = { x: 112 * TILE };
     cageX = 126;
     for (let x = 133; x < Wd; x++) for (let y = 2; y <= 12; y++) stone(x, y);
+  } else if (num === 4) {                    // 2-1: pipe country (SMB 2-1)
+    ground(0, 41);
+    qb(8,9); brick(9,9); mb(10,9); brick(11,9);
+    coins(8,5,4);
+    enemy(14); enemy(15);
+    pipe(18,2); pipe(23,3); pipe(28,4);
+    enemy(26);
+    coins(31,7,3);
+    pipe(34,4);
+    enemy(39);
+    ground(45, 79);                          // gap 42-44
+    brick(48,9); brick(49,9); qb(50,9); brick(51,9);
+    coins(48,5,4);
+    enemy(54); enemy(55);
+    stair(60, 4, 1);                         // the big wall — over the top!
+    stair(67, 4, -1);
+    enemy(71); enemy(72);
+    pipe(75,2);
+    ground(83, 120);                         // gap 80-82
+    coins(86,8,5);
+    qb(90,9); mb(92,9);
+    stone(96,6); stone(97,6); coins(96,3,2);
+    enemy(100); enemy(104); enemy(105);
+    pipe(108,2); pipe(114,3);
+    enemy(118);
+    ground(124, Wd-1);                       // gap 121-123
+    enemy(128); enemy(132); enemy(133);
+    brick(136,9); qb(137,9); brick(138,9);
+    coins(136,5,3);
+    enemy(144); enemy(148);
+    stair(156, 6, 1);
+    flagX = 166;
+  } else if (num === 5) {                    // 2-2: under the sea (SMB 2-2)
+    ground(0, Wd-1);
+    for (let x = 0; x < Wd; x++) stone(x, 1);          // water ceiling
+    coins(10,10,3);
+    fishE(18, 8);
+    stone(22,12); stone(22,11); stone(22,10);
+    fishE(26, 5);
+    coins(28,6,4);
+    fishE(34,10); fishE(35,6);
+    mb(40,8);
+    stone(46,12); stone(47,12); stone(47,11); stone(48,12); stone(48,11); stone(48,10);
+    fishE(52,7); fishE(56,9);
+    coins(58,4,5);
+    stone(62,2); stone(62,3); stone(63,2);             // stalactites
+    fishE(66,6); fishE(70,8); fishE(71,4);
+    stone(74,12); stone(74,11); stone(74,10); stone(74,9);
+    coins(78,7,4);
+    fishE(82,5); fishE(86,9);
+    stone(90,12); stone(91,12); stone(91,11); stone(92,12);
+    fishE(96,6); fishE(100,10); fishE(101,5);
+    mb(104,7);
+    stone(108,2); stone(108,3); stone(108,4);
+    fishE(112,8); fishE(116,6);
+    coins(114,9,5);
+    for (let y = 2; y <= 7; y++) stone(122, y);        // wall — swim through the gap
+    stone(122,11); stone(122,12);
+    fishE(128,7); fishE(132,9); fishE(133,4);
+    coins(136,6,4);
+    fishE(140,8); fishE(144,6);
+    flagX = 150;
+  } else if (num === 6) {                    // 2-3: leaping-fish bridges (SMB 2-3)
+    const br = (a, b) => { for (let x=a; x<=b; x++) setT(x, 10, "B"); };
+    ground(0, 12);
+    br(12, 27); coins(15,7,4); enemy(19, 8); enemy(25, 8);
+    br(30, 44); coins(33,7,5); enemy(37, 8); enemy(41, 8);
+    br(47, 58); coins(50,6,4); enemy(54, 8);
+    br(62, 78); mb(68,6); enemy(66, 8); enemy(73, 8); coins(74,7,3);
+    br(81, 92); coins(84,7,4); enemy(88, 8);
+    br(96, 112); enemy(100, 8); enemy(106, 8); coins(102,6,5);
+    br(115, 126); coins(118,7,3); enemy(122, 8);
+    br(130, 140);
+    ground(142, Wd-1);
+    enemy(146); enemy(150);
+    [20, 34, 48, 64, 76, 86, 100, 110, 120, 134, 145].forEach(x => leaper(x));
+    stair(154, 5, 1);
+    flagX = 162;
+  } else {                                   // 2-4: Bowser's second castle — save Peach again!
+    const cground = (a, b) => { for (let x=a; x<=b; x++){ stone(x,13); stone(x,14); } };
+    for (let x = 0; x < 133; x++) brick(x, 1);          // castle ceiling
+    cground(0, 10);
+    enemy(7);
+    stone(12,11);
+    cground(14, 26); fbar(20, 10); stone(20,10); mb(24,9);
+    stone(28,10);
+    cground(30, 44); enemy(34); enemy(37); stone(40,2); stone(40,3);
+    stone(46,11); stone(48,9);                          // double hop over the long lava
+    cground(50, 64); fbar(56, 10); stone(56,10); coins(53,6,3); enemy(61);
+    stone(66,11);
+    cground(68, 88);
+    brick(72,9); brick(73,9); brick(74,9); coins(72,6,3);
+    enemy(78); enemy(82);
+    fbar(85, 10); stone(85,10);
+    stone(90,10);
+    cground(92, Wd-1);                                  // Bowser's bridge and the cage
+    coins(96,8,3);
+    boss = { x: 112 * TILE };
+    bossHp = 4;
+    cageX = 126;
+    for (let x = 133; x < Wd; x++) for (let y = 2; y <= 12; y++) stone(x, y);
   }
-  return { grid, width: Wd, enemies, flagX, name: "ZONE " + (num+1), boss, cageX,
-           theme: num === 2 ? "night" : num === 3 ? "castle" : "day" };
+  return { grid, width: Wd, enemies, flagX, name: lvName(num), boss, cageX, firebars, bossHp,
+           theme: ["day","day","night","castle","day","water","bridge","castle"][num] || "day" };
 }
-const LEVEL_COUNT = 4;
+const LEVEL_COUNT = 8;
 
 /* ============================== GAME STATE ============================== */
 const game = {
@@ -621,7 +728,8 @@ function startLevel(n) {
   game.level = makeLevel(n);
   player.h = player.power > 0 ? 24 : 16;
   player.x = 2*TILE;
-  if ((game.level.theme || "day") === "castle") {   // no battle bus inside the castle
+  const th0 = game.level.theme || "day";
+  if (th0 === "castle" || th0 === "water") {   // no battle bus inside the castle or under the sea
     player.y = 13*TILE - player.h; player.gliding = false;
   } else {
     player.y = -70; player.gliding = true;          // drop from the battle bus
@@ -635,7 +743,7 @@ function startLevel(n) {
   if (game.level.boss) {
     game.boss = { x: game.level.boss.x, baseX: game.level.boss.x, y: 13*TILE - 28,
                   w: 26, h: 28, vx: -0.3, vy: 0, facing: -1,
-                  hp: 3, stun: 0, fireT: 130, hopT: 110, dead: false, deadT: 0, active: false };
+                  hp: game.level.bossHp || 3, stun: 0, fireT: 130, hopT: 110, dead: false, deadT: 0, active: false };
     game.pug = { x: game.level.cageX * TILE + 8, free: false, hopT: 0 };
   }
   game.stormX = -110;                         // the storm creeps in from the left
@@ -652,7 +760,7 @@ function goTitle() {
 }
 
 /* ============================== PHYSICS ============================== */
-const SOLID = "#G=?MUSPT";
+const SOLID = "#G=?MUSPTB";
 function tileAt(tx, ty) {
   const L = game.level;
   if (tx < 0 || tx >= L.width) return "#";
@@ -795,21 +903,31 @@ function updatePlay() {
     if (player.vx * s < 0) player.vx = 0;
   }
 
-  // --- jump (buffer + coyote for kid-friendliness) ---
-  if (input.jumpPressed) { player.jumpBuf = 7; input.jumpPressed = false; }
-  if (player.grounded) { player.coyote = 5; player.jg = jumpTier(player.vx); }
-  if (player.jumpBuf > 0 && player.coyote > 0) {
-    const t = jumpTier(player.vx);
-    player.vy = t.v; player.jg = t;
-    player.coyote = 0; player.jumpBuf = 0; SFX.jump();
-  }
-  if (player.jumpBuf > 0) player.jumpBuf--;
-  if (player.coyote > 0) player.coyote--;
+  const swim = game.level.theme === "water";
+  if (swim) {
+    // --- underwater: tap jump to swim up, gentle sinking otherwise ---
+    if (input.jumpPressed) {
+      input.jumpPressed = false;
+      player.vy = -2.7; SFX.swim();
+    }
+    player.vy = Math.min(player.vy + 0.07, 1.3);
+  } else {
+    // --- jump (buffer + coyote for kid-friendliness) ---
+    if (input.jumpPressed) { player.jumpBuf = 7; input.jumpPressed = false; }
+    if (player.grounded) { player.coyote = 5; player.jg = jumpTier(player.vx); }
+    if (player.jumpBuf > 0 && player.coyote > 0) {
+      const t = jumpTier(player.vx);
+      player.vy = t.v; player.jg = t;
+      player.coyote = 0; player.jumpBuf = 0; SFX.jump();
+    }
+    if (player.jumpBuf > 0) player.jumpBuf--;
+    if (player.coyote > 0) player.coyote--;
 
-  // --- gravity: light while rising & holding jump, heavy otherwise (SMB) ---
-  player.vy += (player.vy < 0 && input.jump) ? player.jg.hold : player.jg.fall;
-  player.vy = Math.min(player.vy, MAX_FALL);
-  if (player.gliding && player.vy > 1.6) player.vy = 1.6;   // umbrella drop
+    // --- gravity: light while rising & holding jump, heavy otherwise (SMB) ---
+    player.vy += (player.vy < 0 && input.jump) ? player.jg.hold : player.jg.fall;
+    player.vy = Math.min(player.vy, MAX_FALL);
+    if (player.gliding && player.vy > 1.6) player.vy = 1.6;   // umbrella drop
+  }
 
   player.hitWall = false;
   moveEntity(player, bumpBlock);
@@ -819,6 +937,20 @@ function updatePlay() {
   // --- the storm creeps in from behind ---
   if (game.level.theme !== "castle" && game.timer > 540) game.stormX += 0.32;   // starts after ~9s; paused for the boss
   if (player.x + player.w < game.stormX) applyDamage();     // i-frames make this a gentle nudge
+
+  // --- firebars (castle hazards) ---
+  if (player.inv === 0) for (const fb of (game.level.firebars || [])) {
+    const a = game.timer * fb.sp + fb.ph;
+    for (let i = 1; i <= fb.len; i++) {
+      const px = fb.cx + Math.cos(a) * i * 6, py = fb.cy + Math.sin(a) * i * 6;
+      if (px > player.x - 2 && px < player.x + player.w + 2 &&
+          py > player.y - 2 && py < player.y + player.h + 2) {
+        applyDamage();
+        if (game.state !== "play") return;
+        break;
+      }
+    }
+  }
 
   // --- fireballs ---
   if (input.firePressed) {
@@ -875,13 +1007,36 @@ function updatePlay() {
       if (e.x < game.camX + VIEW_W + 24) e.active = true;
       else continue;
     }
-    if (e.dead > 0) { e.dead++; continue; }
-    e.vy = Math.min(e.vy + 0.4375, MAX_FALL);
-    e.hitWall = false;
-    moveEntity(e);
-    if (e.hitWall) e.vx = -e.vx;
-    e.frame = (Math.floor(game.timer / 14)) % 2;
-    if (e.y > LEVEL_H + 60) { e.dead = 999; continue; }
+    if (e.dead > 0) { e.dead++; if (e.fish || e.leap) { e.y += 2; } continue; }
+    if (e.fish) {                            // swimmer: drifts with a gentle bob
+      e.vy = Math.sin((game.timer + e.ph * 17) * 0.05) * 0.35;
+      e.hitWall = false;
+      moveEntity(e);
+      if (e.hitWall) e.vx = -e.vx;
+      e.frame = (Math.floor(game.timer / 10)) % 2;
+    } else if (e.leap) {                     // leaper: bursts out of the water below
+      if (e.y > LEVEL_H + 20) {
+        e.vy = 0;
+        if (--e.leapT <= 0) {
+          e.leapT = 100 + Math.random() * 80;
+          e.x = e.homeX + (Math.random() * 40 - 20);
+          e.y = LEVEL_H + 18;
+          e.vy = -(4.6 + Math.random() * 1.3);
+          e.vx = (player.x > e.x ? 1 : -1) * (0.3 + Math.random() * 0.4);
+        }
+      } else {
+        e.vy += 0.16;
+        e.x += e.vx; e.y += e.vy;
+      }
+      e.frame = (Math.floor(game.timer / 10)) % 2;
+    } else {
+      e.vy = Math.min(e.vy + 0.4375, MAX_FALL);
+      e.hitWall = false;
+      moveEntity(e);
+      if (e.hitWall) e.vx = -e.vx;
+      e.frame = (Math.floor(game.timer / 14)) % 2;
+      if (e.y > LEVEL_H + 60) { e.dead = 999; continue; }
+    }
 
     // fireball hits
     for (const f of game.fireballs) {
@@ -1157,6 +1312,24 @@ function tileSprite(c) {
       t.beginPath(); t.moveTo(R*0.25, R*0.35); t.lineTo(R*0.45, R*0.55); t.lineTo(R*0.38, R*0.75); t.stroke();
       break;
     }
+    case "B": {                                       // wood build bridge plank
+      // plank deck
+      t.fillStyle = lg(0,6,0,23,[[0,"#c89a5e"],[1,"#96683a"]]);
+      rrPath(t, 0, 6, R, 17, 3); t.fill();
+      t.fillStyle = "rgba(255,255,255,.3)"; t.fillRect(2, 8, R-4, 3);
+      t.fillStyle = "rgba(70,42,14,.7)"; t.fillRect(0, 20, R, 3);
+      // plank seam + build nails
+      t.strokeStyle = "rgba(90,55,20,.6)"; t.lineWidth = 2;
+      t.beginPath(); t.moveTo(R/2, 7); t.lineTo(R/2, 22); t.stroke();
+      t.fillStyle = "rgba(70,42,14,.8)";
+      for (const nx of [8, R-8]) { t.beginPath(); t.arc(nx, 14, 1.8, 0, Math.PI*2); t.fill(); }
+      // metal support struts (match the pillar steel)
+      t.fillStyle = lg(6,0,13,0,[[0,"#aab6cc"],[1,"#3a4254"]]);
+      t.fillRect(6, 23, 7, R-23);
+      t.fillStyle = lg(R-13,0,R-6,0,[[0,"#aab6cc"],[1,"#3a4254"]]);
+      t.fillRect(R-13, 23, 7, R-23);
+      break;
+    }
     case "T": {                                       // metal pillar cap
       const w = R + 4*K;
       t.fillStyle = lg(0,0,0.0001+w,0,[[0,"#3a4254"],[0.22,"#aab6cc"],[0.5,"#6b7790"],[1,"#2c3342"]]);
@@ -1237,6 +1410,26 @@ function drawBackground(camX) {
       const bx = camX + hx2 + i * 220;
       g.beginPath(); g.arc(bx + 60, 208, 44, Math.PI, 0); g.fill();
       g.beginPath(); g.arc(bx + 170, 208, 26, Math.PI, 0); g.fill();
+    }
+    return;
+  }
+  if (theme === "water") {                   // loot lake: deep dusk-lit water
+    const wgr = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
+    wgr.addColorStop(0, "#2c7fd4"); wgr.addColorStop(1, "#101e56");
+    g.fillStyle = wgr;
+    g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
+    // shafts of dusk light filtering down
+    g.fillStyle = "rgba(200,180,255,.07)";
+    for (let i = 0; i < 5; i++) {
+      const lx = camX + ((i * 167.3) % VIEW_W) + Math.sin(game.timer * 0.01 + i) * 6;
+      g.beginPath(); g.moveTo(lx, -8); g.lineTo(lx + 26, -8);
+      g.lineTo(lx + 70, LEVEL_H); g.lineTo(lx + 30, LEVEL_H); g.closePath(); g.fill();
+    }
+    for (let i = 0; i < 24; i++) {           // drifting bubbles
+      const bx = camX + ((i * 73.7) % VIEW_W) + Math.sin(game.timer * 0.03 + i) * 4;
+      const by = LEVEL_H - ((game.timer * 0.35 + i * 61.3) % (LEVEL_H + 30));
+      g.fillStyle = "rgba(220,240,255," + (0.18 + (i % 3) * 0.1) + ")";
+      g.beginPath(); g.arc(bx, by, 1.2 + (i % 3) * 0.7, 0, Math.PI*2); g.fill();
     }
     return;
   }
@@ -1386,6 +1579,61 @@ function drawLava(tx0, tx1) {
   }
 }
 
+function drawWater(tx0, tx1) {
+  const t = game.timer;
+  for (let tx = tx0; tx <= tx1; tx++) {
+    if (tileAt(tx, 13) !== " " || tileAt(tx, 14) !== " ") continue;
+    const x = tx * TILE;
+    const fl = Math.sin(t * 0.06 + tx * 1.3) * 2;
+    g.fillStyle = "#2f6fd4";
+    g.fillRect(x, LEVEL_H - 10 + fl * 0.3, TILE, 14);
+    g.fillStyle = "#7fb5ff";
+    g.fillRect(x + 2, LEVEL_H - 11 + fl * 0.5, 5, 2.5);
+  }
+}
+
+function drawFish(ctx, e) {                          // storm flopper
+  ctx.save();
+  ctx.translate(e.x + e.w/2, e.y + e.h/2);
+  if (e.dead > 0) ctx.scale(1, -1);                  // belly-up when bonked
+  if (e.vx > 0) ctx.scale(-1, 1);                    // art faces left
+  // body with cube-monster purple gradient
+  const fg2 = ctx.createLinearGradient(0, -5, 0, 5);
+  fg2.addColorStop(0, "#9a5ce8"); fg2.addColorStop(1, "#54299e");
+  ctx.fillStyle = fg2;
+  ctx.beginPath(); ctx.ellipse(-0.5, 0, 6, 4.4, 0, 0, Math.PI*2); ctx.fill();
+  // belly sheen
+  ctx.fillStyle = "rgba(255,255,255,.22)";
+  ctx.beginPath(); ctx.ellipse(-1, 1.6, 4.2, 1.8, 0, 0, Math.PI*2); ctx.fill();
+  // tail flap + top fin
+  const flap = e.frame ? 1.6 : -1.6;
+  ctx.fillStyle = "#6a3fc0";
+  ctx.beginPath(); ctx.moveTo(4.6, 0); ctx.lineTo(8, -3 + flap); ctx.lineTo(8, 3 + flap); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-2.5, -3.6); ctx.lineTo(0, -6.2); ctx.lineTo(1.8, -3.4); ctx.closePath(); ctx.fill();
+  // glowing eye (matches the cube monsters)
+  ctx.fillStyle = "#ff9bff";
+  ctx.beginPath(); ctx.ellipse(-4, -1.2, 1.6, 1.8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(-4.2, -1.6, 0.6, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawFirebars() {                            // spinning storm-energy bars
+  for (const fb of game.level.firebars) {
+    const a = game.timer * fb.sp + fb.ph;
+    for (let i = 0; i <= fb.len; i++) {
+      const px = fb.cx + Math.cos(a) * i * 6, py = fb.cy + Math.sin(a) * i * 6;
+      const r = i === 0 ? 3 : 2.6;
+      const og = g.createRadialGradient(px, py, 0.3, px, py, r + 2);
+      og.addColorStop(0, "#fff");
+      og.addColorStop(0.45, (i + (game.timer >> 2)) % 2 ? "#ff9bff" : "#b06bff");
+      og.addColorStop(1, "rgba(140,60,230,0)");
+      g.fillStyle = og;
+      g.beginPath(); g.arc(px, py, r + 2, 0, Math.PI*2); g.fill();
+    }
+  }
+}
+
 function drawCagePug() {
   const p = game.pug, gy = 13 * TILE;
   const hop = p.free ? -Math.abs(Math.sin(p.hopT * 0.15)) * 6 : 0;
@@ -1415,6 +1663,8 @@ function drawWorld() {
       if (c !== " ") drawTile(c, tx, ty);
     }
   if (L.theme === "castle") drawLava(tx0, tx1);
+  if (L.theme === "bridge") drawWater(tx0, tx1);
+  if (L.firebars && L.firebars.length) drawFirebars();
   if (L.flagX) drawFlag(L.flagX);
 
   for (const p of game.powerups) if (p.rise <= 0) {
@@ -1425,6 +1675,7 @@ function drawWorld() {
 
   for (const e of L.enemies) {
     if (!e.active || e.dead > 25) continue;
+    if (e.fish || e.leap) { drawFish(g, e); continue; }
     if (e.grounded) softShadow(e.x + e.w/2, e.y + e.h, 6.5);
     drawGrump(g, e.x + e.w/2, e.y + e.h, e.frame, e.dead);
   }
@@ -1711,12 +1962,16 @@ function draw() {
   hud();
 
   if (game.state === "gameover") drawGameOver();
-  if (game.state === "clear") centerCard(game.rescued ? [
+  if (game.state === "clear") centerCard(game.rescued ? (game.levelNum + 1 < LEVEL_COUNT ? [
+    ["PEACH IS SAFE! \ud83d\udc36", Math.min(W/10, 40), "#ffd166"],
+    ["...oh no, Bowser grabbed her again!", Math.min(W/24, 18), "#fff"],
+    ["on to Chapter 2!", Math.min(W/24, 18), "#aee0ff"],
+  ] : [
     ["PEACH IS SAFE! \ud83d\udc36", Math.min(W/10, 40), "#ffd166"],
     ["you rescued the pug princess!", Math.min(W/24, 18), "#fff"],
-  ] : [
+  ]) : [
     ["LEVEL CLEAR!", Math.min(W/10, 44), "#ffd166"],
-    [(game.levelNum + 1 < LEVEL_COUNT ? "get ready for " + (game.levelNum+2) + "..." : "one more surprise..."), Math.min(W/24, 18), "#fff"],
+    [(game.levelNum + 1 < LEVEL_COUNT ? "get ready for " + lvName(game.levelNum + 1) + "..." : "one more surprise..."), Math.min(W/24, 18), "#fff"],
   ]);
 }
 
