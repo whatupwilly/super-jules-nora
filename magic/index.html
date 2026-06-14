@@ -1089,7 +1089,7 @@ function updatePlay() {
 
   // --- angry pigeons: the flock dives at you for flying too long ---
   if (player.grounded) player.airT = 0; else player.airT++;
-  const FLY_LIMIT = 150;                 // ~2.5s aloft before the flock takes notice
+  const FLY_LIMIT = 210;                 // ~3.5s aloft before the flock takes notice
   if (player.airT > FLY_LIMIT && game.pigeons.length < 3) {
     if (game.pigeonCool > 0) game.pigeonCool--;
     else {
@@ -1113,11 +1113,11 @@ function updatePlay() {
     } else {                                       // home in on the flyer
       const dx = (player.x + player.w/2) - (pg.x + pg.w/2);
       const dy = (player.y + player.h/2) - (pg.y + pg.h/2);
-      pg.vx += Math.sign(dx) * 0.08;
-      pg.vy += Math.sign(dy) * 0.07 + Math.sin(pg.flap) * 0.04;   // bobbing dive
+      pg.vx += Math.sign(dx) * 0.055;
+      pg.vy += Math.sign(dy) * 0.05 + Math.sin(pg.flap) * 0.03;   // bobbing dive
     }
-    pg.vx = Math.max(-2.5, Math.min(2.5, pg.vx));
-    pg.vy = Math.max(-2.5, Math.min(2.5, pg.vy));
+    pg.vx = Math.max(-1.7, Math.min(1.7, pg.vx));
+    pg.vy = Math.max(-1.7, Math.min(1.7, pg.vy));
     if (pg.vx < -0.05) pg.facing = -1; else if (pg.vx > 0.05) pg.facing = 1;
     pg.x += pg.vx; pg.y += pg.vy;
     if (pg.x < game.camX - 70 || pg.x > game.camX + VIEW_W + 70 || pg.y > LEVEL_H + 40 || pg.y < -90)
