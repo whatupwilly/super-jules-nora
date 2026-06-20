@@ -99,6 +99,7 @@ const SFX = {
   fire:  () => tone(680, .12, "sawtooth", .08, -420),
   star:  () => { tone(1180, .07, "sine", .09, 300); setTimeout(() => tone(1560, .1, "sine", .07, 200), 50); },
   bolt:  () => { tone(150, .2, "sawtooth", .13, -60); setTimeout(() => tone(90, .3, "sawtooth", .1, -30), 60); },
+  coo:   () => { tone(720, .07, "sawtooth", .09, -260); setTimeout(() => tone(560, .12, "sawtooth", .08, -320), 70); },
   superb:() => [392,523,659,784,1047,1319,1568].forEach((f,i) => setTimeout(() => tone(f, .18, "square", .1), i*80),)
 };
 
@@ -570,6 +571,51 @@ function drawGrump(ctx, x, y, frame, squashT) {
   ctx.restore();
 }
 
+/* angry pigeon — flapping, cross-eyed, ready to bonk a flyer */
+function drawPigeon(ctx, pg) {
+  ctx.save();
+  ctx.translate(pg.x + pg.w/2, pg.y + pg.h/2);
+  if ((pg.facing || 1) < 0) ctx.scale(-1, 1);
+  if (pg.dead > 0) ctx.rotate(Math.min(pg.dead * 0.18, 1.4));   // tumble when shot down
+  const flap = Math.sin(pg.flap);
+  // tail
+  ctx.fillStyle = "#7d8794";
+  ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-10.5, -2.5); ctx.lineTo(-10.5, 2.5); ctx.closePath(); ctx.fill();
+  // far wing (behind body)
+  ctx.fillStyle = "#6f7a88";
+  ctx.beginPath(); ctx.ellipse(-1, -flap*4 - 1, 6, 3, flap*0.5, 0, Math.PI*2); ctx.fill();
+  // body
+  const bg = ctx.createRadialGradient(-1, -2, 1, 0, 0, 8);
+  bg.addColorStop(0, "#aeb7c2"); bg.addColorStop(1, "#838d9b");
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(0, 0, 6.5, 5, 0, 0, Math.PI*2); ctx.fill();
+  // iridescent neck patch
+  ctx.fillStyle = "#5fb39a";
+  ctx.beginPath(); ctx.ellipse(4, -1.5, 2.2, 2.6, 0, 0, Math.PI*2); ctx.fill();
+  // head
+  ctx.fillStyle = "#9aa4b1";
+  ctx.beginPath(); ctx.arc(6, -3.5, 3.4, 0, Math.PI*2); ctx.fill();
+  // beak
+  ctx.fillStyle = "#f2a33c";
+  ctx.beginPath(); ctx.moveTo(9, -4); ctx.lineTo(13, -3); ctx.lineTo(9, -1.8); ctx.closePath(); ctx.fill();
+  // furious eye + angry brow
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(6.6, -4.4, 1.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#1d1f24";
+  ctx.beginPath(); ctx.arc(7.1, -4.4, 0.8, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "#2a2d34"; ctx.lineWidth = 1.1; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(4.4, -7.2); ctx.lineTo(8.4, -5.6); ctx.stroke();
+  // legs
+  ctx.strokeStyle = "#e08a2c"; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(0, 4.5); ctx.lineTo(-0.5, 6.5); ctx.moveTo(2.5, 4.5); ctx.lineTo(2.5, 6.5); ctx.stroke();
+  // near wing (in front, flaps the other way)
+  ctx.fillStyle = "#9aa4b1";
+  ctx.beginPath(); ctx.ellipse(-1, flap*4 + 1, 6.5, 3.2, -flap*0.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#7d8794";
+  ctx.beginPath(); ctx.ellipse(-3, flap*4 + 1.5, 3.2, 1.6, -flap*0.5, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
 
 function drawBowser(ctx, B) {
   ctx.save();
@@ -671,6 +717,9 @@ function superBlast() {
           vx: Math.cos(i * 0.63) * 2, vy: Math.sin(i * 0.63) * 2 - 1, t: 0,
           c: cloudKind ? "#9bd0ff" : ["#ff7ab8", "#ffd166", "#c89bff"][i % 3] });
     }
+  }
+  for (const pg of game.pigeons) {            // and scatter the whole flock
+    if (pg.dead === 0) { pg.dead = 1; pg.vy = -1.6; game.score += 150; }
   }
 }
 
@@ -843,13 +892,14 @@ const game = {
   levelNum: 0, level: null,
   score: 0, coins: 0, lives: 3,
   timer: 0, camX: 0,
-  particles: [], pops: [], powerups: [], fireballs: [], bossFlames: [],
+  particles: [], pops: [], powerups: [], fireballs: [], bossFlames: [], pigeons: [],
+  pigeonCool: 0,
   boss: null, pug: null, rescued: false,
   titleCards: [],
 };
 const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
                  coyote:0, jumpBuf:0, animT:0, frame:0,
-                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0,
+                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0,
                  jg:{ hold:0.125, fall:0.4375 } };
 
 function startLevel(n) {
@@ -859,9 +909,10 @@ function startLevel(n) {
   player.x = 2*TILE; player.y = 13*TILE - player.h;
   player.vx = 0; player.vy = 0; player.facing = 1; player.grounded = false;
   player.inv = 0; player.runCharge = 0;
-  player.fly = CHARS[heroKey].flyMax; player.shootCool = 0;
+  player.fly = CHARS[heroKey].flyMax; player.shootCool = 0; player.airT = 0;
   game.camX = 0; game.particles = []; game.pops = []; game.timer = 0;
   game.powerups = []; game.fireballs = []; game.bossFlames = [];
+  game.pigeons = []; game.pigeonCool = 0;
   game.rescued = false;
   game.boss = null; game.pug = null;
   if (game.level.boss) {
@@ -1154,6 +1205,70 @@ function updatePlay() {
   }
   L.enemies = L.enemies.filter(e => e.dead < 26 || !e.active);
 
+  // --- angry pigeons: the flock dives at you for flying too long ---
+  if (player.grounded) player.airT = 0; else player.airT++;
+  const FLY_LIMIT = 210;                 // ~3.5s aloft before the flock takes notice
+  if (player.airT > FLY_LIMIT && game.pigeons.length < 3) {
+    if (game.pigeonCool > 0) game.pigeonCool--;
+    else {
+      game.pigeonCool = 75;
+      const fromLeft = (player.x + player.w/2) > (game.camX + VIEW_W/2);
+      game.pigeons.push({
+        x: fromLeft ? game.camX - 16 : game.camX + VIEW_W + 4,
+        y: Math.max(6, player.y - 28 - Math.random()*26),
+        w: 14, h: 11, vx: fromLeft ? 1.2 : -1.2, vy: 0,
+        dead: 0, flap: Math.random()*6, facing: fromLeft ? 1 : -1, leaving: false });
+      SFX.coo();
+    }
+  }
+  for (const pg of game.pigeons) {
+    pg.flap += 0.55;
+    if (pg.dead > 0) { pg.dead++; pg.vy = Math.min(pg.vy + 0.3, 4); pg.y += pg.vy; pg.x += pg.vx * 0.4; continue; }
+    if (player.airT === 0) pg.leaving = true;     // you touched the ground — the flock peels off
+    if (pg.leaving) {
+      pg.vy += -0.06;
+      pg.vx += (pg.x < player.x ? -0.07 : 0.07);
+    } else {                                       // home in on the flyer
+      const dx = (player.x + player.w/2) - (pg.x + pg.w/2);
+      const dy = (player.y + player.h/2) - (pg.y + pg.h/2);
+      pg.vx += Math.sign(dx) * 0.055;
+      pg.vy += Math.sign(dy) * 0.05 + Math.sin(pg.flap) * 0.03;   // bobbing dive
+    }
+    pg.vx = Math.max(-1.7, Math.min(1.7, pg.vx));
+    pg.vy = Math.max(-1.7, Math.min(1.7, pg.vy));
+    if (pg.vx < -0.05) pg.facing = -1; else if (pg.vx > 0.05) pg.facing = 1;
+    pg.x += pg.vx; pg.y += pg.vy;
+    if (pg.x < game.camX - 70 || pg.x > game.camX + VIEW_W + 70 || pg.y > LEVEL_H + 40 || pg.y < -90)
+      pg.gone = true;
+
+    // shot down by stars / bolts
+    for (const f of game.fireballs) {
+      if (!f.gone && f.x < pg.x + pg.w && f.x + f.w > pg.x &&
+          f.y < pg.y + pg.h && f.y + f.h > pg.y) {
+        pg.dead = 1; f.gone = true; pg.vy = -1.5; game.score += 150; SFX.stomp();
+        for (let i = 0; i < 7; i++)
+          game.particles.push({ x: pg.x + 7, y: pg.y + 5,
+            vx: Math.cos(i)*1.6, vy: Math.sin(i)*1.6 - 0.5, t: 0, c: "#cfd6df" });
+      }
+    }
+    if (pg.dead > 0) continue;
+
+    // touching the player — stomp it, or it pecks you
+    if (!pg.leaving &&
+        player.x < pg.x + pg.w && player.x + player.w > pg.x &&
+        player.y < pg.y + pg.h && player.y + player.h > pg.y) {
+      const feet = player.y + player.h;
+      if (player.vy > 0.4 && feet - pg.y < 8) {
+        pg.dead = 1; pg.vy = -1; game.score += 150; SFX.stomp();
+        const t = jumpTier(player.vx); player.vy = t.v; player.jg = t;   // bounce off it
+      } else {
+        applyDamage();
+        if (game.state !== "play") return;
+      }
+    }
+  }
+  game.pigeons = game.pigeons.filter(pg => !pg.gone && pg.dead < 30);
+
   // --- Bowser (castle boss) ---
   const B = game.boss;
   if (B && !B.dead) {
@@ -1234,7 +1349,8 @@ function updatePlay() {
 
 function killPlayer() {
   game.state = "dead"; game.timer = 0;
-  player.vy = -6.5; player.power = 0; SFX.die();
+  player.vy = -6.5; player.power = 0; player.airT = 0; game.pigeons = [];
+  SFX.die();
   showButtons(false);
 }
 
@@ -1811,6 +1927,8 @@ function drawWorld() {
     if (e.grounded) softShadow(e.x + e.w/2, e.y + e.h, 6.5);
     drawGrump(g, e.x + e.w/2, e.y + e.h, e.frame, e.dead);
   }
+
+  for (const pg of game.pigeons) drawPigeon(g, pg);
 
   if (game.pug) drawCagePug();
   if (game.boss && game.boss.y < LEVEL_H + 60) drawBowser(g, game.boss);
