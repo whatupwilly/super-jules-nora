@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Rosalina &amp; Cosmo — by Jules &amp; Nora</title>
+<title>Rosalina &amp; Bamboo — by Jules &amp; Nora</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   #game, .btn, #verlink, #verlink a { touch-action:none; }
@@ -216,12 +216,13 @@ function refreshContextBtns() {
 /* ============================== CHARACTERS ============================== */
 const CHARS = {
   jules: {
-    name: "COSMO", kind: "bunny", look: "slime", flyMax: 1200,
+    name: "BAMBOO", kind: "bunny", look: "panda", flyMax: 1200,
     body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
     skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
-    // slime look — a cosmic lavender blob with big sparkly eyes
-    slimeLt:"#d6c6f6", slime:"#ad8de4", slimeDark:"#7f5fcc",
-    slimeEye:"#1a1230", spark:"#ffffff", mouth:"#5a3f8a",
+    // red panda look — rust fur, white face markings, dark legs, ringed tail
+    panFur:"#d2622e", panFurLt:"#ec8a44", panFurDk:"#a8451c",
+    panWhite:"#f7efe2", panDark:"#2c211c", panDarkLt:"#46352c",
+    panEar:"#c2551f", panStripe:"#94391a", panNose:"#1a1210", panEye:"#140f0c",
   },
   nora: {
     name: "PRINCESS ROSALINA", kind: "cloud", look: "princess", flyMax: 600,
@@ -279,7 +280,8 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   ctx.translate(x, y);
   if (power > 0) ctx.scale(1.18, 1.32);
   if (facing < 0) ctx.scale(-1, 1);
-  if (pal.look === "slime") drawCosmoBody(ctx, pal, frame, airborne, walking);
+  if (pal.look === "panda") drawBambooBody(ctx, pal, frame, airborne, walking);
+  else if (pal.look === "slime") drawCosmoBody(ctx, pal, frame, airborne, walking);
   else if (pal.look === "princess") drawRosalinaBody(ctx, pal, frame, airborne, walking);
   else if (pal.kind === "cloud") drawChuckeeBody(ctx, pal);
   else drawChunmeBody(ctx, pal, frame, airborne, walking);
@@ -603,8 +605,153 @@ function drawPowerup(ctx, p) {
   ctx.restore();
 }
 
+/* Bamboo the red panda: rust fur, white face markings, dark legs, fluffy
+   ringed tail. Detailed/shaded for a lifelike look. Feet at (0,0), facing right. */
+function drawBambooBody(ctx, pal, frame, airborne, walking) {
+  const t = game.timer;
+
+  // ---- fluffy ringed tail, sweeping up behind ----
+  ctx.save();
+  ctx.translate(-5.5, -2.2);
+  ctx.rotate(Math.sin(t * 0.08) * 0.06 - 0.15);
+  const segs = [[0,0,3.3],[-1.3,-3,3.1],[-1,-6,2.85],[0.6,-8.6,2.55],[2.6,-10.2,2.2]];
+  for (let i = segs.length - 1; i >= 0; i--) {
+    const s = segs[i];
+    ctx.fillStyle = i === segs.length - 1 ? pal.panWhite : (i % 2 ? pal.panStripe : pal.panFur);
+    ctx.beginPath(); ctx.arc(s[0], s[1], s[2], 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+
+  // ---- legs + paws ----
+  const po = (walking && frame) ? 1.2 : 0;
+  ctx.fillStyle = pal.panDark;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -1.3, 2.1, 2.5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -1.3, 2.1, 2.5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.panDarkLt;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -0.5, 2.1, 1.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -0.5, 2.1, 1.1, 0, 0, Math.PI*2); ctx.fill();
+
+  // ---- body: rust shoulders fading to a dark belly ----
+  const bg = ctx.createLinearGradient(0, -12, 0, -1);
+  bg.addColorStop(0, pal.panFurLt); bg.addColorStop(0.45, pal.panFur); bg.addColorStop(1, pal.panDark);
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(0, -6, 6.1, 6.6, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.panDark;
+  ctx.beginPath(); ctx.ellipse(0, -3.2, 4.3, 3.7, 0, 0, Math.PI*2); ctx.fill();
+
+  // ---- arms ----
+  ctx.fillStyle = pal.panDark;
+  if (airborne) {
+    ctx.beginPath(); ctx.ellipse(-6, -9, 1.9, 3, 0.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6, -9, 1.9, 3, -0.5, 0, Math.PI*2); ctx.fill();
+  } else {
+    ctx.beginPath(); ctx.ellipse(-5.6, -6.4, 1.8, 3, 0.3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(5.6, -6.4, 1.8, 3, -0.3, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ---- ears (behind head): orange with white fluff ----
+  for (const sgn of [-1, 1]) {
+    ctx.save(); ctx.translate(sgn * 4.9, -19.6);
+    ctx.fillStyle = pal.panEar;
+    ctx.beginPath(); ctx.ellipse(0, 0, 2.9, 3.3, sgn * 0.2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = pal.panWhite;
+    ctx.beginPath(); ctx.ellipse(0, 0.5, 1.5, 2, sgn * 0.2, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---- head (rust, radial shaded) ----
+  const hg = ctx.createRadialGradient(-2, -18.5, 1, 0, -16, 8.5);
+  hg.addColorStop(0, pal.panFurLt); hg.addColorStop(1, pal.panFur);
+  ctx.fillStyle = hg;
+  ctx.beginPath(); ctx.ellipse(0, -16, 7.1, 6.5, 0, 0, Math.PI*2); ctx.fill();
+
+  // white markings: cheek fluff, muzzle, brow patches
+  ctx.fillStyle = pal.panWhite;
+  ctx.beginPath(); ctx.ellipse(-5, -13.4, 2.5, 2.7, 0.3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(5, -13.4, 2.5, 2.7, -0.3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, -13.4, 3.5, 3, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-2.7, -18, 1.9, 1.5, 0.3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.7, -18, 1.9, 1.5, -0.3, 0, Math.PI*2); ctx.fill();
+
+  // reddish tear-stripes from the eyes down the cheeks
+  ctx.strokeStyle = pal.panStripe; ctx.lineWidth = 1.3; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-2.7, -16.4); ctx.quadraticCurveTo(-3.6, -13.6, -3.1, -11.4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(2.7, -16.4); ctx.quadraticCurveTo(3.6, -13.6, 3.1, -11.4); ctx.stroke();
+
+  // eyes with a catchlight
+  for (const ex of [-2.7, 2.7]) {
+    ctx.fillStyle = pal.panEye;
+    ctx.beginPath(); ctx.arc(ex, -16.4, 1.75, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.92)";
+    ctx.beginPath(); ctx.arc(ex - 0.5, -17, 0.6, 0, Math.PI*2); ctx.fill();
+  }
+  // nose + mouth
+  ctx.fillStyle = pal.panNose;
+  ctx.beginPath(); ctx.ellipse(0, -14.2, 1.3, 1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.panNose; ctx.lineWidth = 0.6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(0, -13.2); ctx.lineTo(0, -12.4);
+  ctx.moveTo(0, -12.4); ctx.quadraticCurveTo(-1.3, -12, -1.9, -12.7);
+  ctx.moveTo(0, -12.4); ctx.quadraticCurveTo(1.3, -12, 1.9, -12.7); ctx.stroke();
+  // whiskers
+  ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 0.4;
+  for (const dy of [-0.6, 0.5]) {
+    ctx.beginPath(); ctx.moveTo(-2.6, -13 + dy); ctx.lineTo(-7.4, -13.4 + dy * 1.7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(2.6, -13 + dy); ctx.lineTo(7.4, -13.4 + dy * 1.7); ctx.stroke();
+  }
+}
+
+/* A flying carpet woven from green bamboo, for when Bamboo takes flight. */
+function drawBambooCarpet(cx, feetY, t, facing) {
+  g.save();
+  g.translate(cx, feetY + 3 + Math.sin(t * 0.15) * 0.7);
+  g.rotate(Math.sin(t * 0.12) * 0.04);
+  const n = 9, w = 24, gap = w / (n - 1), x0 = -w / 2;
+  g.fillStyle = "rgba(0,0,0,.12)";
+  g.beginPath(); g.ellipse(0, 5, 13, 2.4, 0, 0, Math.PI*2); g.fill();
+  for (let i = 0; i < n; i++) {
+    const px = x0 + i * gap, wob = Math.sin(t * 0.18 + i * 0.55) * 0.7;
+    const gg = g.createLinearGradient(px - 1.2, 0, px + 1.2, 0);
+    gg.addColorStop(0, "#5a9e2e"); gg.addColorStop(0.5, "#8fd24e"); gg.addColorStop(1, "#5a9e2e");
+    g.fillStyle = gg;
+    rrPath(g, px - 1.2, -2.4 + wob, 2.4, 4.8, 1.1); g.fill();
+    g.fillStyle = "rgba(63,115,34,.9)"; g.fillRect(px - 1.2, 0.2 + wob, 2.4, 0.7);
+  }
+  g.strokeStyle = "#d8b06a"; g.lineWidth = 0.8;
+  for (const cy of [-1.8, 1.8]) {
+    g.beginPath();
+    for (let i = 0; i < n; i++) { const px = x0 + i * gap, wob = Math.sin(t * 0.18 + i * 0.55) * 0.7; i ? g.lineTo(px, cy + wob) : g.moveTo(px, cy + wob); }
+    g.stroke();
+  }
+  g.fillStyle = "#7ec850";
+  const fx = facing > 0 ? w / 2 + 1 : -w / 2 - 1, s = facing > 0 ? 1 : -1;
+  g.beginPath(); g.ellipse(fx, -2.6, 2.6, 1.1, -0.5 * s, 0, Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(fx + 0.5 * s, 0, 2.6, 1.1, 0.4 * s, 0, Math.PI*2); g.fill();
+  g.restore();
+}
+
 function drawFireball(ctx, f, t) {
   const cx = f.x + 2.5, cy = f.y + 2.5;
+  if (f.kind === "bamboo") {                 // Bamboo's bamboo shoot
+    const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 7);
+    glow.addColorStop(0, "rgba(150,230,90,.6)"); glow.addColorStop(1, "rgba(120,200,60,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI*2); ctx.fill();
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(f.t * 0.3 * (Math.sign(f.vx) || 1));
+    const len = 10, ww = 3.2;
+    const gg = ctx.createLinearGradient(0, -ww/2, 0, ww/2);
+    gg.addColorStop(0, "#a6e25a"); gg.addColorStop(0.5, "#6fb83a"); gg.addColorStop(1, "#4d8a28");
+    ctx.fillStyle = gg;
+    rrPath(ctx, -len/2, -ww/2, len, ww, 1.4); ctx.fill();
+    ctx.strokeStyle = "#3f7322"; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.moveTo(-len/6, -ww/2); ctx.lineTo(-len/6, ww/2);
+    ctx.moveTo(len/6, -ww/2); ctx.lineTo(len/6, ww/2); ctx.stroke();
+    ctx.fillStyle = "#86cf52";
+    ctx.beginPath(); ctx.ellipse(len/2 + 1, -1.4, 2.4, 1, -0.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(len/2 + 0.5, 0.8, 2.2, 0.9, 0.4, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    return;
+  }
   if (f.kind === "bolt") {                   // Chuckee's lightning
     const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 8);
     glow.addColorStop(0, "rgba(255,238,140,.9)"); glow.addColorStop(1, "rgba(255,220,80,0)");
@@ -1083,7 +1230,7 @@ const game = {
 };
 const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
                  coyote:0, jumpBuf:0, animT:0, frame:0,
-                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0, onPipe:false,
+                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0, onPipe:false, flying:false,
                  jg:{ hold:0.125, fall:0.4375 } };
 
 function startLevel(n) {
@@ -1278,17 +1425,18 @@ function updatePlay() {
   player.vy += (player.vy < 0 && input.jump) ? player.jg.hold : player.jg.fall;
   player.vy = Math.min(player.vy, MAX_FALL);
 
-  // --- magic flight: Chun-me flies (20s), Chuckee floats (10s) ---
+  // --- magic flight: Bamboo flies on a carpet (20s), Rosalina floats (10s) ---
   if (player.grounded) player.fly = CHARS[heroKey].flyMax;
+  player.flying = false;
   if (!player.grounded && input.jump && player.vy > -1.2 && player.fly > 0) {
-    player.fly--;
+    player.fly--; player.flying = true;
     const cloudKind = CHARS[heroKey].kind === "cloud";
     const target = cloudKind ? -0.9 : -1.7;
     player.vy += (target - player.vy) * (cloudKind ? 0.18 : 0.12);
     if ((game.timer & 3) === 0)
       game.particles.push({ x: player.x + player.w/2 + (Math.random() * 10 - 5),
         y: player.y + player.h, vx: 0, vy: 0.6, t: 20,
-        c: cloudKind ? "rgba(200,225,255,.8)" : "rgba(255,160,210,.85)" });
+        c: cloudKind ? "rgba(200,225,255,.8)" : "rgba(150,210,90,.85)" });
   }
 
   player.hitWall = false;
@@ -1315,10 +1463,10 @@ function updatePlay() {
     input.firePressed = false;
     if (player.shootCool === 0 && game.fireballs.length < 3) {
       const cloudKind = CHARS[heroKey].kind === "cloud";
-      const kind = cloudKind ? "bolt" : (player.power > 0 ? "pinkfire" : "star");
+      const kind = cloudKind ? "bolt" : "bamboo";
       game.fireballs.push({ x: player.x + (player.facing > 0 ? player.w : -6),
         y: player.y + player.h * 0.35, w: 5, h: 5,
-        vx: (cloudKind ? 3.6 : 3) * player.facing, vy: kind === "pinkfire" ? -0.5 : 0,
+        vx: (cloudKind ? 3.6 : 3.2) * player.facing, vy: 0,
         kind, t: 0 });
       player.shootCool = 16;
       if (cloudKind) SFX.bolt(); else SFX.star();
@@ -2341,10 +2489,12 @@ function drawWorld() {
     drawKid(g, player.x + player.w/2, player.y + player.h, pal, 0, player.facing, true, false, 0);
     g.restore();
   } else {
-    const ghost = player.inv > 0 && CHARS[heroKey].kind === "bunny";   // Chun-me turns invisible
+    const ghost = player.inv > 0 && CHARS[heroKey].kind === "bunny";   // Bamboo turns invisible
     if (ghost || !(player.inv > 0 && (game.timer >> 2) % 2 === 0)) {
       if (player.grounded) softShadow(player.x + player.w/2, player.y + player.h, 7);
       if (ghost) g.globalAlpha = 0.4;
+      if (player.flying && CHARS[heroKey].look === "panda")
+        drawBambooCarpet(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
       drawKid(g, player.x + player.w/2, player.y + player.h, pal,
               player.frame, player.facing, !player.grounded, Math.abs(player.vx) > 0.3, player.power);
       g.globalAlpha = 1;
@@ -2373,7 +2523,7 @@ function hud() {
     const fm = Math.max(0, player.fly / CHARS[heroKey].flyMax);
     g.fillStyle = "rgba(0,0,20,.45)";
     g.fillRect(14, top + 44, 66, 9);
-    g.fillStyle = CHARS[heroKey].kind === "cloud" ? "#8fc8ff" : "#ff9ed0";
+    g.fillStyle = CHARS[heroKey].kind === "cloud" ? "#8fc8ff" : "#8fd24e";
     g.fillRect(15, top + 45, 64 * fm, 7);
   }
   g.textAlign = "right";
@@ -2453,7 +2603,7 @@ function drawTitle() {
   const ty1 = H * 0.10;
   g.font = "900 " + big + "px 'Avenir Next',Arial";
   outlineText("ROSALINA &", W/2, ty1, "#8fc8ff");
-  outlineText("COSMO", W/2, ty1 + big + 6, "#ff8ab8");
+  outlineText("BAMBOO", W/2, ty1 + big + 6, "#ff8ab8");
   g.font = "800 " + Math.min(W/24, 18) + "px 'Avenir Next',Arial";
   outlineText("✨ a game by Jules & Nora ✨", W/2, ty1 + big*1.72 + 12, "#ffe9a8");
   if (H > W * 0.9) {
@@ -2517,7 +2667,7 @@ function drawWinScreen() {
   g.font = "900 " + Math.min(W/8, 56) + "px 'Avenir Next',Arial";
   outlineText("YOU WIN!", W/2, H*0.22, "#ffd166");
   g.font = "700 " + Math.min(W/20, 22) + "px 'Avenir Next',Arial";
-  outlineText("Rosalina & Cosmo saved Peach the pug!", W/2, H*0.32, "#fff");
+  outlineText("Rosalina & Bamboo saved Peach the pug!", W/2, H*0.32, "#fff");
 
   // both kids celebrating
   const ks = Math.min(W, H) / 110;
