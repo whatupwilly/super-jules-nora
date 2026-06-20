@@ -40,6 +40,13 @@
   #btnR { left:calc(max(16px, env(safe-area-inset-left)) + 90px); }
   #btnJ { right:max(16px, env(safe-area-inset-right)); width:88px; height:88px; line-height:80px; font-size:22px; }
   #btnF { right:calc(max(16px, env(safe-area-inset-right)) + 106px); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 8px); font-size:26px; background:rgba(255,140,205,.35); border-color:rgba(255,195,228,.7); }
+  #btnD { left:50%; transform:translateX(-50%); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 96px); width:84px; height:84px; line-height:78px; font-size:30px; background:rgba(150,220,255,.4); border-color:rgba(200,240,255,.8); }
+  #btnD.pressed { background:rgba(150,220,255,.7); }
+  #btnX { top:max(14px, env(safe-area-inset-top)); right:max(16px, env(safe-area-inset-right));
+    bottom:auto; left:auto; width:auto; height:auto; line-height:1; border-radius:18px;
+    padding:11px 18px; font-size:16px; font-weight:800;
+    background:rgba(255,120,180,.62); border-color:rgba(255,210,232,.85); }
+  #btnX.pressed { background:rgba(255,120,180,.9); }
 </style>
 </head>
 <body>
@@ -48,6 +55,8 @@
 <div class="btn" id="btnR">&#9654;</div>
 <div class="btn" id="btnJ">JUMP</div>
 <div class="btn" id="btnF">✨</div>
+<div class="btn" id="btnD">&#9660;</div>
+<div class="btn" id="btnX">&#128682; EXIT</div>
 <div id="verlink"><a href="../">🕹 Classic</a><a href="../fortnite/">⚡ Battle</a><a href="../realistic/">🌿 Real</a><a href="../bubble/">🫧 Bubble</a></div>
 <script>
 "use strict";
@@ -100,17 +109,22 @@ const SFX = {
   star:  () => { tone(1180, .07, "sine", .09, 300); setTimeout(() => tone(1560, .1, "sine", .07, 200), 50); },
   bolt:  () => { tone(150, .2, "sawtooth", .13, -60); setTimeout(() => tone(90, .3, "sawtooth", .1, -30), 60); },
   coo:   () => { tone(720, .07, "sawtooth", .09, -260); setTimeout(() => tone(560, .12, "sawtooth", .08, -320), 70); },
-  superb:() => [392,523,659,784,1047,1319,1568].forEach((f,i) => setTimeout(() => tone(f, .18, "square", .1), i*80),)
+  superb:() => [392,523,659,784,1047,1319,1568].forEach((f,i) => setTimeout(() => tone(f, .18, "square", .1), i*80),),
+  pipe:  () => { tone(520, .14, "square", .12, -260); setTimeout(() => tone(300, .2, "square", .10, -160), 110); },
+  boing: () => tone(300, .26, "sine", .14, 520),
+  yum:   () => [523,659,784].forEach((f,i) => setTimeout(() => tone(f, .12, "triangle", .12), i*70)),
+  yip:   () => { tone(880, .06, "square", .10); setTimeout(() => tone(1100, .07, "square", .08), 60); },
 };
 
 /* ============================== INPUT ============================== */
-const input = { left:false, right:false, jump:false, jumpPressed:false, firePressed:false, anyTap:false };
+const input = { left:false, right:false, jump:false, jumpPressed:false, firePressed:false, downPressed:false, anyTap:false };
 const keys = {};
 window.addEventListener("keydown", e => {
-  if (["ArrowLeft","ArrowRight","ArrowUp","Space"].includes(e.code)) e.preventDefault();
+  if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Space"].includes(e.code)) e.preventDefault();
   audio();
   if (!keys[e.code] && (e.code==="Space"||e.code==="ArrowUp"||e.code==="KeyZ"||e.code==="KeyW")) input.jumpPressed = true;
   if (!keys[e.code] && (e.code==="KeyX"||e.code==="KeyB")) input.firePressed = true;
+  if (!keys[e.code] && (e.code==="ArrowDown"||e.code==="KeyS")) input.downPressed = true;
   keys[e.code] = true;
   input.anyTap = true;
 });
@@ -120,14 +134,17 @@ function syncKeys() {
   input.left  = !!(keys["ArrowLeft"] || keys["KeyA"]) || touch.left;
   input.right = !!(keys["ArrowRight"]|| keys["KeyD"]) || touch.right;
   input.jump  = !!(keys["Space"] || keys["ArrowUp"] || keys["KeyZ"] || keys["KeyW"]) || touch.jump;
+  input.down  = !!(keys["ArrowDown"] || keys["KeyS"]) || touch.down;
 }
 
-const touch = { left:false, right:false, jump:false };
+const touch = { left:false, right:false, jump:false, down:false };
 const btnL = document.getElementById("btnL"),
       btnR = document.getElementById("btnR"),
       btnJ = document.getElementById("btnJ"),
-      btnF = document.getElementById("btnF");
-const allBtns = [btnL, btnR, btnJ, btnF];
+      btnF = document.getElementById("btnF"),
+      btnD = document.getElementById("btnD"),
+      btnX = document.getElementById("btnX");
+const allBtns = [btnL, btnR, btnJ, btnF, btnD];
 
 // Controls fade to near-invisible a few seconds after first use (still tappable)
 let fadeScheduled = false;
@@ -155,6 +172,11 @@ function bindBtn(el, prop, onPress) {
 bindBtn(btnL, "left"); bindBtn(btnR, "right");
 bindBtn(btnJ, "jump", () => { input.jumpPressed = true; });
 bindBtn(btnF, "fire", () => { input.firePressed = true; });
+bindBtn(btnD, "down", () => { input.downPressed = true; });
+btnX.addEventListener("pointerdown", e => { e.preventDefault(); audio(); btnX.classList.add("pressed");
+  if (game.state === "play" && game.inPlayground) exitPlayground(); }, {passive:false});
+btnX.addEventListener("pointerup", () => btnX.classList.remove("pressed"));
+btnX.addEventListener("pointercancel", () => btnX.classList.remove("pressed"));
 
 cv.addEventListener("pointerdown", e => {
   e.preventDefault(); audio();
@@ -174,12 +196,21 @@ let tapX = -1, tapY = -1;
 
 function showButtons(on) {
   btnL.style.display = btnR.style.display = btnJ.style.display = on ? "block" : "none";
+  if (!on) { btnD.style.display = btnX.style.display = "none"; downBtnShown = exitBtnShown = false; }
   refreshFireBtn();
+  refreshContextBtns();
 }
 let fireBtnShown = false;
 function refreshFireBtn() {
-  const want = game.state === "play";
+  const want = game.state === "play" && !game.inPlayground;
   if (want !== fireBtnShown) { fireBtnShown = want; btnF.style.display = want ? "block" : "none"; }
+}
+let downBtnShown = false, exitBtnShown = false;
+function refreshContextBtns() {
+  const wantD = game.state === "play" && !game.inPlayground && player.onPipe;
+  if (wantD !== downBtnShown) { downBtnShown = wantD; btnD.style.display = wantD ? "block" : "none"; }
+  const wantX = game.state === "play" && game.inPlayground;
+  if (wantX !== exitBtnShown) { exitBtnShown = wantX; btnX.style.display = wantX ? "block" : "none"; }
 }
 
 /* ============================== CHARACTERS ============================== */
@@ -954,9 +985,93 @@ function makeLevel(num) {
 }
 const LEVEL_COUNT = 5;
 
+/* ============================== PLAYGROUND ==============================
+   A safe, enemy-free hangout reached by going down any pipe. Water slide,
+   trampoline, parkour, puppies and an ice-cream stand. Exit anytime. */
+function makePlayground() {
+  const Wd = 128;
+  const grid = Array.from({length: ROWS}, () => Array(Wd).fill(" "));
+  const setT = (x,y,c) => { if (x>=0 && x<Wd && y>=0 && y<ROWS) grid[y][x] = c; };
+  const ground = (a,b) => { for (let x=a;x<=b;x++){ setT(x,13,"G"); setT(x,14,"#"); } };
+  const stone = (x,y) => setT(x,y,"S");
+  const brick = (x,y) => setT(x,y,"=");
+  const coin  = (x,y) => setT(x,y,"o");
+  const coins = (x,y,n) => { for (let i=0;i<n;i++) coin(x+i,y); };
+  const pipe  = (x,h) => { for (let yy=13-h; yy<13; yy++){ const c = yy===13-h?"T":"P"; setT(x,yy,c); setT(x+1,yy,c); } };
+  const stair = (x,h,dir) => { for (let s=0;s<h;s++){ const cx=x+(dir<0?-s:s); for (let yy=12; yy>12-(s+1); yy--) stone(cx,yy); } };
+  ground(0, Wd-1);                                   // continuous floor — no pits
+
+  pipe(6, 2);                                        // the exit pipe, right by spawn
+
+  stair(12, 7, 1);                                   // water slide: stairs up...
+  const slide = { x0: 18, x1: 26, topY: 6*TILE, botY: 13*TILE };  // ...then a scripted chute down
+
+  setT(34,12,"J"); setT(35,12,"J");                  // gymnastics trampoline
+  coins(33,8,4);                                     // floating coins to grab on the bounce
+  brick(38,6); brick(39,6); brick(40,6);             // a ledge to flip up onto
+  stone(43,9); stone(44,9); stone(45,9);             // balance beam
+
+  const par = [[46,10],[49,8],[52,9],[55,7],[58,9],[61,8],[64,10]];    // parkour hops
+  for (const p of par) { stone(p[0],p[1]); stone(p[0]+1,p[1]); coin(p[0], p[1]-2); }
+
+  const puppies = [];
+  for (let i=0;i<3;i++) puppies.push({ x:(72+i*4)*TILE, minX:70*TILE, maxX:84*TILE,
+                                       vx:(i%2?0.45:-0.45), hopT:i*20 });
+
+  const signs = [
+    { x:6.5, text:"EXIT ↑",     color:"#ff5e7e" },
+    { x:15,  text:"WATER SLIDE",     color:"#2aa7e0" },
+    { x:34.5,text:"GYMNASTICS",      color:"#f59a2e" },
+    { x:55,  text:"PARKOUR",         color:"#9b6cff" },
+    { x:77,  text:"PUPPIES",         color:"#ff6fae" },
+    { x:92,  text:"ICE CREAM",       color:"#ff7a7a" },
+  ];
+
+  return { grid, width: Wd, enemies: [], flagX: null, name: "PLAYGROUND", boss: null,
+           theme: "playground", slide, puppies, iceCreamX: 92*TILE,
+           splash: { x0: 24, x1: 28 }, fence: { x0: 69, x1: 85 }, signs };
+}
+
+function enterPipe() {
+  game.savedLevel = game.level;
+  game.savedReturn = { x: player.x, y: player.y, camX: game.camX,
+                       power: player.power, h: player.h, facing: player.facing };
+  game.state = "entering"; game.timer = 0; player.vx = 0; player.onPipe = false;
+  SFX.pipe(); showButtons(false);
+}
+function loadPlayground() {
+  game.level = makePlayground();
+  game.inPlayground = true;
+  player.h = player.power > 0 ? 24 : 16;
+  player.x = 3*TILE; player.y = 12*TILE - player.h;
+  player.vx = 0; player.vy = 0; player.facing = 1; player.grounded = false;
+  player.inv = 0; player.onPipe = false; player.runCharge = 0;
+  player.fly = CHARS[heroKey].flyMax; player.shootCool = 0; player.airT = 0;
+  game.camX = 0; game.particles = []; game.pops = []; game.powerups = [];
+  game.fireballs = []; game.bossFlames = []; game.boss = null; game.pug = null;
+  game.pigeons = []; game.pigeonCool = 0; game.treatT = 0;
+  game.state = "play"; showButtons(true);
+}
+function exitPlayground() {
+  game.state = "exiting"; game.timer = 0; player.vx = 0; player.onPipe = false;
+  SFX.pipe(); showButtons(false);
+}
+function finishExit() {
+  const r = game.savedReturn;
+  game.level = game.savedLevel; game.inPlayground = false;
+  player.power = r.power; player.h = r.h;
+  player.x = r.x; player.y = r.y; player.vx = 0; player.vy = 0;
+  player.facing = r.facing; player.grounded = false; player.inv = 30; player.onPipe = false;
+  player.fly = CHARS[heroKey].flyMax; player.shootCool = 0; player.airT = 0;
+  game.camX = r.camX; game.savedLevel = null;
+  game.particles = []; game.pops = []; game.powerups = []; game.fireballs = [];
+  game.pigeons = []; game.pigeonCool = 0;
+  game.state = "play"; showButtons(true);
+}
+
 /* ============================== GAME STATE ============================== */
 const game = {
-  state: "title",     // title | play | dead | clear | gameover | win
+  state: "title",     // title | play | dead | clear | gameover | win | entering | exiting
   levelNum: 0, level: null,
   score: 0, coins: 0, lives: 3,
   timer: 0, camX: 0,
@@ -964,19 +1079,21 @@ const game = {
   pigeonCool: 0,
   boss: null, pug: null, rescued: false,
   titleCards: [],
+  inPlayground: false, savedLevel: null, savedReturn: null, treatT: 0,
 };
 const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
                  coyote:0, jumpBuf:0, animT:0, frame:0,
-                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0,
+                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0, onPipe:false,
                  jg:{ hold:0.125, fall:0.4375 } };
 
 function startLevel(n) {
   game.levelNum = n;
   game.level = makeLevel(n);
+  game.inPlayground = false; game.savedLevel = null;
   player.h = player.power > 0 ? 24 : 16;
   player.x = 2*TILE; player.y = 13*TILE - player.h;
   player.vx = 0; player.vy = 0; player.facing = 1; player.grounded = false;
-  player.inv = 0; player.runCharge = 0;
+  player.inv = 0; player.runCharge = 0; player.onPipe = false;
   player.fly = CHARS[heroKey].flyMax; player.shootCool = 0; player.airT = 0;
   game.camX = 0; game.particles = []; game.pops = []; game.timer = 0;
   game.powerups = []; game.fireballs = []; game.bossFlames = [];
@@ -996,13 +1113,14 @@ function startLevel(n) {
 function goTitle() {
   game.state = "title"; game.score = 0; game.coins = 0; game.lives = 3; game.timer = 0;
   player.power = 0; game.rescued = false;
+  game.inPlayground = false; game.savedLevel = null;
   unfadeButtons();
   document.getElementById("verlink").style.display = "block";
   showButtons(false);
 }
 
 /* ============================== PHYSICS ============================== */
-const SOLID = "#G=?MUSPT";
+const SOLID = "#G=?MUSPTJ";
 function tileAt(tx, ty) {
   const L = game.level;
   if (tx < 0 || tx >= L.width) return "#";
@@ -1176,6 +1294,20 @@ function updatePlay() {
   player.hitWall = false;
   moveEntity(player, bumpBlock);
   collectCoins();
+
+  // --- trampoline bounce (playground) ---
+  if (player.grounded) {
+    const bx = Math.floor((player.x + player.w/2)/TILE), by = Math.floor((player.y + player.h + 1)/TILE);
+    if (tileAt(bx, by) === "J") {
+      player.vy = -8.6; player.grounded = false; player.coyote = 0; player.jumpBuf = 0;
+      SFX.boing();
+      for (let i=0;i<5;i++) game.particles.push({ x:(bx+0.5)*TILE + (i-2)*2.5, y:by*TILE,
+        vx:(i-2)*0.5, vy:-1.4-Math.random()*1.6, t:0, c:"#ffd166" });
+    }
+  }
+
+  // --- the playground runs its own (hazard-free) update ---
+  if (game.inPlayground) { updatePlaygroundExtras(); return; }
 
   // --- magic: Chun-me's stars / Chuckee's lightning ---
   if (player.shootCool > 0) player.shootCool--;
@@ -1409,6 +1541,75 @@ function updatePlay() {
     showButtons(false);
   }
 
+  // --- stand on a pipe + press Down → slide into the playground ---
+  player.onPipe = false;
+  if (player.grounded) {
+    const bx = Math.floor((player.x + player.w/2)/TILE), by = Math.floor((player.y + player.h + 1)/TILE);
+    if (tileAt(bx, by) === "T") player.onPipe = true;
+  }
+  if (player.onPipe && input.downPressed) { input.downPressed = false; enterPipe(); return; }
+  refreshContextBtns();
+
+  // camera
+  const target = player.x + player.w/2 - VIEW_W * 0.42;
+  game.camX += (target - game.camX) * 0.12;
+  game.camX = Math.max(0, Math.min(game.camX, L.width * TILE - VIEW_W));
+}
+
+function updatePlaygroundExtras() {
+  const L = game.level;
+
+  // walk animation
+  if (Math.abs(player.vx) > 0.3 && player.grounded) {
+    player.animT += Math.abs(player.vx);
+    if (player.animT > 7) { player.animT = 0; player.frame = 1 - player.frame; }
+  } else player.frame = 0;
+
+  // water slide — a scripted whoosh down the chute
+  const s = L.slide;
+  if (s) {
+    const cx = player.x + player.w/2;
+    if (cx > s.x0*TILE && cx < s.x1*TILE) {
+      const frac = (cx - s.x0*TILE) / ((s.x1 - s.x0)*TILE);
+      const lineY = s.topY + (s.botY - s.topY) * frac;
+      const feet = player.y + player.h;
+      if (feet >= lineY - 3 && feet <= lineY + 12 && player.vy >= -0.5) {
+        player.y = lineY - player.h; player.vy = 0; player.grounded = true; player.facing = 1;
+        if (player.vx < 2.6) player.vx += 0.3;
+        if (game.timer % 4 === 0) game.particles.push({ x:cx, y:feet, vx:Math.random()-0.5, vy:-Math.random()*1.6, t:0, c:"#9be0ff" });
+      }
+    }
+  }
+
+  // puppies trot back and forth; hearts when you're near
+  for (const pup of L.puppies) {
+    pup.x += pup.vx;
+    if (pup.x < pup.minX || pup.x > pup.maxX) pup.vx *= -1;
+    pup.hopT++;
+    if (Math.abs(player.x + player.w/2 - pup.x) < 22 && game.timer % 40 === 0) {
+      game.pops.push({ x:pup.x, y:11*TILE, t:0, heart:true }); SFX.yip();
+    }
+  }
+
+  // ice-cream stand hands you a treat when you walk up
+  if (game.treatT > 0) game.treatT--;
+  if (Math.abs(player.x + player.w/2 - L.iceCreamX) < 16 && game.treatT <= 0) {
+    game.treatT = 100; game.score += 50; SFX.yum();
+    game.pops.push({ x:L.iceCreamX, y:11*TILE, t:0, treat:true });
+  }
+
+  // go down the exit pipe to leave (the EXIT button does the same)
+  player.onPipe = false;
+  if (player.grounded) {
+    const bx = Math.floor((player.x + player.w/2)/TILE), by = Math.floor((player.y + player.h + 1)/TILE);
+    const tc = tileAt(bx, by);
+    if (tc === "T" || tc === "P") player.onPipe = true;
+  }
+  if (player.onPipe && input.downPressed) { input.downPressed = false; exitPlayground(); return; }
+
+  if (player.y > LEVEL_H + 30) { player.x = 4*TILE; player.y = 12*TILE - player.h; player.vy = 0; }
+  refreshContextBtns();
+
   // camera
   const target = player.x + player.w/2 - VIEW_W * 0.42;
   game.camX += (target - game.camX) * 0.12;
@@ -1447,6 +1648,14 @@ function update() {
   game.pops = game.pops.filter(c => c.t < 28);
 
   if (game.state === "play") updatePlay();
+  else if (game.state === "entering") {
+    game.timer++; player.y += 1.7; player.frame = 0;
+    if (game.timer > 22) loadPlayground();
+  }
+  else if (game.state === "exiting") {
+    game.timer++; player.y += 1.7; player.frame = 0;
+    if (game.timer > 22) finishExit();
+  }
   else if (game.state === "dead") {
     player.vy += 0.35; player.y += player.vy;
     if (game.timer > 110) {
@@ -1485,7 +1694,7 @@ function update() {
   }
   else if (game.state === "title") updateTitle();
 
-  input.anyTap = false; input.firePressed = false; tapX = -1;
+  input.anyTap = false; input.firePressed = false; input.downPressed = false; tapX = -1;
 }
 
 function updateTitle() {
@@ -1628,6 +1837,14 @@ function drawTile(c, tx, ty) {
       g.strokeStyle = "rgba(150,100,25,.5)";
       g.beginPath(); g.ellipse(x+8, y+8, w*0.55, 3.6, 0, 0, Math.PI*2); g.stroke();
     }
+    return;
+  }
+  if (c === "J") {   // trampoline mat (drawn live for a soft bounce sheen)
+    const r = (rx,ry,rw,rh,col) => { g.fillStyle = col; g.fillRect(x+rx, y+ry, rw, rh); };
+    r(1,15,2,1,"#a8316a"); r(13,15,2,1,"#a8316a");          // legs
+    r(0,9,16,5,"#ff7ab8"); r(0,9,16,2,"#ffc1de");           // springy mat
+    g.strokeStyle = "#fff0f7"; g.lineWidth = 0.6;
+    for (let i=2;i<16;i+=3){ g.beginPath(); g.moveTo(x+i,y+10); g.lineTo(x+i,y+14); g.stroke(); }
     return;
   }
   const sp = tileSprite(c);
@@ -1777,6 +1994,28 @@ function softShadow(cx, feetY, w) {
 
 function drawBackground(camX) {
   const theme = game.level.theme || "beach";
+  if (theme === "playground") {
+    const pg = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
+    pg.addColorStop(0, "#bfe9ff"); pg.addColorStop(1, "#ffe6f2");
+    g.fillStyle = pg; g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
+    // rainbow arc (parallax)
+    const rcx = camX * 0.5 + VIEW_W * 0.5, bands = ["#ff6b6b","#ffa94d","#ffd43b","#69db7c","#4dabf7","#b197fc"];
+    g.lineWidth = 5;
+    for (let i=0;i<bands.length;i++){ g.strokeStyle = bands[i];
+      g.beginPath(); g.arc(rcx, 232, 150 - i*5, Math.PI, 0); g.stroke(); }
+    // bunting along the top
+    const off = camX % 22;
+    for (let i=-1;i<VIEW_W/22+2;i++){ const bx = camX + i*22 - off, c = ["#ff5e7e","#ffd166","#6ee7b7","#7fb5ff","#c89bff"][((i%5)+5)%5];
+      g.fillStyle = c; g.beginPath(); g.moveTo(bx, 14); g.lineTo(bx+22, 14); g.lineTo(bx+11, 26); g.closePath(); g.fill(); }
+    // drifting balloons
+    for (let i=0;i<5;i++){ const bx = camX + ((i*160 + game.timer*0.25) % (VIEW_W+120)) - 60,
+      byy = 60 + Math.sin(game.timer*0.03 + i)*10 + i*9, c = ["#ff6b9d","#ffd43b","#4dabf7","#69db7c","#b197fc"][i%5];
+      g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 0.8;
+      g.beginPath(); g.moveTo(bx, byy+11); g.lineTo(bx, byy+24); g.stroke();
+      g.fillStyle = c; g.beginPath(); g.ellipse(bx, byy, 9, 11, 0, 0, Math.PI*2); g.fill();
+      g.fillStyle = "rgba(255,255,255,.5)"; g.beginPath(); g.ellipse(bx-3, byy-3, 2.4, 3.4, -0.5, 0, Math.PI*2); g.fill(); }
+    return;
+  }
   if (theme === "castle") {
     const cgr = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
     cgr.addColorStop(0, "#140a10"); cgr.addColorStop(1, "#43161c");
@@ -1969,6 +2208,65 @@ function drawCagePug() {
   }
 }
 
+function drawSign(txTile, text, color) {
+  const x = txTile*TILE, y = 13*TILE;
+  g.fillStyle = "#9a6a3a"; g.fillRect(x-1, y-26, 2, 14);              // post
+  const w = Math.max(text.length*4.6 + 7, 26);
+  g.fillStyle = color; roundRect(x - w/2, y-39, w, 15, 4); g.fill();   // board
+  g.fillStyle = "rgba(255,255,255,.35)"; roundRect(x - w/2, y-39, w, 4, 4); g.fill();
+  g.fillStyle = "#fff"; g.font = "bold 8px 'Avenir Next',Arial";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(text, x, y-31);
+}
+function drawIceCreamStand(x, gy) {
+  const r = (rx,ry,rw,rh,c) => { g.fillStyle = c; g.fillRect(x+rx, gy+ry, rw, rh); };
+  g.fillStyle = "#7a5230"; g.beginPath(); g.arc(x-7,gy-3,2.4,0,Math.PI*2); g.arc(x+7,gy-3,2.4,0,Math.PI*2); g.fill();
+  r(-12,-18,24,14,"#fff3f8"); r(-12,-6,24,2,"#d98ab0");              // cart body
+  for (let i=0;i<6;i++){ g.fillStyle = i%2?"#ff6b9d":"#ffe0ec"; g.fillRect(x-12+i*4, gy-23, 4, 5); }  // awning
+  g.fillStyle = "#7a5230"; g.font = "bold 6px 'Avenir Next',Arial"; g.textAlign="center"; g.textBaseline="middle";
+  g.fillText("ICE CREAM", x, gy-11);
+  // giant cone on top
+  g.fillStyle = "#e8b87a"; g.beginPath(); g.moveTo(x-4,gy-24); g.lineTo(x+4,gy-24); g.lineTo(x,gy-15); g.closePath(); g.fill();
+  g.fillStyle = "#ffd1e8"; g.beginPath(); g.arc(x-1.6,gy-27,3.2,0,Math.PI*2); g.fill();
+  g.fillStyle = "#bff0d8"; g.beginPath(); g.arc(x+1.8,gy-28,3,0,Math.PI*2); g.fill();
+  g.fillStyle = "#fff3a0"; g.beginPath(); g.arc(x,gy-31,2.6,0,Math.PI*2); g.fill();
+  g.fillStyle = "#e0466a"; g.beginPath(); g.arc(x,gy-33,1.1,0,Math.PI*2); g.fill();
+}
+function drawPlayground() {
+  const L = game.level, t = game.timer;
+  // water slide chute
+  const s = L.slide;
+  if (s) {
+    g.lineCap = "round";
+    g.strokeStyle = "#3aa6dc"; g.lineWidth = 15;
+    g.beginPath(); g.moveTo(s.x0*TILE, s.topY-3); g.lineTo(s.x1*TILE, s.botY-3); g.stroke();
+    g.strokeStyle = "#7fd4ff"; g.lineWidth = 9;
+    g.beginPath(); g.moveTo(s.x0*TILE, s.topY-5); g.lineTo(s.x1*TILE, s.botY-5); g.stroke();
+    g.strokeStyle = "#d6f3ff"; g.lineWidth = 2.5;
+    g.beginPath(); g.moveTo(s.x0*TILE, s.topY-7); g.lineTo(s.x1*TILE, s.botY-7); g.stroke();
+  }
+  if (L.splash) {
+    const px0 = L.splash.x0*TILE, pw = (L.splash.x1-L.splash.x0)*TILE;
+    g.fillStyle = "#7fc8ff"; g.fillRect(px0, 12*TILE+5, pw, TILE+3);
+    g.fillStyle = "rgba(255,255,255,.65)";
+    for (let i=0;i<4;i++){ const wx = px0+6+i*10 + Math.sin(t*0.1+i)*2;
+      g.beginPath(); g.arc(wx, 12*TILE+8, 1.6, 0, Math.PI*2); g.fill(); }
+  }
+  // puppy pen fence
+  if (L.fence) {
+    g.strokeStyle = "#d2a973"; g.lineWidth = 1.6;
+    for (let fx=L.fence.x0; fx<=L.fence.x1; fx+=3){ const x=fx*TILE;
+      g.beginPath(); g.moveTo(x, 12.1*TILE); g.lineTo(x, 13*TILE); g.stroke(); }
+    g.beginPath(); g.moveTo(L.fence.x0*TILE, 12.35*TILE); g.lineTo(L.fence.x1*TILE, 12.35*TILE); g.stroke();
+  }
+  for (const pup of L.puppies) {
+    const hop = -Math.abs(Math.sin(pup.hopT*0.15))*5;
+    drawPug(g, pup.x, 13*TILE + hop);
+  }
+  drawIceCreamStand(L.iceCreamX, 13*TILE);
+  for (const sg of L.signs) drawSign(sg.x, sg.text, sg.color);
+}
+
 function drawWorld() {
   const L = game.level, camX = game.camX;
   drawBackground(camX);
@@ -1982,6 +2280,7 @@ function drawWorld() {
       if (c !== " ") drawTile(c, tx, ty);
     }
   if (L.theme === "castle") drawLava(tx0, tx1);
+  if (L.theme === "playground") drawPlayground();
   if (L.flagX) drawFlag(L.flagX);
 
   for (const p of game.powerups) if (p.rise <= 0) {
@@ -2003,13 +2302,27 @@ function drawWorld() {
   for (const fl of game.bossFlames) drawFlame(g, fl);
   if (game.superFx) drawSuperFx();
 
-  // coin pops
+  // coin / heart / ice-cream pops
   for (const c of game.pops) {
     const yy = c.y - 8 - c.t * 1.2;
-    g.fillStyle = "#f6c14f";
-    g.beginPath(); g.ellipse(c.x, yy, 4, 5.5, 0, 0, Math.PI*2); g.fill();
-    g.fillStyle = "#fff0c0";
-    g.beginPath(); g.ellipse(c.x, yy, 1.6, 3, 0, 0, Math.PI*2); g.fill();
+    if (c.heart) {
+      g.fillStyle = "#ff5e7e";
+      g.beginPath();
+      g.moveTo(c.x, yy+3);
+      g.bezierCurveTo(c.x-4, yy-2, c.x-2, yy-5, c.x, yy-2);
+      g.bezierCurveTo(c.x+2, yy-5, c.x+4, yy-2, c.x, yy+3);
+      g.fill();
+    } else if (c.treat) {
+      g.fillStyle = "#e8b87a"; g.beginPath();
+      g.moveTo(c.x-2.4, yy-1); g.lineTo(c.x+2.4, yy-1); g.lineTo(c.x, yy+4); g.closePath(); g.fill();
+      g.fillStyle = "#ffd1e8"; g.beginPath(); g.arc(c.x, yy-3, 2.6, 0, Math.PI*2); g.fill();
+      g.fillStyle = "#bff0d8"; g.beginPath(); g.arc(c.x+0.6, yy-4.4, 2, 0, Math.PI*2); g.fill();
+    } else {
+      g.fillStyle = "#f6c14f";
+      g.beginPath(); g.ellipse(c.x, yy, 4, 5.5, 0, 0, Math.PI*2); g.fill();
+      g.fillStyle = "#fff0c0";
+      g.beginPath(); g.ellipse(c.x, yy, 1.6, 3, 0, 0, Math.PI*2); g.fill();
+    }
   }
   // particles
   for (const p of game.particles) {
@@ -2036,6 +2349,15 @@ function drawWorld() {
               player.frame, player.facing, !player.grounded, Math.abs(player.vx) > 0.3, player.power);
       g.globalAlpha = 1;
     }
+  }
+
+  // "↓ PLAY!" hint when standing on a pipe (out in the world, not playground)
+  if (player.onPipe && !game.inPlayground && game.state === "play") {
+    const bx = player.x + player.w/2, byy = player.y - 13 + Math.sin(game.timer*0.2)*1.5;
+    g.fillStyle = "rgba(0,0,0,.55)"; roundRect(bx-21, byy-9, 42, 13, 6); g.fill();
+    g.fillStyle = "#ffe066"; g.font = "bold 8px 'Avenir Next',Arial";
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText("↓ PLAY!", bx, byy-2);
   }
 }
 
