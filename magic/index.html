@@ -125,6 +125,7 @@ window.addEventListener("keydown", e => {
   if (!keys[e.code] && (e.code==="Space"||e.code==="ArrowUp"||e.code==="KeyZ"||e.code==="KeyW")) input.jumpPressed = true;
   if (!keys[e.code] && (e.code==="KeyX"||e.code==="KeyB")) input.firePressed = true;
   if (!keys[e.code] && (e.code==="ArrowDown"||e.code==="KeyS")) input.downPressed = true;
+  if (!keys[e.code] && e.code==="KeyP") setPigeonsOff(!game.pigeonsOff);   // P toggles pigeons
   keys[e.code] = true;
   input.anyTap = true;
 });
@@ -1516,7 +1517,14 @@ const game = {
   boss: null, pug: null, rescued: false,
   titleCards: [],
   inPlayground: false, savedLevel: null, savedReturn: null, treatT: 0,
+  pigeonsOff: (() => { try { return localStorage.getItem("magicPigeonsOff") === "1"; } catch(e) { return false; } })(),
 };
+function setPigeonsOff(off) {
+  game.pigeonsOff = off;
+  if (off) game.pigeons = [];
+  try { localStorage.setItem("magicPigeonsOff", off ? "1" : "0"); } catch(e) {}
+  SFX.select && SFX.select();
+}
 const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
                  coyote:0, jumpBuf:0, animT:0, frame:0,
                  power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0, onPipe:false, flying:false,
@@ -1850,7 +1858,7 @@ function updatePlay() {
   // --- angry pigeons: the flock dives at you for flying too long ---
   if (player.grounded) player.airT = 0; else player.airT++;
   const FLY_LIMIT = 210;                 // ~3.5s aloft before the flock takes notice
-  if (player.airT > FLY_LIMIT && game.pigeons.length < 3) {
+  if (!game.pigeonsOff && player.airT > FLY_LIMIT && game.pigeons.length < 3) {
     if (game.pigeonCool > 0) game.pigeonCool--;
     else {
       game.pigeonCool = 75;
@@ -2141,6 +2149,10 @@ function update() {
 
 function updateTitle() {
   if (tapX >= 0) {
+    const tg = game.pigeonToggleRect;
+    if (tg && tapX >= tg.x && tapX <= tg.x + tg.w && tapY >= tg.y && tapY <= tg.y + tg.h) {
+      setPigeonsOff(!game.pigeonsOff); return;
+    }
     for (const c of game.titleCards) {
       if (tapX >= c.sx && tapX <= c.sx + c.sw && tapY >= c.sy && tapY <= c.sy + c.sh) {
         heroKey = c.key; SFX.select();
@@ -3061,6 +3073,21 @@ function drawTitle() {
 
   g.font = "600 " + Math.min(W/26, 16) + "px 'Avenir Next',Arial";
   outlineText("tap a hero to start", W/2, cy + ch/2 + 34, "#fff");
+
+  // pigeons on/off toggle (kid-friendly — tap to flip; remembered next time)
+  const off = game.pigeonsOff;
+  const tw = Math.min(W * 0.62, 280), th = Math.min(W/9, 44), tx = W/2 - tw/2, tyT = cy + ch/2 + 54;
+  g.fillStyle = off ? "rgba(120,170,90,.85)" : "rgba(120,140,170,.55)";
+  roundRect(tx, tyT, tw, th, th/2); g.fill();
+  g.lineWidth = 3; g.strokeStyle = off ? "#bff0a0" : "rgba(255,255,255,.6)";
+  roundRect(tx, tyT, tw, th, th/2); g.stroke();
+  // knob
+  const knobR = th/2 - 5, knobX = off ? tx + tw - th/2 : tx + th/2;
+  g.fillStyle = "#fff"; g.beginPath(); g.arc(knobX, tyT + th/2, knobR, 0, Math.PI*2); g.fill();
+  g.font = "800 " + Math.min(W/30, 15) + "px 'Avenir Next',Arial";
+  outlineText("🕊️ Pigeons: " + (off ? "OFF" : "ON"), W/2, tyT + th/2, off ? "#eaffe0" : "#fff");
+  game.pigeonToggleRect = { x: tx, y: tyT, w: tw, h: th };
+
   g.font = "600 12px 'Avenir Next',Arial";
   outlineText("made with ♥ for Jules & Nora", W/2, H - 16, "#ffe9f0");
   g.restore();
