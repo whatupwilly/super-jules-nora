@@ -175,7 +175,7 @@ bindBtn(btnJ, "jump", () => { input.jumpPressed = true; });
 bindBtn(btnF, "fire", () => { input.firePressed = true; });
 bindBtn(btnD, "down", () => { input.downPressed = true; });
 btnX.addEventListener("pointerdown", e => { e.preventDefault(); audio(); btnX.classList.add("pressed");
-  if (game.state === "play" && game.inPlayground) exitPlayground(); }, {passive:false});
+  if (game.state === "play" && game.inPlayground) exitArea(); }, {passive:false});
 btnX.addEventListener("pointerup", () => btnX.classList.remove("pressed"));
 btnX.addEventListener("pointercancel", () => btnX.classList.remove("pressed"));
 
@@ -203,7 +203,7 @@ function showButtons(on) {
 }
 let fireBtnShown = false;
 function refreshFireBtn() {
-  const want = game.state === "play" && !game.inPlayground;
+  const want = game.state === "play" && (!game.inPlayground || game.subArea === "waterpark");  // water gun in the park
   if (want !== fireBtnShown) { fireBtnShown = want; btnF.style.display = want ? "block" : "none"; }
 }
 let downBtnShown = false, exitBtnShown = false;
@@ -1598,6 +1598,7 @@ function makePlayground() {
 
   stair(12, 7, 1);                                   // water slide: stairs up...
   const slide = { x0: 18, x1: 26, topY: 6*TILE, botY: 13*TILE };  // ...then a scripted chute down
+  pipe(30, 2);                                       // down here at the slide → the WATER PARK
 
   setT(34,12,"J"); setT(35,12,"J");                  // gymnastics trampoline
   coins(33,8,4);                                     // floating coins to grab on the bounce
@@ -1614,6 +1615,7 @@ function makePlayground() {
   const signs = [
     { x:6.5, text:"EXIT ↑",     color:"#ff5e7e" },
     { x:15,  text:"WATER SLIDE",     color:"#2aa7e0" },
+    { x:30.5,text:"WATER PARK ↓",    color:"#1f9ad6" },
     { x:34.5,text:"GYMNASTICS",      color:"#f59a2e" },
     { x:55,  text:"PARKOUR",         color:"#9b6cff" },
     { x:77,  text:"PUPPIES",         color:"#ff6fae" },
@@ -1621,20 +1623,68 @@ function makePlayground() {
   ];
 
   return { grid, width: Wd, enemies: [], flagX: null, name: "PLAYGROUND", boss: null,
-           theme: "playground", slide, puppies, iceCreamX: 92*TILE,
+           theme: "playground", slide, puppies, iceCreamX: 92*TILE, parkPipeX: 30,
            splash: { x0: 24, x1: 28 }, fence: { x0: 69, x1: 85 }, signs };
 }
 
-function enterPipe() {
-  game.savedLevel = game.level;
-  game.savedReturn = { x: player.x, y: player.y, camX: game.camX,
-                       power: player.power, h: player.h, facing: player.facing };
+/* The WATER PARK — reached by the down-pipe at the playground's water slide.
+   Five water slides of different heights, a play park, and a water-gun
+   shooting gallery where hitting targets earns coins. */
+function makeWaterpark() {
+  const Wd = 168;
+  const grid = Array.from({length: ROWS}, () => Array(Wd).fill(" "));
+  const setT = (x,y,c) => { if (x>=0 && x<Wd && y>=0 && y<ROWS) grid[y][x] = c; };
+  const ground = (a,b) => { for (let x=a;x<=b;x++){ setT(x,13,"G"); setT(x,14,"#"); } };
+  const stone = (x,y) => setT(x,y,"S");
+  const coin  = (x,y) => setT(x,y,"o");
+  const coins = (x,y,n) => { for (let i=0;i<n;i++) coin(x+i,y); };
+  const pipe  = (x,h) => { for (let yy=13-h; yy<13; yy++){ const c = yy===13-h?"T":"P"; setT(x,yy,c); setT(x+1,yy,c); } };
+  const stair = (x,h,dir) => { for (let s=0;s<h;s++){ const cx=x+(dir<0?-s:s); for (let yy=12; yy>12-(s+1); yy--) stone(cx,yy); } };
+  ground(0, Wd-1);
+
+  pipe(6, 2);                                        // exit pipe back to the playground
+
+  // five water slides of different heights — stairs up, then a scripted chute
+  const slides = [], splashes = [];
+  for (const [bx, h] of [[12,4],[23,5],[35,6],[48,7],[62,9]]) {
+    stair(bx, h, 1);
+    const top = bx + (h - 1);
+    slides.push({ x0: top, x1: top + 5, topY: (13 - h) * TILE, botY: 13*TILE });
+    splashes.push({ x0: top + 3, x1: top + 7 });
+    coins(bx + 1, 13 - h - 2, 2);                     // a couple coins up top
+  }
+
+  // play park — a bouncy trampoline, a slide ledge, swings & trees (drawn), coins
+  setT(84, 12, "J"); setT(85, 12, "J");
+  stone(80, 9); stone(81, 9); stone(82, 9); coins(80, 6, 3);
+  coins(90, 8, 4);
+
+  // water-gun shooting gallery — bobbing targets to splash for coins
+  const targets = [];
+  for (const [tx, ty] of [[114,10],[121,9],[129,10],[137,8],[145,10],[153,9]])
+    targets.push({ x: tx*TILE + 8, baseY: ty*TILE, y: ty*TILE, r: 8, hit: 0, ph: tx*7, ring: tx % 2 });
+
+  const signs = [
+    { x:6.5, text:"EXIT ↑",       color:"#ff5e7e" },
+    { x:35,  text:"WATER SLIDES",  color:"#2aa7e0" },
+    { x:86,  text:"PARK",          color:"#5fb84a" },
+    { x:120, text:"WATER GUN!",    color:"#ff7a3c" },
+  ];
+
+  return { grid, width: Wd, enemies: [], flagX: null, name: "WATER PARK", boss: null,
+           theme: "waterpark", slides, splashes, targets, signs,
+           trees: [70, 92, 98], swingX: 88, benchX: 95, galleryX0: 110, galleryX1: 160 };
+}
+
+function snapshotPlayer() {
+  return { x: player.x, y: player.y, camX: game.camX,
+           power: player.power, h: player.h, facing: player.facing };
+}
+function beginEnterAnim() {
   game.state = "entering"; game.timer = 0; player.vx = 0; player.onPipe = false;
   SFX.pipe(); showButtons(false);
 }
-function loadPlayground() {
-  game.level = makePlayground();
-  game.inPlayground = true;
+function resetAreaState() {
   player.h = player.power > 0 ? 24 : 16;
   player.x = 3*TILE; player.y = 12*TILE - player.h;
   player.vx = 0; player.vy = 0; player.facing = 1; player.grounded = false;
@@ -1643,22 +1693,45 @@ function loadPlayground() {
   game.camX = 0; game.particles = []; game.pops = []; game.powerups = [];
   game.fireballs = []; game.bossFlames = []; game.boss = null; game.pug = null;
   game.pigeons = []; game.pigeonCool = 0; game.treatT = 0; game.igloos = []; game.flowers = [];
-  game.state = "play"; showButtons(true);
+  game.waterShots = []; game.targets = game.level.targets || [];
 }
-function exitPlayground() {
+function enterPipe() {                              // main level -> playground
+  game.savedLevel = game.level; game.savedReturn = snapshotPlayer();
+  game.enterTo = "playground"; beginEnterAnim();
+}
+function enterWaterpark() {                         // playground -> water park
+  game.savedPark = game.level; game.savedParkReturn = snapshotPlayer();
+  game.enterTo = "waterpark"; beginEnterAnim();
+}
+function loadPlayground() {
+  game.level = makePlayground(); game.inPlayground = true; game.subArea = "playground";
+  resetAreaState(); game.state = "play"; showButtons(true);
+}
+function loadWaterpark() {
+  game.level = makeWaterpark(); game.inPlayground = true; game.subArea = "waterpark";
+  resetAreaState(); game.state = "play"; showButtons(true);
+}
+function exitArea() {                               // leave the current sub-area, up one level
   game.state = "exiting"; game.timer = 0; player.vx = 0; player.onPipe = false;
   SFX.pipe(); showButtons(false);
 }
-function finishExit() {
-  const r = game.savedReturn;
-  game.level = game.savedLevel; game.inPlayground = false;
+function restorePlayerTo(r) {
   player.power = r.power; player.h = r.h;
   player.x = r.x; player.y = r.y; player.vx = 0; player.vy = 0;
   player.facing = r.facing; player.grounded = false; player.inv = 30; player.onPipe = false;
   player.fly = CHARS[heroKey].flyMax; player.shootCool = 0; player.airT = 0;
-  game.camX = r.camX; game.savedLevel = null;
+  game.camX = r.camX;
+}
+function finishExitArea() {
+  if (game.subArea === "waterpark") {              // water park -> playground
+    game.level = game.savedPark; game.subArea = "playground";
+    restorePlayerTo(game.savedParkReturn); game.savedPark = null;
+  } else {                                          // playground -> main level
+    game.level = game.savedLevel; game.inPlayground = false; game.subArea = null;
+    restorePlayerTo(game.savedReturn); game.savedLevel = null;
+  }
   game.particles = []; game.pops = []; game.powerups = []; game.fireballs = [];
-  game.pigeons = []; game.pigeonCool = 0;
+  game.pigeons = []; game.pigeonCool = 0; game.waterShots = []; game.targets = game.level.targets || [];
   game.state = "play"; showButtons(true);
 }
 
@@ -1673,6 +1746,7 @@ const game = {
   boss: null, pug: null, rescued: false,
   titleCards: [],
   inPlayground: false, savedLevel: null, savedReturn: null, treatT: 0,
+  subArea: null, savedPark: null, savedParkReturn: null, enterTo: null, waterShots: [], targets: [],
   pigeonsOff: (() => { try { return localStorage.getItem("magicPigeonsOff") === "1"; } catch(e) { return false; } })(),
 };
 function setPigeonsOff(off) {
@@ -1689,7 +1763,7 @@ const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
 function startLevel(n) {
   game.levelNum = n;
   game.level = makeLevel(n);
-  game.inPlayground = false; game.savedLevel = null;
+  game.inPlayground = false; game.savedLevel = null; game.subArea = null; game.savedPark = null; game.waterShots = []; game.targets = [];
   player.h = player.power > 0 ? 24 : 16;
   player.x = 2*TILE; player.y = 13*TILE - player.h;
   player.vx = 0; player.vy = 0; player.facing = 1; player.grounded = false;
@@ -1713,7 +1787,7 @@ function startLevel(n) {
 function goTitle() {
   game.state = "title"; game.score = 0; game.coins = 0; game.lives = 3; game.timer = 0;
   player.power = 0; game.rescued = false;
-  game.inPlayground = false; game.savedLevel = null;
+  game.inPlayground = false; game.savedLevel = null; game.subArea = null; game.savedPark = null; game.waterShots = []; game.targets = [];
   unfadeButtons();
   document.getElementById("verlink").style.display = "block";
   showButtons(false);
@@ -1919,7 +1993,7 @@ function updatePlay() {
   }
 
   // --- the playground runs its own (hazard-free) update ---
-  if (game.inPlayground) { updatePlaygroundExtras(); return; }
+  if (game.inPlayground) { if (game.subArea === "waterpark") updateWaterparkExtras(); else updatePlaygroundExtras(); return; }
 
   // --- magic: Chun-me's stars / Chuckee's lightning ---
   if (player.shootCool > 0) player.shootCool--;
@@ -2213,19 +2287,93 @@ function updatePlaygroundExtras() {
     game.pops.push({ x:L.iceCreamX, y:11*TILE, t:0, treat:true });
   }
 
-  // go down the exit pipe to leave (the EXIT button does the same)
+  // pipes: the EXIT pipe leaves to the main game; the WATER PARK pipe dives deeper
+  player.onPipe = false;
+  let onParkPipe = false;
+  if (player.grounded) {
+    const bx = Math.floor((player.x + player.w/2)/TILE), by = Math.floor((player.y + player.h + 1)/TILE);
+    const tc = tileAt(bx, by);
+    if (tc === "T" || tc === "P") { player.onPipe = true; onParkPipe = Math.abs(bx - L.parkPipeX) <= 1; }
+  }
+  if (player.onPipe && input.downPressed) {
+    input.downPressed = false;
+    if (onParkPipe) enterWaterpark(); else exitArea();
+    return;
+  }
+
+  if (player.y > LEVEL_H + 30) { player.x = 4*TILE; player.y = 12*TILE - player.h; player.vy = 0; }
+  refreshContextBtns();
+
+  // camera
+  const target = player.x + player.w/2 - VIEW_W * 0.42;
+  game.camX += (target - game.camX) * 0.12;
+  game.camX = Math.max(0, Math.min(game.camX, L.width * TILE - VIEW_W));
+}
+
+function updateWaterparkExtras() {
+  const L = game.level;
+
+  // walk animation
+  if (Math.abs(player.vx) > 0.3 && player.grounded) {
+    player.animT += Math.abs(player.vx);
+    if (player.animT > 7) { player.animT = 0; player.frame = 1 - player.frame; }
+  } else player.frame = 0;
+
+  // ride any of the five water slides
+  for (const s of L.slides) {
+    const cx = player.x + player.w/2;
+    if (cx > s.x0*TILE && cx < s.x1*TILE) {
+      const frac = (cx - s.x0*TILE) / ((s.x1 - s.x0)*TILE);
+      const lineY = s.topY + (s.botY - s.topY) * frac;
+      const feet = player.y + player.h;
+      if (feet >= lineY - 3 && feet <= lineY + 12 && player.vy >= -0.5) {
+        player.y = lineY - player.h; player.vy = 0; player.grounded = true; player.facing = 1;
+        if (player.vx < 2.8) player.vx += 0.32;
+        if (game.timer % 4 === 0) game.particles.push({ x:cx, y:feet, vx:Math.random()-0.5, vy:-Math.random()*1.6, t:0, c:"#9be0ff" });
+      }
+    }
+  }
+
+  // water gun — fire to shoot a water blob that arcs and falls
+  if (input.firePressed) {
+    input.firePressed = false;
+    if (game.waterShots.length < 5) {
+      game.waterShots.push({ x: player.x + (player.facing>0 ? player.w : -4), y: player.y + player.h*0.3,
+        vx: 3.2*player.facing, vy: -5, t: 0 });   // strong arc so it sweeps high & low targets
+      SFX.fire && SFX.fire();
+    }
+  }
+  for (const ws of game.waterShots) {
+    ws.t++; ws.vy = Math.min(ws.vy + 0.2, 6); ws.x += ws.vx; ws.y += ws.vy;
+    for (const tg of L.targets) {                    // splash a target → a coin!
+      if (tg.hit <= 0 && Math.abs(ws.x - tg.x) < tg.r + 3 && Math.abs(ws.y - tg.y) < tg.r + 3) {
+        tg.hit = 80; game.coins++; game.score += 100; SFX.coin();
+        game.pops.push({ x: tg.x, y: tg.y, t: 0 });
+        ws.gone = true;
+        for (let i=0;i<7;i++) game.particles.push({ x:ws.x, y:ws.y, vx:Math.random()*2.4-1.2, vy:-Math.random()*2.2, t:0, c:"#7fd0ff" });
+      }
+    }
+    if (!ws.gone && (isSolid(tileAt(Math.floor(ws.x/TILE), Math.floor(ws.y/TILE))) || ws.t > 120 ||
+        ws.y > LEVEL_H + 16 || ws.x < game.camX - 30 || ws.x > game.camX + VIEW_W + 30)) {
+      for (let i=0;i<4;i++) game.particles.push({ x:ws.x, y:ws.y, vx:Math.random()*2-1, vy:-Math.random()*1.5, t:0, c:"#9be0ff" });
+      ws.gone = true;
+    }
+  }
+  game.waterShots = game.waterShots.filter(ws => !ws.gone);
+  for (const tg of L.targets) { if (tg.hit > 0) tg.hit--; if (tg.hit <= 0) tg.y = tg.baseY + Math.sin((game.timer + tg.ph)*0.05)*5; }
+
+  // exit pipe → back up to the playground
   player.onPipe = false;
   if (player.grounded) {
     const bx = Math.floor((player.x + player.w/2)/TILE), by = Math.floor((player.y + player.h + 1)/TILE);
     const tc = tileAt(bx, by);
     if (tc === "T" || tc === "P") player.onPipe = true;
   }
-  if (player.onPipe && input.downPressed) { input.downPressed = false; exitPlayground(); return; }
+  if (player.onPipe && input.downPressed) { input.downPressed = false; exitArea(); return; }
 
   if (player.y > LEVEL_H + 30) { player.x = 4*TILE; player.y = 12*TILE - player.h; player.vy = 0; }
   refreshContextBtns();
 
-  // camera
   const target = player.x + player.w/2 - VIEW_W * 0.42;
   game.camX += (target - game.camX) * 0.12;
   game.camX = Math.max(0, Math.min(game.camX, L.width * TILE - VIEW_W));
@@ -2265,11 +2413,11 @@ function update() {
   if (game.state === "play") updatePlay();
   else if (game.state === "entering") {
     game.timer++; player.y += 1.7; player.frame = 0;
-    if (game.timer > 22) loadPlayground();
+    if (game.timer > 22) { if (game.enterTo === "waterpark") loadWaterpark(); else loadPlayground(); }
   }
   else if (game.state === "exiting") {
     game.timer++; player.y += 1.7; player.frame = 0;
-    if (game.timer > 22) finishExit();
+    if (game.timer > 22) finishExitArea();
   }
   else if (game.state === "dead") {
     player.vy += 0.35; player.y += player.vy;
@@ -2739,6 +2887,21 @@ function drawBackground(camX) {
       g.fillStyle = "rgba(255,255,255,.5)"; g.beginPath(); g.ellipse(bx-3, byy-3, 2.4, 3.4, -0.5, 0, Math.PI*2); g.fill(); }
     return;
   }
+  if (theme === "waterpark") {
+    const wp = g.createLinearGradient(0, -VIEW_H, 0, 208);
+    wp.addColorStop(0, "#3aa0e8"); wp.addColorStop(0.6, "#8fd0f5"); wp.addColorStop(1, "#dff3ff");
+    g.fillStyle = wp; g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
+    const sx = camX + VIEW_W*0.82, sy = 30;
+    const halo = g.createRadialGradient(sx, sy, 2, sx, sy, 34);
+    halo.addColorStop(0, "rgba(255,244,200,.95)"); halo.addColorStop(1, "rgba(255,238,170,0)");
+    g.fillStyle = halo; g.beginPath(); g.arc(sx, sy, 34, 0, Math.PI*2); g.fill();
+    g.fillStyle = "#fff6d8"; g.beginPath(); g.arc(sx, sy, 10, 0, Math.PI*2); g.fill();
+    bgLayer(camX, 0.2, 280, bx => { cloud(bx + 40, 48); cloud(bx + 175, 78); });
+    const off = camX % 22;
+    for (let i=-1;i<VIEW_W/22+2;i++){ const bx = camX + i*22 - off, c = ["#ff5e7e","#ffd166","#6ee7b7","#7fb5ff"][((i%4)+4)%4];
+      g.fillStyle = c; g.beginPath(); g.moveTo(bx, 14); g.lineTo(bx+22, 14); g.lineTo(bx+11, 25); g.closePath(); g.fill(); }
+    return;
+  }
   if (theme === "castle") {
     const cgr = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
     cgr.addColorStop(0, "#140a10"); cgr.addColorStop(1, "#43161c");
@@ -3023,6 +3186,75 @@ function drawPlayground() {
   for (const sg of L.signs) drawSign(sg.x, sg.text, sg.color);
 }
 
+function drawSlideChute(s, hue) {
+  g.lineCap = "round";
+  g.strokeStyle = hue[0]; g.lineWidth = 15;
+  g.beginPath(); g.moveTo(s.x0*TILE, s.topY-3); g.lineTo(s.x1*TILE, s.botY-3); g.stroke();
+  g.strokeStyle = hue[1]; g.lineWidth = 9;
+  g.beginPath(); g.moveTo(s.x0*TILE, s.topY-5); g.lineTo(s.x1*TILE, s.botY-5); g.stroke();
+  g.strokeStyle = "#d6f3ff"; g.lineWidth = 2.5;
+  g.beginPath(); g.moveTo(s.x0*TILE, s.topY-7); g.lineTo(s.x1*TILE, s.botY-7); g.stroke();
+}
+function drawTree(cx, gy) {
+  g.fillStyle = "#9a6a3a"; g.fillRect(cx-2, gy-18, 4, 18);
+  for (const [ox,oy,r] of [[-6,-20,9],[6,-20,9],[0,-26,10],[0,-16,9]]) {
+    g.fillStyle = "#4fae45"; g.beginPath(); g.arc(cx+ox, gy+oy, r, 0, Math.PI*2); g.fill();
+  }
+  g.fillStyle = "rgba(255,255,255,.18)"; g.beginPath(); g.arc(cx-3, gy-28, 4, 0, Math.PI*2); g.fill();
+}
+function drawWaterpark() {
+  const L = game.level, t = game.timer;
+  // the five slides + their splash pools
+  const hues = [["#e06aa8","#ff9ed0"],["#3aa6dc","#7fd4ff"],["#f59a2e","#ffd166"],["#6f55c8","#b39bff"],["#3aa65a","#8fe2a0"]];
+  for (let i = 0; i < L.slides.length; i++) {
+    if (L.splashes[i]) { const sp = L.splashes[i], px0 = sp.x0*TILE, pw = (sp.x1-sp.x0)*TILE;
+      g.fillStyle = "#7fc8ff"; g.fillRect(px0, 12*TILE+5, pw, TILE+3);
+      g.fillStyle = "rgba(255,255,255,.6)";
+      for (let k=0;k<3;k++){ const wx=px0+5+k*9+Math.sin(t*0.1+k+i)*2; g.beginPath(); g.arc(wx, 12*TILE+8, 1.5, 0, Math.PI*2); g.fill(); } }
+    drawSlideChute(L.slides[i], hues[i % hues.length]);
+  }
+  // park: trees, a swing set, a bench
+  for (const tx of L.trees) drawTree(tx*TILE, 13*TILE);
+  if (L.swingX != null) { const sx = L.swingX*TILE, top = 13*TILE - 26;
+    g.strokeStyle = "#b9772f"; g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(sx-9, 13*TILE); g.lineTo(sx, top); g.lineTo(sx+9, 13*TILE); g.moveTo(sx, top); g.lineTo(sx+18, top); g.lineTo(sx+9, 13*TILE); g.stroke();
+    g.strokeStyle = "rgba(80,80,90,.7)"; g.lineWidth = 0.7;
+    const sw = Math.sin(t*0.07)*3;
+    g.beginPath(); g.moveTo(sx+5, top); g.lineTo(sx+5+sw, 13*TILE-7); g.moveTo(sx+13, top); g.lineTo(sx+13+sw, 13*TILE-7); g.stroke();
+    g.fillStyle = "#e0556e"; g.fillRect(sx+4+sw, 13*TILE-8, 10, 2); }
+  if (L.benchX != null) { const bx = L.benchX*TILE;
+    g.fillStyle = "#caa06a"; g.fillRect(bx-7, 13*TILE-7, 16, 2.5); g.fillRect(bx-7, 13*TILE-12, 16, 2);
+    g.fillStyle = "#9a6a3a"; g.fillRect(bx-6, 13*TILE-5, 2, 5); g.fillRect(bx+5, 13*TILE-5, 2, 5); }
+  // targets
+  for (const tg of L.targets) {
+    if (tg.hit > 0) {  // splashed — show a burst, then it respawns
+      g.fillStyle = "rgba(127,208,255,.7)";
+      for (let k=0;k<5;k++){ const a=k*1.3; g.beginPath(); g.arc(tg.x+Math.cos(a)*tg.r, tg.baseY+Math.sin(a)*tg.r, 1.6, 0, Math.PI*2); g.fill(); }
+      continue;
+    }
+    g.fillStyle = "#9a6a3a"; g.fillRect(tg.x-1, tg.y, 2, 13*TILE - tg.y);   // post
+    if (tg.ring) {                                  // bullseye
+      g.fillStyle = "#fff"; g.beginPath(); g.arc(tg.x, tg.y, tg.r, 0, Math.PI*2); g.fill();
+      g.fillStyle = "#e0466a"; g.beginPath(); g.arc(tg.x, tg.y, tg.r*0.7, 0, Math.PI*2); g.fill();
+      g.fillStyle = "#fff"; g.beginPath(); g.arc(tg.x, tg.y, tg.r*0.42, 0, Math.PI*2); g.fill();
+      g.fillStyle = "#e0466a"; g.beginPath(); g.arc(tg.x, tg.y, tg.r*0.16, 0, Math.PI*2); g.fill();
+    } else {                                        // rubber duck
+      g.fillStyle = "#ffd23c"; g.beginPath(); g.ellipse(tg.x, tg.y+1, tg.r, tg.r*0.8, 0, 0, Math.PI*2); g.fill();
+      g.beginPath(); g.arc(tg.x - tg.r*0.5, tg.y - tg.r*0.5, tg.r*0.55, 0, Math.PI*2); g.fill();
+      g.fillStyle = "#ff8a2c"; g.beginPath(); g.moveTo(tg.x - tg.r*1.1, tg.y - tg.r*0.5); g.lineTo(tg.x - tg.r*0.5, tg.y - tg.r*0.3); g.lineTo(tg.x - tg.r*0.5, tg.y - tg.r*0.7); g.closePath(); g.fill();
+      g.fillStyle = "#241a12"; g.beginPath(); g.arc(tg.x - tg.r*0.55, tg.y - tg.r*0.6, 0.9, 0, Math.PI*2); g.fill();
+    }
+  }
+  // water shots (blue droplets)
+  for (const ws of game.waterShots) {
+    g.fillStyle = "rgba(120,200,255,.55)"; g.beginPath(); g.arc(ws.x-ws.vx, ws.y-ws.vy, 1.6, 0, Math.PI*2); g.fill();
+    const wg = g.createRadialGradient(ws.x-0.6, ws.y-0.6, 0.3, ws.x, ws.y, 3.4);
+    wg.addColorStop(0,"#dff3ff"); wg.addColorStop(1,"#3f9fe0");
+    g.fillStyle = wg; g.beginPath(); g.arc(ws.x, ws.y, 3.2, 0, Math.PI*2); g.fill();
+  }
+  for (const sg of L.signs) drawSign(sg.x, sg.text, sg.color);
+}
+
 function drawWorld() {
   const L = game.level, camX = game.camX;
   drawBackground(camX);
@@ -3038,6 +3270,7 @@ function drawWorld() {
   if (L.theme === "castle") drawLava(tx0, tx1);
   if (L.theme === "icecastle") drawIceWater(tx0, tx1);
   if (L.theme === "playground") drawPlayground();
+  if (L.theme === "waterpark") drawWaterpark();
   if (L.flagX) drawFlag(L.flagX);
 
   for (const p of game.powerups) if (p.rise <= 0) {
