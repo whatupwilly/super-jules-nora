@@ -208,7 +208,7 @@ function refreshFireBtn() {
 }
 let downBtnShown = false, exitBtnShown = false;
 function refreshContextBtns() {
-  const wantD = game.state === "play" && !game.inPlayground && player.onPipe;
+  const wantD = game.state === "play" && player.onDownPipe;   // ▼ shows on any pipe that goes deeper
   if (wantD !== downBtnShown) { downBtnShown = wantD; btnD.style.display = wantD ? "block" : "none"; }
   const wantX = game.state === "play" && game.inPlayground;
   if (wantX !== exitBtnShown) { exitBtnShown = wantX; btnX.style.display = wantX ? "block" : "none"; }
@@ -1757,7 +1757,7 @@ function setPigeonsOff(off) {
 }
 const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
                  coyote:0, jumpBuf:0, animT:0, frame:0,
-                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0, onPipe:false, flying:false,
+                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0, onPipe:false, onDownPipe:false, flying:false,
                  jg:{ hold:0.125, fall:0.4375 } };
 
 function startLevel(n) {
@@ -2236,6 +2236,7 @@ function updatePlay() {
     const bx = Math.floor((player.x + player.w/2)/TILE), by = Math.floor((player.y + player.h + 1)/TILE);
     if (tileAt(bx, by) === "T") player.onPipe = true;
   }
+  player.onDownPipe = player.onPipe;                 // every main-level pipe goes down
   if (player.onPipe && input.downPressed) { input.downPressed = false; enterPipe(); return; }
   refreshContextBtns();
 
@@ -2295,6 +2296,7 @@ function updatePlaygroundExtras() {
     const tc = tileAt(bx, by);
     if (tc === "T" || tc === "P") { player.onPipe = true; onParkPipe = Math.abs(bx - L.parkPipeX) <= 1; }
   }
+  player.onDownPipe = onParkPipe;                     // only the water-park pipe goes down (▼ button)
   if (player.onPipe && input.downPressed) {
     input.downPressed = false;
     if (onParkPipe) enterWaterpark(); else exitArea();
@@ -2362,13 +2364,14 @@ function updateWaterparkExtras() {
   game.waterShots = game.waterShots.filter(ws => !ws.gone);
   for (const tg of L.targets) { if (tg.hit > 0) tg.hit--; if (tg.hit <= 0) tg.y = tg.baseY + Math.sin((game.timer + tg.ph)*0.05)*5; }
 
-  // exit pipe → back up to the playground
+  // exit pipe → back up to the playground (use the EXIT button; no down-pipes here)
   player.onPipe = false;
   if (player.grounded) {
     const bx = Math.floor((player.x + player.w/2)/TILE), by = Math.floor((player.y + player.h + 1)/TILE);
     const tc = tileAt(bx, by);
     if (tc === "T" || tc === "P") player.onPipe = true;
   }
+  player.onDownPipe = false;
   if (player.onPipe && input.downPressed) { input.downPressed = false; exitArea(); return; }
 
   if (player.y > LEVEL_H + 30) { player.x = 4*TILE; player.y = 12*TILE - player.h; player.vy = 0; }
