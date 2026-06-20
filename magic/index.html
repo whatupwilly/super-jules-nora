@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Rosalina &amp; Bamboo — by Jules &amp; Nora</title>
+<title>Magic Heroes — by Jules &amp; Nora</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   #game, .btn, #verlink, #verlink a { touch-action:none; }
@@ -224,6 +224,17 @@ const CHARS = {
     panWhite:"#f7efe2", panDark:"#2c211c", panDarkLt:"#46352c",
     panEar:"#c2551f", panStripe:"#94391a", panNose:"#1a1210", panEye:"#140f0c",
   },
+  northern: {
+    name: "NORTHERN LIGHT", kind: "bunny", look: "fox", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // arctic fox — white fur, cool shadows, big sparkly eyes, blush, fluffy tail
+    foxFur:"#fcfdff", foxShade:"#d6e0f0", foxShadeDk:"#aab9d4",
+    foxEarIn:"#46506b", foxNose:"#2b2233", foxEye:"#181320", foxBlush:"#ffbcd2",
+    foxTailTip:"#8b97b4",
+    // aurora palette (when powered up — "northern light colors with white")
+    aur1:"#8ef0c8", aur2:"#7fb6ff", aur3:"#c69bff",
+  },
   nora: {
     name: "PRINCESS ROSALINA", kind: "cloud", look: "princess", flyMax: 600,
     body:"#f2f7fd", shade:"#c3d4ea", cheek:"#f5a8b8", bolt:"#e8447a",
@@ -280,7 +291,8 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   ctx.translate(x, y);
   if (power > 0) ctx.scale(1.18, 1.32);
   if (facing < 0) ctx.scale(-1, 1);
-  if (pal.look === "panda") drawBambooBody(ctx, pal, frame, airborne, walking);
+  if (pal.look === "fox") drawNorthernBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "panda") drawBambooBody(ctx, pal, frame, airborne, walking);
   else if (pal.look === "slime") drawCosmoBody(ctx, pal, frame, airborne, walking);
   else if (pal.look === "princess") drawRosalinaBody(ctx, pal, frame, airborne, walking);
   else if (pal.kind === "cloud") drawChuckeeBody(ctx, pal);
@@ -605,6 +617,157 @@ function drawPowerup(ctx, p) {
   ctx.restore();
 }
 
+/* Northern Light the arctic fox: fluffy white fur with cool shadows, big
+   sparkly eyes, blush cheeks, tall ears, a huge bushy tail. When powered up
+   her fur shimmers aurora colors. Feet at (0,0), facing right. */
+function drawNorthernBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  // aurora shimmer fur when powered up ("northern light colors with white")
+  const aura = power >= 2;
+  const furTop = aura ? pal.aur2 : pal.foxFur;
+  const furBot = aura ? pal.aur1 : pal.foxShade;
+  const r = (rx,ry,rw,rh,c) => { ctx.fillStyle = c; ctx.fillRect(rx,ry,rw,rh); };
+
+  // ---- huge bushy tail sweeping up behind ----
+  ctx.save();
+  ctx.translate(-5.8, -2.2);
+  ctx.rotate(Math.sin(t*0.07)*0.07 - 0.25);
+  const tg = ctx.createLinearGradient(0, 2, 0, -12);
+  tg.addColorStop(0, aura ? pal.aur3 : pal.foxShade); tg.addColorStop(1, furTop);
+  ctx.fillStyle = tg;
+  ctx.beginPath();
+  ctx.moveTo(0, 1);
+  ctx.bezierCurveTo(-6, -2, -6.5, -10, -1.5, -13.5);
+  ctx.bezierCurveTo(3, -16, 6, -12, 4.5, -8);
+  ctx.bezierCurveTo(3.4, -5, 2, -2, 0, 1);
+  ctx.closePath(); ctx.fill();
+  // fluffy white tail tip
+  ctx.fillStyle = aura ? "#ffffff" : pal.foxFur;
+  ctx.beginPath(); ctx.ellipse(1.8, -12.4, 3, 3.4, 0.3, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // ---- legs + paws ----
+  const po = (walking && frame) ? 1.2 : 0;
+  ctx.fillStyle = furBot;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -1.2, 2.1, 2.5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -1.2, 2.1, 2.5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.foxFur;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -0.5, 2.1, 1.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -0.5, 2.1, 1.1, 0, 0, Math.PI*2); ctx.fill();
+
+  // ---- fluffy body ----
+  const bg = ctx.createLinearGradient(0, -12, 0, -1);
+  bg.addColorStop(0, furTop); bg.addColorStop(0.55, pal.foxFur); bg.addColorStop(1, furBot);
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(0, -6, 6.2, 6.6, 0, 0, Math.PI*2); ctx.fill();
+  // chest fluff tufts
+  ctx.fillStyle = pal.foxFur;
+  for (const fx of [-2.4, 0.2, 2.6]) { ctx.beginPath(); ctx.moveTo(fx-1.4,-3.4); ctx.lineTo(fx+1.4,-3.4); ctx.lineTo(fx,-0.6); ctx.closePath(); ctx.fill(); }
+
+  // ---- arms ----
+  ctx.fillStyle = furBot;
+  if (airborne) {
+    ctx.beginPath(); ctx.ellipse(-6, -9, 1.9, 3, 0.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6, -9, 1.9, 3, -0.5, 0, Math.PI*2); ctx.fill();
+  } else {
+    ctx.beginPath(); ctx.ellipse(-5.6, -6.4, 1.8, 3, 0.3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(5.6, -6.4, 1.8, 3, -0.3, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ---- tall pointy ears (white outer, dark inner), tufted ----
+  for (const sgn of [-1, 1]) {
+    ctx.save(); ctx.translate(sgn*4.4, -19.4); ctx.rotate(sgn*0.12);
+    ctx.fillStyle = furTop;
+    ctx.beginPath(); ctx.moveTo(-2.6, 2.2); ctx.lineTo(0.2, -4.4); ctx.lineTo(2.6, 2.2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = pal.foxEarIn;
+    ctx.beginPath(); ctx.moveTo(-1.3, 1.4); ctx.lineTo(0.1, -2.6); ctx.lineTo(1.5, 1.4); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---- head ----
+  const hg = ctx.createRadialGradient(-2, -18.5, 1, 0, -16, 8.5);
+  hg.addColorStop(0, pal.foxFur); hg.addColorStop(1, furTop);
+  ctx.fillStyle = hg;
+  ctx.beginPath(); ctx.ellipse(0, -16, 7, 6.3, 0, 0, Math.PI*2); ctx.fill();
+  // fluffy cheek ruffs
+  ctx.fillStyle = pal.foxFur;
+  for (const sgn of [-1, 1]) {
+    ctx.save(); ctx.translate(sgn*6, -14.5);
+    for (const a of [-0.5, 0, 0.5]) { ctx.beginPath(); ctx.moveTo(0,-1.6); ctx.lineTo(0,1.6); ctx.lineTo(sgn*(2.6+Math.cos(a)), a*2); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+  }
+  // soft cool shadow under the muzzle
+  ctx.fillStyle = pal.foxShade;
+  ctx.beginPath(); ctx.ellipse(0, -12.6, 3.4, 2.4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.foxFur;
+  ctx.beginPath(); ctx.ellipse(0, -13.2, 3.3, 2.4, 0, 0, Math.PI*2); ctx.fill();
+
+  // blush cheeks
+  ctx.fillStyle = pal.foxBlush;
+  ctx.beginPath(); ctx.ellipse(-3.7, -13.4, 1.5, 1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(3.7, -13.4, 1.5, 1, 0, 0, Math.PI*2); ctx.fill();
+
+  // big sparkly eyes
+  for (const ex of [-2.7, 2.7]) {
+    ctx.fillStyle = pal.foxEye;
+    ctx.beginPath(); ctx.ellipse(ex, -16.2, 2, 2.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.95)";
+    ctx.beginPath(); ctx.arc(ex - 0.7, -17.1, 0.85, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + 0.7, -15.3, 0.45, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(180,220,255,.6)";
+    ctx.beginPath(); ctx.arc(ex + 0.5, -16.6, 0.4, 0, Math.PI*2); ctx.fill();
+  }
+  // little dark nose + smile
+  ctx.fillStyle = pal.foxNose;
+  ctx.beginPath(); ctx.ellipse(0, -13.6, 1, 0.8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.foxNose; ctx.lineWidth = 0.55; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(0, -12.9); ctx.lineTo(0, -12.3);
+  ctx.moveTo(0, -12.3); ctx.quadraticCurveTo(-1.1, -11.9, -1.7, -12.5);
+  ctx.moveTo(0, -12.3); ctx.quadraticCurveTo(1.1, -11.9, 1.7, -12.5); ctx.stroke();
+  // whiskers
+  ctx.strokeStyle = "rgba(180,200,230,.8)"; ctx.lineWidth = 0.4;
+  for (const dy of [-0.6, 0.5]) {
+    ctx.beginPath(); ctx.moveTo(-2.4, -13 + dy); ctx.lineTo(-7.6, -13.4 + dy*1.8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(2.4, -13 + dy); ctx.lineTo(7.6, -13.4 + dy*1.8); ctx.stroke();
+  }
+
+  // aurora sparkles drifting off her when powered
+  if (aura) {
+    for (let i = 0; i < 3; i++) {
+      const a = t * 0.1 + i * 2.1;
+      ctx.fillStyle = [pal.aur1, pal.aur2, pal.aur3][i];
+      ctx.globalAlpha = 0.6 + Math.sin(a) * 0.3;
+      ctx.beginPath(); ctx.arc(Math.cos(a)*8, -16 + Math.sin(a*1.3)*9, 0.8, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* A spinning snowflake she rides when flying. */
+function drawSnowflakeRide(cx, feetY, t, facing) {
+  g.save();
+  g.translate(cx, feetY + 4 + Math.sin(t * 0.15) * 0.8);
+  g.fillStyle = "rgba(0,0,0,.1)";
+  g.beginPath(); g.ellipse(0, 3, 12, 2.2, 0, 0, Math.PI*2); g.fill();
+  g.rotate(t * 0.04);
+  g.strokeStyle = "#dff0ff"; g.lineWidth = 2.4; g.lineCap = "round";
+  g.fillStyle = "rgba(210,238,255,.55)";
+  g.beginPath(); g.arc(0, 0, 11, 0, Math.PI*2); g.fill();
+  for (let i = 0; i < 6; i++) {
+    const a = i * Math.PI / 3;
+    const ex = Math.cos(a) * 12, ey = Math.sin(a) * 5;     // squashed for perspective
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(ex, ey); g.stroke();
+    // little branches
+    g.lineWidth = 1.4;
+    g.beginPath(); g.moveTo(ex*0.6, ey*0.6); g.lineTo(ex*0.6 + Math.cos(a+0.6)*3, ey*0.6 + Math.sin(a+0.6)*1.4); g.stroke();
+    g.beginPath(); g.moveTo(ex*0.6, ey*0.6); g.lineTo(ex*0.6 + Math.cos(a-0.6)*3, ey*0.6 + Math.sin(a-0.6)*1.4); g.stroke();
+    g.lineWidth = 2.4;
+  }
+  g.fillStyle = "#ffffff";
+  g.beginPath(); g.arc(0, 0, 2.4, 0, Math.PI*2); g.fill();
+  g.restore();
+}
+
 /* Bamboo the red panda: rust fur, white face markings, dark legs, fluffy
    ringed tail. Detailed/shaded for a lifelike look. Feet at (0,0), facing right. */
 function drawBambooBody(ctx, pal, frame, airborne, walking) {
@@ -731,6 +894,24 @@ function drawBambooCarpet(cx, feetY, t, facing) {
 
 function drawFireball(ctx, f, t) {
   const cx = f.x + 2.5, cy = f.y + 2.5;
+  if (f.kind === "snowflake") {              // Northern Light's snowflake
+    const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 8);
+    glow.addColorStop(0, "rgba(220,240,255,.85)"); glow.addColorStop(1, "rgba(180,220,255,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2); ctx.fill();
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(f.t * 0.22);
+    ctx.strokeStyle = "#eaf6ff"; ctx.lineWidth = 1.2; ctx.lineCap = "round";
+    for (let i = 0; i < 6; i++) {
+      ctx.rotate(Math.PI / 3);
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -4.6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -2.8); ctx.lineTo(1.6, -4); ctx.moveTo(0, -2.8); ctx.lineTo(-1.6, -4); ctx.stroke();
+    }
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(0, 0, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    return;
+  }
   if (f.kind === "bamboo") {                 // Bamboo's bamboo shoot
     const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 7);
     glow.addColorStop(0, "rgba(150,230,90,.6)"); glow.addColorStop(1, "rgba(120,200,60,0)");
@@ -784,31 +965,37 @@ function drawFireball(ctx, f, t) {
 }
 
 function drawGrump(ctx, x, y, frame, squashT) {
+  const ice = game.level && (game.level.theme === "snow" || game.level.theme === "icecastle");
   ctx.save(); ctx.translate(x, y);
   if (squashT > 0) {
-    ctx.fillStyle = "#7c4423";
+    ctx.fillStyle = ice ? "#9fc4e0" : "#7c4423";
     rrPath(ctx, -7, -3.5, 14, 3.5, 1.6); ctx.fill();
     ctx.restore(); return;
   }
   const off = frame ? 0.9 : -0.9;
   // feet
-  ctx.fillStyle = "#4f2a14";
+  ctx.fillStyle = ice ? "#5a7fa0" : "#4f2a14";
   rrPath(ctx, -6.6 + off, -2.5, 5.4, 2.5, 1.2); ctx.fill();
   rrPath(ctx, 1.2 - off, -2.5, 5.4, 2.5, 1.2); ctx.fill();
   // body with radial shading
   const gr = ctx.createRadialGradient(-2, -9.5, 1, 0, -7.2, 9);
-  gr.addColorStop(0, "#c1763f"); gr.addColorStop(1, "#7e4017");
+  if (ice) { gr.addColorStop(0, "#eaf6ff"); gr.addColorStop(1, "#8cb6d8"); }
+  else     { gr.addColorStop(0, "#c1763f"); gr.addColorStop(1, "#7e4017"); }
   ctx.fillStyle = gr;
   ctx.beginPath(); ctx.ellipse(0, -7.4, 7, 6, 0, 0, Math.PI*2); ctx.fill();
+  if (ice) {  // frosty sparkles
+    ctx.fillStyle = "rgba(255,255,255,.8)";
+    ctx.beginPath(); ctx.arc(-3.5, -5, 0.8, 0, Math.PI*2); ctx.arc(3, -10, 0.7, 0, Math.PI*2); ctx.fill();
+  }
   // eyes
   for (const s of [-1, 1]) {
     ctx.fillStyle = "#fff";
     ctx.beginPath(); ctx.ellipse(s*2.6, -8.6, 1.7, 2, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#241a12";
+    ctx.fillStyle = ice ? "#163048" : "#241a12";
     ctx.beginPath(); ctx.arc(s*2.6, -8.1, 0.9, 0, Math.PI*2); ctx.fill();
   }
   // angry brows + frown
-  ctx.strokeStyle = "#3c2410"; ctx.lineWidth = 1.1; ctx.lineCap = "round";
+  ctx.strokeStyle = ice ? "#2f5274" : "#3c2410"; ctx.lineWidth = 1.1; ctx.lineCap = "round";
   ctx.beginPath();
   ctx.moveTo(-4.4, -11.8); ctx.lineTo(-1.2, -10.6);
   ctx.moveTo(4.4, -11.8); ctx.lineTo(1.2, -10.6);
@@ -864,17 +1051,18 @@ function drawPigeon(ctx, pg) {
 
 
 function drawBowser(ctx, B) {
+  const ice = game.level && game.level.theme === "icecastle";
   ctx.save();
   ctx.translate(B.x + B.w/2, B.y + B.h);
   if (B.dead) ctx.scale(1, -1);
   if ((B.facing || -1) < 0) ctx.scale(-1, 1);
   const flash = !B.dead && B.stun > 0 && (B.stun >> 2) % 2 === 0;
-  ctx.fillStyle = "#c9a23c";
+  ctx.fillStyle = ice ? "#7f9fc0" : "#c9a23c";
   rrPath(ctx, -12, -7, 8, 7, 2.5); ctx.fill();
   rrPath(ctx, 4, -7, 8, 7, 2.5); ctx.fill();
   const sg = ctx.createRadialGradient(-5, -20, 2, -3, -16, 15);
-  sg.addColorStop(0, flash ? "#c8ffc8" : "#6cc873");
-  sg.addColorStop(1, flash ? "#7ed084" : "#2c7a36");
+  sg.addColorStop(0, flash ? "#ffffff" : (ice ? "#dff1ff" : "#6cc873"));
+  sg.addColorStop(1, flash ? "#cfeaff" : (ice ? "#6f9ec4" : "#2c7a36"));
   ctx.fillStyle = sg;
   ctx.beginPath(); ctx.ellipse(-3, -16, 11.5, 10.5, 0, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = "#f3eedd";
@@ -883,10 +1071,11 @@ function drawBowser(ctx, B) {
     ctx.closePath(); ctx.fill();
   }
   const bg2 = ctx.createLinearGradient(0, -20, 0, -2);
-  bg2.addColorStop(0, "#f5e2b2"); bg2.addColorStop(1, "#d8b87e");
+  if (ice) { bg2.addColorStop(0, "#eaf5ff"); bg2.addColorStop(1, "#b4cfe6"); }
+  else     { bg2.addColorStop(0, "#f5e2b2"); bg2.addColorStop(1, "#d8b87e"); }
   ctx.fillStyle = bg2;
   ctx.beginPath(); ctx.ellipse(5, -11, 7, 9, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = flash ? "#c8ffc8" : "#8fce58";
+  ctx.fillStyle = flash ? "#ffffff" : (ice ? "#c6e2f5" : "#8fce58");
   ctx.beginPath(); ctx.ellipse(9, -26, 7, 6, 0, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = "#e8632c";
   ctx.beginPath(); ctx.ellipse(6, -31.5, 4.5, 2.5, -0.3, 0, Math.PI*2); ctx.fill();
@@ -994,7 +1183,7 @@ function drawSuperFx() {
 
 /* ============================== LEVELS ============================== */
 function makeLevel(num) {
-  const widths = [150, 170, 160, 170, 140];
+  const widths = [150, 170, 160, 170, 140, 165, 170, 160, 145];
   const Wd = widths[num] || 150;
   const grid = Array.from({length: ROWS}, () => Array(Wd).fill(" "));
   const enemies = [];
@@ -1105,7 +1294,7 @@ function makeLevel(num) {
     stone(139,10); stone(140,10); stone(141,10);
     ground(144, Wd-1); stair(154, 5, 1);
     flagX = 164;
-  } else {                                   // 1-4: Bowser's castle — save Peach the pug!
+  } else if (num === 4) {                    // 1-5: Bowser's castle — save Peach the pug!
     const cground = (a, b) => { for (let x=a; x<=b; x++){ stone(x,13); stone(x,14); } };
     for (let x = 0; x < 133; x++) brick(x, 1);          // castle ceiling
     cground(0, 15);
@@ -1126,11 +1315,111 @@ function makeLevel(num) {
     boss = { x: 112 * TILE };
     cageX = 126;
     for (let x = 133; x < Wd; x++) for (let y = 2; y <= 12; y++) stone(x, y);
+  } else if (num === 5) {                    // 2-1: frozen fields (skating begins)
+    ground(0, 40);
+    qb(10,9); mb(13,9); coins(10,5,3);
+    enemy(16); enemy(22);
+    stone(28,10); stone(29,10); stone(30,10); coins(28,7,3);
+    enemy(34);
+    ground(45, 78);                          // gap 41-44
+    brick(50,9); qb(51,9); brick(52,9); coins(50,5,3);
+    enemy(56); enemy(57); enemy(64);
+    stair(68, 4, 1);
+    ground(84, 118);                         // gap 79-83
+    stone(90,9); stone(91,9); stone(92,9); stone(93,9); coins(90,6,4);
+    enemy(98); enemy(104); enemy(105);
+    mb(110,9);
+    ground(124, Wd-1);                       // gap 119-123
+    coins(128,8,4);
+    enemy(132); enemy(138); enemy(139);
+    stair(148, 5, 1);
+    flagX = 158;
+  } else if (num === 6) {                    // 2-2: icy cliffs
+    ground(0, 18);
+    enemy(9);
+    stone(22,10); stone(23,10); stone(24,10); stone(25,10); coins(22,7,4);
+    stone(29,8); stone(30,8); stone(31,8);
+    ground(36, 52); enemy(42); enemy(48); stair(48, 3, 1);
+    stone(56,10); stone(57,10); stone(58,10); coins(56,7,3);
+    ground(64, 90);
+    brick(70,9); brick(71,9); mb(72,9); brick(73,9); coins(70,5,4);
+    enemy(78); enemy(82); enemy(83);
+    stone(88,11); stone(89,11);
+    ground(96, 128);                         // gap 91-95
+    stair(100, 4, 1); stair(108, 4, -1);
+    enemy(114); enemy(118);
+    coins(120,8,5);
+    ground(134, Wd-1);
+    enemy(140); enemy(146);
+    stair(152, 6, 1);
+    flagX = 162;
+  } else if (num === 7) {                    // 2-3: aurora bridges
+    ground(0, 14);
+    enemy(8);
+    brick(18,10); brick(19,10); brick(20,10); brick(21,10); coins(18,7,4);   // floating ice bridges
+    brick(26,8); brick(27,8); brick(28,8);
+    brick(33,10); brick(34,10); brick(35,10); enemy(34, 8);
+    ground(40, 54); enemy(46); mb(50,9);
+    brick(58,9); brick(59,9); brick(60,9); brick(61,9); coins(58,6,4);
+    enemy(50); enemy(66);
+    ground(70, 86); enemy(76); enemy(80); stair(82, 3, 1);
+    brick(90,10); brick(91,10); brick(92,10);
+    brick(96,8); brick(97,8); brick(98,8); coins(96,5,3);
+    ground(104, 130); enemy(110); enemy(116); enemy(117);
+    qb(122,9); mb(124,9);
+    ground(138, Wd-1);
+    enemy(144); enemy(148);
+    stair(150, 5, 1);
+    flagX = 156;
+  } else {                                   // 2-4: Ice Bowser's castle — save Peach again!
+    const cground = (a, b) => { for (let x=a; x<=b; x++){ stone(x,13); stone(x,14); } };
+    for (let x = 0; x < 138; x++) brick(x, 1);          // icy ceiling
+    cground(0, 15);
+    enemy(10);
+    stone(17,11);
+    cground(19, 30); mb(24,9); enemy(27);
+    stone(32,11);
+    cground(34, 48); stone(38,2); stone(38,3); enemy(42); enemy(44);
+    stone(50,11);
+    cground(52, 66); stone(56,2); stone(56,3); enemy(60);
+    stone(68,11);
+    cground(70, 100);
+    brick(76,9); brick(77,9); brick(78,9); coins(76,6,3);
+    enemy(82); enemy(88);
+    stone(92,2); stone(92,3);
+    cground(101, Wd-1);                                 // bridge + cage
+    coins(104,8,3);
+    boss = { x: 116 * TILE };
+    cageX = 130;
+    for (let x = 138; x < Wd; x++) for (let y = 2; y <= 12; y++) stone(x, y);
   }
-  return { grid, width: Wd, enemies, flagX, name: "1-" + (num+1), boss, cageX,
-           theme: ["beach", "village", "carousel", "sunset", "castle"][num] || "beach" };
+  const theme = ["beach", "village", "carousel", "sunset", "castle", "snow", "snow", "snow", "icecastle"][num] || "beach";
+  const name = num < 5 ? "1-" + (num+1) : "2-" + (num-4);
+  return { grid, width: Wd, enemies, flagX, name, boss, cageX, theme,
+           icy: theme === "snow" || theme === "icecastle" };
 }
-const LEVEL_COUNT = 5;
+const LEVEL_COUNT = 9;
+
+/* Northern Light's snowflakes build little igloo platforms where they land
+   (up to 8 — the oldest melts away). */
+function buildIgloo(f) {
+  const L = game.level;
+  const tx = Math.floor((f.x + f.w/2) / TILE);
+  let ty = Math.floor((f.y + f.h - 0.01) / TILE);
+  if (isSolid(tileAt(tx, ty))) ty -= 1;                 // sit on top of what it hit
+  if (tx < 1 || tx >= L.width || ty < 1 || ty >= ROWS) return;
+  if (tileAt(tx, ty) !== " ") return;
+  L.grid[ty][tx] = "I";
+  if (!game.igloos) game.igloos = [];
+  game.igloos.push({ tx, ty });
+  SFX.star();
+  for (let i = 0; i < 5; i++) game.particles.push({ x:(tx+0.5)*TILE+(i-2)*2, y:(ty+0.5)*TILE,
+    vx:(i-2)*0.4, vy:-1-Math.random(), t:0, c:"#eaf6ff" });
+  if (game.igloos.length > 8) {
+    const old = game.igloos.shift();
+    if (L.grid[old.ty][old.tx] === "I") L.grid[old.ty][old.tx] = " ";
+  }
+}
 
 /* ============================== PLAYGROUND ==============================
    A safe, enemy-free hangout reached by going down any pipe. Water slide,
@@ -1196,7 +1485,7 @@ function loadPlayground() {
   player.fly = CHARS[heroKey].flyMax; player.shootCool = 0; player.airT = 0;
   game.camX = 0; game.particles = []; game.pops = []; game.powerups = [];
   game.fireballs = []; game.bossFlames = []; game.boss = null; game.pug = null;
-  game.pigeons = []; game.pigeonCool = 0; game.treatT = 0;
+  game.pigeons = []; game.pigeonCool = 0; game.treatT = 0; game.igloos = [];
   game.state = "play"; showButtons(true);
 }
 function exitPlayground() {
@@ -1244,7 +1533,7 @@ function startLevel(n) {
   player.fly = CHARS[heroKey].flyMax; player.shootCool = 0; player.airT = 0;
   game.camX = 0; game.particles = []; game.pops = []; game.timer = 0;
   game.powerups = []; game.fireballs = []; game.bossFlames = [];
-  game.pigeons = []; game.pigeonCool = 0;
+  game.pigeons = []; game.pigeonCool = 0; game.igloos = [];
   game.rescued = false;
   game.boss = null; game.pug = null;
   if (game.level.boss) {
@@ -1267,7 +1556,7 @@ function goTitle() {
 }
 
 /* ============================== PHYSICS ============================== */
-const SOLID = "#G=?MUSPTJ";
+const SOLID = "#G=?MUSPTJI";
 function tileAt(tx, ty) {
   const L = game.level;
   if (tx < 0 || tx >= L.width) return "#";
@@ -1393,11 +1682,14 @@ function updatePlay() {
   } else player.runCharge = 0;
   const running = player.runCharge > 30;            // hold a direction ~0.5s to run
   const maxV = running ? RUN_MAX : WALK_MAX;
+  // ice is slippery — low grip means you keep sliding. Northern Light skates best.
+  const icy = game.level.icy && player.grounded;
+  const grip = icy ? (CHARS[heroKey].look === "fox" ? 0.62 : 0.32) : 1;
 
   if (dir !== 0) {
     player.facing = dir;
     if (player.vx * dir < 0) {
-      player.vx += dir * (player.grounded ? DEC_SKID : ACC_RUN);   // skid turn
+      player.vx += dir * (player.grounded ? DEC_SKID * (icy ? grip : 1) : ACC_RUN);   // skid turn
     } else if (Math.abs(player.vx) < maxV) {
       player.vx += dir * (running ? ACC_RUN : ACC_WALK);
       if (Math.abs(player.vx) > maxV) player.vx = dir * maxV;
@@ -1406,7 +1698,7 @@ function updatePlay() {
     }
   } else if (player.grounded && player.vx !== 0) {
     const s = Math.sign(player.vx);
-    player.vx -= s * DEC_REL;
+    player.vx -= s * DEC_REL * grip;
     if (player.vx * s < 0) player.vx = 0;
   }
 
@@ -1463,21 +1755,23 @@ function updatePlay() {
     input.firePressed = false;
     if (player.shootCool === 0 && game.fireballs.length < 3) {
       const cloudKind = CHARS[heroKey].kind === "cloud";
-      const kind = cloudKind ? "bolt" : "bamboo";
+      const look = CHARS[heroKey].look;
+      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : "bolt";
       game.fireballs.push({ x: player.x + (player.facing > 0 ? player.w : -6),
         y: player.y + player.h * 0.35, w: 5, h: 5,
         vx: (cloudKind ? 3.6 : 3.2) * player.facing, vy: 0,
-        kind, t: 0 });
+        kind, t: 0, igloo: look === "fox" });
       player.shootCool = 16;
       if (cloudKind) SFX.bolt(); else SFX.star();
     }
   }
   for (const f of game.fireballs) {
     f.t++;
-    if (f.kind === "pinkfire") f.vy = Math.min(f.vy + 0.12, 4);   // stars and bolts fly straight
+    if (f.kind === "pinkfire" || f.kind === "snowflake") f.vy = Math.min(f.vy + 0.12, 4);  // arc & fall
     f.hitWall = false;
     moveEntity(f);
-    if (f.grounded || f.hitWall || f.t > 90 ||
+    if (f.igloo && (f.grounded || f.hitWall)) { buildIgloo(f); f.gone = true; }
+    else if (f.grounded || f.hitWall || f.t > 90 ||
         f.x < game.camX - 24 || f.x > game.camX + VIEW_W + 24 || f.y > LEVEL_H + 24) f.gone = true;
   }
   game.fireballs = game.fireballs.filter(f => !f.gone);
@@ -1890,6 +2184,15 @@ function tileSprite(c) {
         t.fillStyle = "rgba(255,250,225,.55)"; t.fillRect(0,0,R,6);
         break;
       }
+      if (themeKey === "snow" || themeKey === "icecastle") {
+        t.fillStyle = lg(0,0,0,R,[[0,"#cfe1f2"],[1,"#9fb9d6"]]); t.fillRect(0,0,R,R);   // icy body
+        speckle(10, ["#e8f2fb","#bcd2e8","#ffffff"], R*0.4, R);
+        t.fillStyle = lg(0,0,0,R*0.42,[[0,"#ffffff"],[1,"#dcebf8"]]); t.fillRect(0,0,R,R*0.4);  // snow cap
+        t.fillStyle = "rgba(255,255,255,.9)";                                            // rounded snow lumps on top
+        for (let i = 0; i < 4; i++) { t.beginPath(); t.arc(i*13+6, R*0.4, 7, Math.PI, 0); t.fill(); }
+        t.fillStyle = "rgba(180,210,235,.5)"; t.fillRect(0, R*0.4, R, 2);
+        break;
+      }
       t.fillStyle = lg(0,0,0,R,[[0,"#8a5a32"],[1,"#6b431f"]]); t.fillRect(0,0,R,R);
       speckle(14, ["#7a4b24","#9c6a3c","#5e3a18"], R*0.4, R);
       t.fillStyle = lg(0,0,0,R*0.36,[[0,"#8fd95e"],[1,"#4c9a32"]]); t.fillRect(0,0,R,R*0.34);
@@ -1911,14 +2214,21 @@ function tileSprite(c) {
         speckle(14, ["#c4a266","#9a7a42","#e0c890"], 0, R);
         break;
       }
+      if (themeKey === "snow" || themeKey === "icecastle") {
+        t.fillStyle = lg(0,0,0,R,[[0,"#bcd2e8"],[1,"#90add0"]]); t.fillRect(0,0,R,R);   // packed snow/ice
+        speckle(12, ["#a8c4dd","#d6e6f4","#86a4c8"], 0, R);
+        break;
+      }
       t.fillStyle = lg(0,0,0,R,[[0,"#7d4d26"],[1,"#62391a"]]); t.fillRect(0,0,R,R);
       speckle(16, ["#6b431f","#8a5e34","#54320f"], 0, R);
       break;
     }
     case "=": {
-      t.fillStyle = "#6e3a17"; t.fillRect(0,0,R,R);   // mortar
+      const ice = themeKey === "icecastle";
+      t.fillStyle = ice ? "#6f93b4" : "#6e3a17"; t.fillRect(0,0,R,R);   // mortar
       const brick = (bx, by, bw, bh) => {
-        t.fillStyle = lg(bx,by,bx,by+bh,[[0,"#cd7d4a"],[1,"#a4562a"]]);
+        t.fillStyle = ice ? lg(bx,by,bx,by+bh,[[0,"#dcefff"],[1,"#a3cae8"]])
+                          : lg(bx,by,bx,by+bh,[[0,"#cd7d4a"],[1,"#a4562a"]]);
         rrPath(t, bx, by, bw, bh, 2); t.fill();
         t.fillStyle = "rgba(255,255,255,.18)"; t.fillRect(bx+1, by+1, bw-2, 2);
       };
@@ -1944,11 +2254,27 @@ function tileSprite(c) {
       break;
     }
     case "S": {
+      if (themeKey === "snow" || themeKey === "icecastle") {
+        t.fillStyle = lg(0,0,R,R,[[0,"#dff1ff"],[1,"#a7d2ef"]]); t.fillRect(0,0,R,R);   // glassy ice block
+        t.fillStyle = "rgba(255,255,255,.7)"; t.fillRect(2,2,R-4,5);
+        t.fillStyle = "rgba(120,170,210,.3)"; t.fillRect(2,R-7,R-4,5);
+        t.strokeStyle = "rgba(255,255,255,.6)"; t.lineWidth = 1.6;
+        t.beginPath(); t.moveTo(R*0.6, R*0.2); t.lineTo(R*0.35, R*0.5); t.lineTo(R*0.55, R*0.8); t.stroke();
+        break;
+      }
       t.fillStyle = lg(0,0,0,R,[[0,"#e4e6ef"],[1,"#aaaebe"]]); t.fillRect(0,0,R,R);
       t.fillStyle = "rgba(255,255,255,.55)"; t.fillRect(2,2,R-4,4);
       t.fillStyle = "rgba(40,44,60,.25)"; t.fillRect(2,R-6,R-4,4);
       t.strokeStyle = "rgba(90,95,115,.4)"; t.lineWidth = 1.4;
       t.beginPath(); t.moveTo(R*0.25, R*0.35); t.lineTo(R*0.45, R*0.55); t.lineTo(R*0.38, R*0.75); t.stroke();
+      break;
+    }
+    case "I": {                                  // igloo block — built from snowflakes
+      t.fillStyle = lg(0,0,0,R,[[0,"#ffffff"],[1,"#d4e6f4"]]); rrPath(t,0,0,R,R,6); t.fill();
+      t.strokeStyle = "rgba(150,185,215,.7)"; t.lineWidth = 2;
+      t.beginPath(); t.moveTo(R*0.5,2); t.lineTo(R*0.5,R-2); t.stroke();          // ice-brick seams
+      t.beginPath(); t.moveTo(2,R*0.5); t.lineTo(R-2,R*0.5); t.stroke();
+      t.fillStyle = "rgba(255,255,255,.8)"; t.fillRect(3,3,R-6,3);
       break;
     }
     case "T": {
@@ -2111,6 +2437,63 @@ function cloud(x, y) {
   g.restore();
 }
 
+function drawAurora(camX) {
+  const t = game.timer;
+  g.save();
+  g.globalCompositeOperation = "lighter";
+  const cols = ["rgba(120,240,190,", "rgba(120,170,255,", "rgba(190,140,255,"];
+  for (let b = 0; b < 3; b++) {
+    g.beginPath();
+    const baseY = 24 + b * 16;
+    g.moveTo(camX - 10, baseY);
+    for (let x = 0; x <= VIEW_W + 20; x += 16) {
+      const y = baseY + Math.sin((x + camX) * 0.012 + t * 0.02 + b) * 14 + Math.sin((x) * 0.05 + t * 0.03) * 5;
+      g.lineTo(camX + x, y);
+    }
+    for (let x = VIEW_W + 20; x >= -10; x -= 16) {
+      const y = baseY + 26 + Math.sin((x + camX) * 0.012 + t * 0.02 + b) * 14;
+      g.lineTo(camX + x, y);
+    }
+    g.closePath();
+    const a = 0.10 + Math.sin(t * 0.04 + b) * 0.05;
+    g.fillStyle = cols[b] + Math.max(0.04, a) + ")";
+    g.fill();
+  }
+  g.restore();
+}
+function drawIgloo(cx, baseY, w) {
+  g.save();
+  const dome = g.createLinearGradient(cx, baseY - w, cx, baseY);
+  dome.addColorStop(0, "#ffffff"); dome.addColorStop(1, "#cbdef0");
+  g.fillStyle = dome;
+  g.beginPath(); g.arc(cx, baseY, w, Math.PI, 0); g.closePath(); g.fill();
+  // ice-block seams
+  g.strokeStyle = "rgba(150,185,215,.6)"; g.lineWidth = 1;
+  for (let r = w * 0.66; r > 4; r -= w * 0.33) { g.beginPath(); g.arc(cx, baseY, r, Math.PI, 0); g.stroke(); }
+  for (const a of [Math.PI*0.75, Math.PI*0.5, Math.PI*0.25]) {
+    g.beginPath(); g.moveTo(cx + Math.cos(a)*4, baseY + Math.sin(a)*4); g.lineTo(cx + Math.cos(a)*w, baseY + Math.sin(a)*w); g.stroke();
+  }
+  // entrance tunnel
+  g.fillStyle = "#9fb8d2";
+  g.beginPath(); g.arc(cx, baseY, w*0.34, Math.PI, 0); g.closePath(); g.fill();
+  g.fillStyle = "#3a4f6b";
+  g.beginPath(); g.arc(cx, baseY, w*0.24, Math.PI, 0); g.closePath(); g.fill();
+  g.restore();
+}
+function drawIceWater(tx0, tx1) {
+  const t = game.timer;
+  for (let tx = tx0; tx <= tx1; tx++) {
+    if (tileAt(tx, 13) !== " " || tileAt(tx, 14) !== " ") continue;
+    const x = tx * TILE, fl = Math.sin(t * 0.06 + tx * 1.3) * 1.5;
+    g.fillStyle = "#3f6fa8";
+    g.fillRect(x, LEVEL_H - 9 + fl * 0.3, TILE, 13);
+    g.fillStyle = "rgba(210,238,255,.7)";
+    g.fillRect(x + 2, LEVEL_H - 10 + fl * 0.5, 5, 2);
+    // floating ice chunk
+    if ((tx % 4) === 0) { g.fillStyle = "rgba(235,248,255,.85)"; g.fillRect(x + 4, LEVEL_H - 11 + fl, 7, 3); }
+  }
+}
+
 function drawFlag(fx) {
   const x = fx * TILE + 8, top = 2*TILE;
   // pole with metallic gradient
@@ -2169,6 +2552,39 @@ function drawBackground(camX) {
     cgr.addColorStop(0, "#140a10"); cgr.addColorStop(1, "#43161c");
     g.fillStyle = cgr;
     g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
+    return;
+  }
+  if (theme === "snow" || theme === "icecastle") {
+    const dark = theme === "icecastle";
+    const sk = g.createLinearGradient(0, -VIEW_H, 0, 208);
+    if (dark) { sk.addColorStop(0, "#0a1430"); sk.addColorStop(0.6, "#14264e"); sk.addColorStop(1, "#27406e"); }
+    else      { sk.addColorStop(0, "#26407a"); sk.addColorStop(0.45, "#5e83c0"); sk.addColorStop(1, "#cfe2f2"); }
+    g.fillStyle = sk; g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
+    drawAurora(camX);
+    // twinkling stars up high
+    for (let i = 0; i < 36; i++) {
+      const stx = camX * 0.4 + (i * 67.3) % (VIEW_W + 40), sty = (i * 41.7) % 90;
+      const tw = Math.sin(game.timer * 0.06 + i) * 0.5 + 0.5;
+      g.fillStyle = "rgba(255,255,255," + (0.2 + tw * 0.6) + ")";
+      g.fillRect(stx, sty, 1.4, 1.4);
+    }
+    if (!dark) {
+      // snowy hills + decorative igloos
+      bgLayer(camX, 0.18, 320, bx => {
+        g.fillStyle = "#dceaf6";
+        g.beginPath(); g.arc(bx + 80, 214, 64, Math.PI, 0); g.closePath(); g.fill();
+        g.beginPath(); g.arc(bx + 220, 214, 42, Math.PI, 0); g.closePath(); g.fill();
+      });
+      bgLayer(camX, 0.42, 300, bx => drawIgloo(bx + 60, 208, 22));
+    }
+    // falling snow (two parallax layers)
+    for (let i = 0; i < 60; i++) {
+      const drift = Math.sin(game.timer * 0.03 + i) * 8;
+      const fx = camX + ((i * 53.7 + drift) % (VIEW_W + 30));
+      const fy = ((i * 37.1 + game.timer * (0.6 + (i % 3) * 0.3)) % (LEVEL_H + 40)) - 10;
+      g.fillStyle = "rgba(255,255,255," + (0.5 + (i % 3) * 0.16) + ")";
+      g.beginPath(); g.arc(fx, fy, 1 + (i % 3) * 0.6, 0, Math.PI*2); g.fill();
+    }
     return;
   }
   if (theme === "beach") {
@@ -2428,6 +2844,7 @@ function drawWorld() {
       if (c !== " ") drawTile(c, tx, ty);
     }
   if (L.theme === "castle") drawLava(tx0, tx1);
+  if (L.theme === "icecastle") drawIceWater(tx0, tx1);
   if (L.theme === "playground") drawPlayground();
   if (L.flagX) drawFlag(L.flagX);
 
@@ -2495,6 +2912,8 @@ function drawWorld() {
       if (ghost) g.globalAlpha = 0.4;
       if (player.flying && CHARS[heroKey].look === "panda")
         drawBambooCarpet(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
+      if (player.flying && CHARS[heroKey].look === "fox")
+        drawSnowflakeRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
       drawKid(g, player.x + player.w/2, player.y + player.h, pal,
               player.frame, player.facing, !player.grounded, Math.abs(player.vx) > 0.3, player.power);
       g.globalAlpha = 1;
@@ -2602,8 +3021,8 @@ function drawTitle() {
   const big = Math.min(W/9, H*0.105, 52);
   const ty1 = H * 0.10;
   g.font = "900 " + big + "px 'Avenir Next',Arial";
-  outlineText("ROSALINA &", W/2, ty1, "#8fc8ff");
-  outlineText("BAMBOO", W/2, ty1 + big + 6, "#ff8ab8");
+  outlineText("MAGIC", W/2, ty1, "#8fc8ff");
+  outlineText("HEROES", W/2, ty1 + big + 6, "#ff8ab8");
   g.font = "800 " + Math.min(W/24, 18) + "px 'Avenir Next',Arial";
   outlineText("✨ a game by Jules & Nora ✨", W/2, ty1 + big*1.72 + 12, "#ffe9a8");
   if (H > W * 0.9) {
@@ -2611,30 +3030,32 @@ function drawTitle() {
     outlineText("Pick your hero!", W/2, ty1 + big*2.3 + 26, "#fff");
   }
 
-  // character cards (sized to fit landscape too)
+  // character cards — sized to fit however many heroes there are
   game.titleCards = [];
-  const cw = Math.min(W * 0.36, 170, H * 0.45), ch = Math.min(cw * 1.15, H * 0.5);
-  const cy = H * (W > H ? 0.58 : 0.52);
-  const keysArr = ["jules", "nora"];
+  const keysArr = ["jules", "northern", "nora"];
+  const n = keysArr.length;
+  const gap = Math.min(12, W * 0.018);
+  const cw = Math.min((W * 0.94 - (n-1)*gap) / n, 150, H * 0.4), ch = Math.min(cw * 1.15, H * 0.46);
+  const cy = H * (W > H ? 0.58 : 0.54);
+  const totalW = n * cw + (n-1) * gap, startX = W/2 - totalW/2;
+  const edge = ["#f59cc4", "#7fb6ff", "#4fbfa2"], nameCol = ["#e074a8", "#3f7fd0", "#2f9e7e"];
   keysArr.forEach((k, i) => {
-    const cxp = W/2 + (i === 0 ? -1 : 1) * (cw/2 + 14);
-    const sx = cxp - cw/2, sy = cy - ch/2;
+    const sx = startX + i * (cw + gap), cxp = sx + cw/2, sy = cy - ch/2;
     const bounce = Math.sin(game.timer * 0.08 + i * 2) * 4;
     g.fillStyle = "rgba(255,255,255,.92)";
     roundRect(sx, sy, cw, ch, 16); g.fill();
-    g.lineWidth = 4; g.strokeStyle = i === 0 ? "#f59cc4" : "#4fbfa2";
+    g.lineWidth = 4; g.strokeStyle = edge[i];
     roundRect(sx, sy, cw, ch, 16); g.stroke();
-    // sprite (scaled up)
     g.save();
     g.translate(cxp, sy + ch * 0.62 + bounce);
-    const ks = cw / 44;
+    const ks = cw / 46;
     g.scale(ks, ks);
     drawKid(g, 0, 0, CHARS[k], Math.floor(game.timer/20) % 2, 1, false, true);
     g.restore();
-    let nm = CHARS[k].name, fs = cw/6.2;
+    let nm = CHARS[k].name, fs = cw/6.4;
     g.font = "900 " + fs + "px 'Avenir Next',Arial";
-    while (g.measureText(nm).width > cw - 12 && fs > 7) { fs -= 0.5; g.font = "900 " + fs + "px 'Avenir Next',Arial"; }
-    outlineText(nm, cxp, sy + ch - cw/7, i === 0 ? "#e074a8" : "#2f9e7e");
+    while (g.measureText(nm).width > cw - 10 && fs > 6) { fs -= 0.5; g.font = "900 " + fs + "px 'Avenir Next',Arial"; }
+    outlineText(nm, cxp, sy + ch - cw/8, nameCol[i]);
     game.titleCards.push({ key: k, sx, sy, sw: cw, sh: ch });
   });
 
@@ -2667,16 +3088,16 @@ function drawWinScreen() {
   g.font = "900 " + Math.min(W/8, 56) + "px 'Avenir Next',Arial";
   outlineText("YOU WIN!", W/2, H*0.22, "#ffd166");
   g.font = "700 " + Math.min(W/20, 22) + "px 'Avenir Next',Arial";
-  outlineText("Rosalina & Bamboo saved Peach the pug!", W/2, H*0.32, "#fff");
+  outlineText("The heroes saved Peach the pug!", W/2, H*0.32, "#fff");
 
-  // both kids celebrating
-  const ks = Math.min(W, H) / 110;
-  [["jules", -1], ["nora", 1]].forEach(([k, side]) => {
+  // all the heroes celebrating
+  const ks = Math.min(W, H) / 120;
+  [["jules", -1.6], ["northern", -0.55], ["nora", 1.5]].forEach(([k, side]) => {
     g.save();
-    const hop = Math.abs(Math.sin(game.timer * 0.1 + (side+1))) * 14;
-    g.translate(W/2 + side * Math.min(W*0.16, 90), H*0.62 - hop);
+    const hop = Math.abs(Math.sin(game.timer * 0.1 + (side+2))) * 14;
+    g.translate(W/2 + side * Math.min(W*0.14, 78), H*0.62 - hop);
     g.scale(ks, ks);
-    drawKid(g, 0, 0, CHARS[k], 0, -side, true, false);
+    drawKid(g, 0, 0, CHARS[k], 0, side < 0 ? 1 : -1, true, false);
     g.restore();
   });
 
@@ -2736,12 +3157,16 @@ function draw() {
   hud();
 
   if (game.state === "gameover") drawGameOver();
-  if (game.state === "clear") centerCard(game.rescued ? [
+  if (game.state === "clear") centerCard(game.rescued ? (game.levelNum + 1 < LEVEL_COUNT ? [
+    ["PEACH IS SAFE! \ud83d\udc36", Math.min(W/10, 40), "#ffd166"],
+    ["...but a blizzard sweeps her away!", Math.min(W/24, 18), "#fff"],
+    ["on to the snow world! \u2744\ufe0f", Math.min(W/24, 18), "#bfe6ff"],
+  ] : [
     ["PEACH IS SAFE! \ud83d\udc36", Math.min(W/10, 40), "#ffd166"],
     ["you rescued the pug princess!", Math.min(W/24, 18), "#fff"],
-  ] : [
+  ]) : [
     ["LEVEL CLEAR!", Math.min(W/10, 44), "#ffd166"],
-    [(game.levelNum + 1 < LEVEL_COUNT ? "get ready for " + (game.levelNum+2) + "..." : "one more surprise..."), Math.min(W/24, 18), "#fff"],
+    [(game.levelNum + 1 < LEVEL_COUNT ? "get ready for " + (game.levelNum+1 < 5 ? "1-"+(game.levelNum+2) : "2-"+(game.levelNum-3)) + "..." : "one more surprise..."), Math.min(W/24, 18), "#fff"],
   ]);
 }
 
