@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Chuckee &amp; Chun-me — by Jules &amp; Nora</title>
+<title>Rosalina &amp; Chun-me — by Jules &amp; Nora</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   #game, .btn, #verlink, #verlink a { touch-action:none; }
@@ -189,9 +189,14 @@ const CHARS = {
     skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
   },
   nora: {
-    name: "CHUCKEE", kind: "cloud", flyMax: 600,
+    name: "PRINCESS ROSALINA", kind: "cloud", look: "princess", flyMax: 600,
     body:"#f2f7fd", shade:"#c3d4ea", cheek:"#f5a8b8", bolt:"#e8447a",
     accent:"#4fa3e0",
+    // princess look — flowing aqua gown, platinum-blonde sweep, silver crown
+    gown:"#46cdc6", gownDark:"#1f9aa0", gownLight:"#9ef0e6",
+    hair:"#f6e08c", hairLt:"#fff2bc", hairDk:"#e3c45f",
+    skin:"#fce0c2", crown:"#e6edf2", crownDk:"#aebccb",
+    gem:"#7fe0ff", pstar:"#aef06a", lip:"#dd5f7e", eye:"#357fd1", lash:"#2a1c12",
   }
 };
 let heroKey = "jules";
@@ -239,7 +244,8 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   ctx.translate(x, y);
   if (power > 0) ctx.scale(1.18, 1.32);
   if (facing < 0) ctx.scale(-1, 1);
-  if (pal.kind === "cloud") drawChuckeeBody(ctx, pal);
+  if (pal.look === "princess") drawRosalinaBody(ctx, pal, frame, airborne, walking);
+  else if (pal.kind === "cloud") drawChuckeeBody(ctx, pal);
   else drawChunmeBody(ctx, pal, frame, airborne, walking);
   ctx.restore();
 }
@@ -347,6 +353,118 @@ function drawChuckeeBody(ctx, pal) {
   ctx.moveTo(5.2, -14.6); ctx.lineTo(7.6, -14.6); ctx.lineTo(6.2, -12.2);
   ctx.lineTo(7.8, -12.2); ctx.lineTo(4.8, -8.8); ctx.lineTo(5.8, -11.2);
   ctx.lineTo(4.4, -11.2); ctx.closePath(); ctx.fill();
+}
+
+/* Princess Rosalina: flowing aqua gown, platinum hair swept over one eye,
+   silver crown with a green star, and a sparkling wand. Front-facing. */
+function drawRosalinaBody(ctx, pal, frame, airborne, walking) {
+  const t = game.timer;
+  const sway = Math.sin(t * 0.08) * 0.6;
+
+  // long hair lock flowing down her left shoulder (viewer's right)
+  ctx.fillStyle = pal.hairDk;
+  ctx.beginPath();
+  ctx.moveTo(3.4, -18.5);
+  ctx.bezierCurveTo(8.8, -15.5, 8.2, -7, 5.4 + sway, -3.2);
+  ctx.bezierCurveTo(7, -8, 6, -14, 2.6, -16.5);
+  ctx.closePath(); ctx.fill();
+
+  // little shoes peeking from the hem
+  const po = (walking && frame) ? 1.1 : 0;
+  ctx.fillStyle = "#6a4a86";
+  ctx.beginPath(); ctx.ellipse(-2.4 - po, -1, 1.7, 1.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2 + po, -1, 1.7, 1.1, 0, 0, Math.PI*2); ctx.fill();
+
+  // flowing gown
+  const gg = ctx.createLinearGradient(0, -13, 0, -1);
+  gg.addColorStop(0, pal.gown); gg.addColorStop(1, pal.gownDark);
+  ctx.fillStyle = gg;
+  ctx.beginPath();
+  ctx.moveTo(-3.4, -12.5);
+  ctx.lineTo(3.4, -12.5);
+  ctx.bezierCurveTo(5.5, -8, 7 + sway, -3, 7.6 + sway, -0.6);
+  ctx.quadraticCurveTo(0, -2.4, -7.6 + sway, -0.6);
+  ctx.bezierCurveTo(-7, -3, -5.5, -8, -3.4, -12.5);
+  ctx.closePath(); ctx.fill();
+  // soft center panel
+  ctx.fillStyle = pal.gownLight; ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(-1.7, -12);
+  ctx.lineTo(1.7, -12);
+  ctx.quadraticCurveTo(2.7, -6, 2.5 + sway*0.6, -1.4);
+  ctx.quadraticCurveTo(0, -2.2, -2.5 + sway*0.6, -1.4);
+  ctx.quadraticCurveTo(-2.7, -6, -1.7, -12);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // bodice + brooch
+  ctx.fillStyle = pal.gownDark;
+  rrPath(ctx, -3, -14.4, 6, 3.4, 1.4); ctx.fill();
+  ctx.fillStyle = pal.gem;
+  ctx.beginPath(); ctx.arc(0, -12.6, 1, 0, Math.PI*2); ctx.fill();
+
+  // arms: right hand rests on gown, left raised with the wand
+  ctx.strokeStyle = pal.skin; ctx.lineWidth = 1.8; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(2.8, -13.6); ctx.quadraticCurveTo(4.8, -11, 4.2, -8.4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-2.8, -13.6); ctx.quadraticCurveTo(-5.6, -13, -6.4, -15.4); ctx.stroke();
+
+  // wand with a spinning star + sparkles
+  ctx.strokeStyle = "#cfd9e2"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-6.4, -15.4); ctx.lineTo(-8.4, -20.4); ctx.stroke();
+  drawStarShape(ctx, -8.7, -21, 2.2, 1, t * 0.05, pal.gem, "#3a9fd0");
+  for (let i = 0; i < 2; i++) {
+    const a = t * 0.09 + i * 2.6;
+    ctx.fillStyle = "rgba(150,230,255," + (0.5 + Math.sin(a) * 0.3).toFixed(2) + ")";
+    ctx.beginPath(); ctx.arc(-9 + Math.cos(a) * 2.4, -20 + Math.sin(a * 1.3) * 2.6, 0.7, 0, Math.PI*2); ctx.fill();
+  }
+
+  // head
+  ctx.fillStyle = pal.skin;
+  ctx.beginPath(); ctx.ellipse(0, -16.4, 5, 5.2, 0, 0, Math.PI*2); ctx.fill();
+
+  // one visible eye (viewer's left); the other is hidden by the bang
+  ctx.save(); ctx.translate(-1.8, -16.4);
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(0, 0, 1.25, 1.7, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.eye; ctx.beginPath(); ctx.ellipse(0.1, 0.2, 0.85, 1.15, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#1a1426"; ctx.beginPath(); ctx.arc(0.1, 0.3, 0.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.beginPath(); ctx.arc(-0.2, -0.2, 0.32, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  // lash + brow
+  ctx.strokeStyle = pal.lash; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.moveTo(-3.2, -17.5); ctx.quadraticCurveTo(-1.8, -18.3, -0.5, -17.7); ctx.stroke();
+  // lips
+  ctx.fillStyle = pal.lip;
+  ctx.beginPath(); ctx.ellipse(-1, -13.1, 1.1, 0.6, 0, 0, Math.PI*2); ctx.fill();
+  // cheek
+  ctx.fillStyle = "rgba(245,150,170,.45)";
+  ctx.beginPath(); ctx.ellipse(-3.2, -14.5, 1, 0.7, 0, 0, Math.PI*2); ctx.fill();
+
+  // front hair: forehead fringe with a big side-swept bang over her right eye
+  const hg = ctx.createLinearGradient(0, -22, 0, -12);
+  hg.addColorStop(0, pal.hairLt); hg.addColorStop(1, pal.hair);
+  ctx.fillStyle = hg;
+  ctx.beginPath();
+  ctx.moveTo(-5, -16.8);
+  ctx.quadraticCurveTo(-5.8, -21.6, -1, -22.5);
+  ctx.quadraticCurveTo(4.3, -22.2, 5.7, -17.4);
+  ctx.quadraticCurveTo(5.9, -13.4, 3.3, -12.3);
+  ctx.quadraticCurveTo(4.6, -16, 2.1, -17.6);
+  ctx.quadraticCurveTo(-0.5, -18.9, -2.4, -17.4);
+  ctx.quadraticCurveTo(-3.8, -16.6, -5, -16.8);
+  ctx.closePath(); ctx.fill();
+  // hair highlight strand
+  ctx.strokeStyle = pal.hairLt; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.moveTo(-1, -21); ctx.bezierCurveTo(2, -20.4, 3.8, -18, 3.4, -15); ctx.stroke();
+
+  // silver crown with a little green star
+  ctx.fillStyle = pal.crown;
+  ctx.beginPath();
+  ctx.moveTo(-3, -20.8);
+  ctx.lineTo(-3.2, -23.2); ctx.lineTo(-1.4, -21.9); ctx.lineTo(0, -23.9); ctx.lineTo(1.4, -21.9);
+  ctx.lineTo(3.2, -23.2); ctx.lineTo(3, -20.8);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = pal.crownDk; ctx.lineWidth = 0.4; ctx.stroke();
+  drawStarShape(ctx, 0, -23, 1.1, 0.5, 0, pal.pstar, "#5fae3a");
 }
 
 function drawPowerup(ctx, p) {
@@ -1826,7 +1944,7 @@ function drawTitle() {
   const big = Math.min(W/9, H*0.105, 52);
   const ty1 = H * 0.10;
   g.font = "900 " + big + "px 'Avenir Next',Arial";
-  outlineText("CHUCKEE &", W/2, ty1, "#8fc8ff");
+  outlineText("ROSALINA &", W/2, ty1, "#8fc8ff");
   outlineText("CHUN-ME", W/2, ty1 + big + 6, "#ff8ab8");
   g.font = "800 " + Math.min(W/24, 18) + "px 'Avenir Next',Arial";
   outlineText("✨ a game by Jules & Nora ✨", W/2, ty1 + big*1.72 + 12, "#ffe9a8");
@@ -1855,8 +1973,10 @@ function drawTitle() {
     g.scale(ks, ks);
     drawKid(g, 0, 0, CHARS[k], Math.floor(game.timer/20) % 2, 1, false, true);
     g.restore();
-    g.font = "900 " + cw/6.2 + "px 'Avenir Next',Arial";
-    outlineText(CHARS[k].name, cxp, sy + ch - cw/7, i === 0 ? "#e074a8" : "#2f9e7e");
+    let nm = CHARS[k].name, fs = cw/6.2;
+    g.font = "900 " + fs + "px 'Avenir Next',Arial";
+    while (g.measureText(nm).width > cw - 12 && fs > 7) { fs -= 0.5; g.font = "900 " + fs + "px 'Avenir Next',Arial"; }
+    outlineText(nm, cxp, sy + ch - cw/7, i === 0 ? "#e074a8" : "#2f9e7e");
     game.titleCards.push({ key: k, sx, sy, sw: cw, sh: ch });
   });
 
@@ -1889,7 +2009,7 @@ function drawWinScreen() {
   g.font = "900 " + Math.min(W/8, 56) + "px 'Avenir Next',Arial";
   outlineText("YOU WIN!", W/2, H*0.22, "#ffd166");
   g.font = "700 " + Math.min(W/20, 22) + "px 'Avenir Next',Arial";
-  outlineText("Chuckee & Chun-me saved Peach the pug!", W/2, H*0.32, "#fff");
+  outlineText("Rosalina & Chun-me saved Peach the pug!", W/2, H*0.32, "#fff");
 
   // both kids celebrating
   const ks = Math.min(W, H) / 110;
