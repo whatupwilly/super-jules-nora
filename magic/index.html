@@ -225,6 +225,15 @@ const CHARS = {
     panWhite:"#f7efe2", panDark:"#2c211c", panDarkLt:"#46352c",
     panEar:"#c2551f", panStripe:"#94391a", panNose:"#1a1210", panEye:"#140f0c",
   },
+  cutie: {
+    name: "CUTIE", kind: "bunny", look: "butterfly", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // butterfly — red body, green/blue spotted wings, smiley face, antennae
+    bfBody:"#e63b3b", bfBodyDk:"#b21f1f", bfHead:"#fdf6ee", bfFace:"#2a1c12", bfBlush:"#ffb9cf",
+    wingGreen:"#41a64b", wingGreenDk:"#2c7a36", wingBlue:"#3f8fe0", wingBlueDk:"#2c6cb4",
+    wingSpot:"#ecb73e", antenna:"#6a4ad0", antTip:"#3a2a9e", bfStar:"#5cc8f0",
+  },
   northern: {
     name: "NORTHERN LIGHT", kind: "bunny", look: "fox", flyMax: 1200,
     body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
@@ -292,7 +301,8 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   ctx.translate(x, y);
   if (power > 0) ctx.scale(1.18, 1.32);
   if (facing < 0) ctx.scale(-1, 1);
-  if (pal.look === "fox") drawNorthernBody(ctx, pal, frame, airborne, walking, power);
+  if (pal.look === "butterfly") drawCutieBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "fox") drawNorthernBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "panda") drawBambooBody(ctx, pal, frame, airborne, walking);
   else if (pal.look === "slime") drawCosmoBody(ctx, pal, frame, airborne, walking);
   else if (pal.look === "princess") drawRosalinaBody(ctx, pal, frame, airborne, walking);
@@ -618,6 +628,115 @@ function drawPowerup(ctx, p) {
   ctx.restore();
 }
 
+/* Cutie the butterfly: a smiley red-bodied butterfly with big green/blue
+   spotted wings and curly antennae. When powered up she gets a blue star and
+   little flowers bloom around her. Feet at (0,0), facing right. */
+function drawCutieBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  const big = power >= 2;
+  // wing flap: fast when airborne, a gentle bob on the ground
+  const flap = airborne ? Math.sin(t * 0.45) * 0.42 : Math.sin(t * 0.12) * 0.08 + (walking && frame ? 0.14 : 0);
+
+  // ---- wings (behind the body), mirrored ----
+  for (const sgn of [-1, 1]) {
+    ctx.save();
+    ctx.translate(sgn * 1.6, -10);
+    ctx.rotate(sgn * (0.22 + flap));
+    const dot = (dx, dy, r) => { ctx.fillStyle = pal.wingSpot; ctx.beginPath(); ctx.arc(sgn*dx, dy, r, 0, Math.PI*2); ctx.fill(); };
+    // upper wing
+    const ug = ctx.createRadialGradient(sgn*4, -4, 1, sgn*6, -3, 9);
+    ug.addColorStop(0, pal.wingGreen); ug.addColorStop(1, pal.wingGreenDk);
+    ctx.fillStyle = ug;
+    ctx.beginPath(); ctx.ellipse(sgn*5.4, -3.5, 5.6, 6.6, sgn*0.3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = pal.wingBlue;
+    ctx.beginPath(); ctx.ellipse(sgn*5.6, -3.5, 3, 4, sgn*0.3, 0, Math.PI*2); ctx.fill();
+    dot(5.6, -3.5, 1.2); dot(7.4, -6, 0.8); dot(3.6, -1, 0.8);
+    // lower wing
+    ctx.fillStyle = pal.wingGreenDk;
+    ctx.beginPath(); ctx.ellipse(sgn*4.6, 4.5, 4.2, 4.8, sgn*-0.2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = pal.wingBlue;
+    ctx.beginPath(); ctx.ellipse(sgn*4.6, 4.5, 2.2, 2.8, sgn*-0.2, 0, Math.PI*2); ctx.fill();
+    dot(4.6, 4.5, 1); dot(5.6, 6.6, 0.7);
+    // wing outline shimmer
+    ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.ellipse(sgn*5.4, -3.5, 5.6, 6.6, sgn*0.3, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ---- little legs ----
+  ctx.strokeStyle = pal.bfBodyDk; ctx.lineWidth = 0.9; ctx.lineCap = "round";
+  const po = (walking && frame) ? 0.8 : 0;
+  ctx.beginPath(); ctx.moveTo(-1.4, -2); ctx.lineTo(-2.6 - po, 0); ctx.moveTo(1.4, -2); ctx.lineTo(2.6 + po, 0); ctx.stroke();
+
+  // ---- red segmented body ----
+  const bg = ctx.createLinearGradient(-3, -14, 3, -2);
+  bg.addColorStop(0, pal.bfBody); bg.addColorStop(1, pal.bfBodyDk);
+  ctx.fillStyle = bg;
+  rrPath(ctx, -2.4, -14.5, 4.8, 13, 2.4); ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,.18)"; ctx.lineWidth = 0.5;
+  for (let sy = -12; sy < -3; sy += 2.4) { ctx.beginPath(); ctx.moveTo(-2.2, sy); ctx.lineTo(2.2, sy); ctx.stroke(); }
+  ctx.fillStyle = "rgba(255,255,255,.3)"; ctx.fillRect(-1.6, -13.5, 1, 10);
+
+  // ---- head with a happy smiley face ----
+  ctx.fillStyle = pal.bfHead;
+  ctx.beginPath(); ctx.arc(0, -17, 4.4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.bfBlush;
+  ctx.beginPath(); ctx.arc(-2.6, -16, 1, 0, Math.PI*2); ctx.arc(2.6, -16, 1, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.bfFace;
+  ctx.beginPath(); ctx.arc(-1.5, -17.8, 0.75, 0, Math.PI*2); ctx.arc(1.5, -17.8, 0.75, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.9)";
+  ctx.beginPath(); ctx.arc(-1.75, -18.1, 0.28, 0, Math.PI*2); ctx.arc(1.25, -18.1, 0.28, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.bfFace; ctx.lineWidth = 0.7; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(0, -16.6, 1.5, 0.15*Math.PI, 0.85*Math.PI); ctx.stroke();
+
+  // ---- antennae with knobs ----
+  ctx.strokeStyle = pal.antenna; ctx.lineWidth = 0.8;
+  for (const sgn of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(sgn*1.6, -20.4);
+    ctx.quadraticCurveTo(sgn*3.6, -23.5, sgn*2.4 + Math.sin(t*0.1)*0.4, -25.4); ctx.stroke();
+    ctx.fillStyle = pal.antTip;
+    ctx.beginPath(); ctx.arc(sgn*2.4 + Math.sin(t*0.1)*0.4, -25.6, 1.1, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ---- powered up: blue star + blooming flowers ----
+  if (big) {
+    drawStarShape(ctx, 0, -27.5, 2.4, 1.1, t * 0.05, pal.bfStar, "#2f9ed0");
+    for (let i = 0; i < 3; i++) {
+      const a = t * 0.09 + i * 2.1, fx = Math.cos(a) * 9, fy = -10 + Math.sin(a * 1.2) * 9;
+      ctx.fillStyle = ["#ff8ec4", "#ffd166", "#b88cff"][i];
+      for (let p = 0; p < 5; p++) { const pa = p * Math.PI * 2/5;
+        ctx.beginPath(); ctx.ellipse(fx + Math.cos(pa)*1.4, fy + Math.sin(pa)*1.4, 0.9, 0.6, pa, 0, Math.PI*2); ctx.fill(); }
+      ctx.fillStyle = "#fff6c0"; ctx.beginPath(); ctx.arc(fx, fy, 0.7, 0, Math.PI*2); ctx.fill();
+    }
+  }
+}
+
+/* A flower she rides when flying. */
+function drawFlowerRide(cx, feetY, t, facing) {
+  g.save();
+  g.translate(cx, feetY + 4 + Math.sin(t * 0.15) * 0.8);
+  g.fillStyle = "rgba(0,0,0,.1)";
+  g.beginPath(); g.ellipse(0, 3, 12, 2.2, 0, 0, Math.PI*2); g.fill();
+  g.rotate(Math.sin(t * 0.08) * 0.1);
+  // leaves
+  g.fillStyle = "#3fa54a";
+  g.beginPath(); g.ellipse(-7, 1, 4, 1.8, -0.4, 0, Math.PI*2); g.fill();
+  g.beginPath(); g.ellipse(7, 1, 4, 1.8, 0.4, 0, Math.PI*2); g.fill();
+  // big flower disc she stands on (petals + center)
+  const pet = ["#ff8ec4", "#ffa6d2", "#ff7ab8"];
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4 + t * 0.02;
+    g.fillStyle = pet[i % 3];
+    g.beginPath(); g.ellipse(Math.cos(a) * 9, Math.sin(a) * 3.6, 4, 2.2, a, 0, Math.PI*2); g.fill();
+  }
+  const cg = g.createRadialGradient(0, -1, 0.5, 0, 0, 5);
+  cg.addColorStop(0, "#fff3a0"); cg.addColorStop(1, "#f0b53c");
+  g.fillStyle = cg; g.beginPath(); g.ellipse(0, 0, 5, 2.6, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = "rgba(180,120,40,.6)";
+  for (let i = 0; i < 5; i++) { const a = i * 1.3; g.beginPath(); g.arc(Math.cos(a)*2, Math.sin(a)*1, 0.5, 0, Math.PI*2); g.fill(); }
+  g.restore();
+}
+
 /* Northern Light the arctic fox: fluffy white fur with cool shadows, big
    sparkly eyes, blush cheeks, tall ears, a huge bushy tail. When powered up
    her fur shimmers aurora colors. Feet at (0,0), facing right. */
@@ -895,6 +1014,23 @@ function drawBambooCarpet(cx, feetY, t, facing) {
 
 function drawFireball(ctx, f, t) {
   const cx = f.x + 2.5, cy = f.y + 2.5;
+  if (f.kind === "rainbow") {                // Cutie's rainbow
+    const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 8);
+    glow.addColorStop(0, "rgba(255,255,255,.7)"); glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2); ctx.fill();
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(f.t * 0.12 * (Math.sign(f.vx) || 1));
+    const bands = ["#ff5e5e", "#ff9f3c", "#ffd84d", "#5ecb6a", "#5aa6f0", "#b07ff0"];
+    ctx.lineWidth = 1.1; ctx.lineCap = "round";
+    for (let i = 0; i < bands.length; i++) {
+      ctx.strokeStyle = bands[i];
+      ctx.beginPath(); ctx.arc(0, 1.5, 2 + i * 0.9, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+    }
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(-1.4, 2.6, 0.8, 0, Math.PI*2); ctx.arc(1.4, 2.6, 0.8, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    return;
+  }
   if (f.kind === "snowflake") {              // Northern Light's snowflake
     const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 8);
     glow.addColorStop(0, "rgba(220,240,255,.85)"); glow.addColorStop(1, "rgba(180,220,255,0)");
@@ -1422,6 +1558,26 @@ function buildIgloo(f) {
   }
 }
 
+/* Cutie's rainbows bloom little flower platforms where they land (up to 8). */
+function buildFlower(f) {
+  const L = game.level;
+  const tx = Math.floor((f.x + f.w/2) / TILE);
+  let ty = Math.floor((f.y + f.h - 0.01) / TILE);
+  if (isSolid(tileAt(tx, ty))) ty -= 1;
+  if (tx < 1 || tx >= L.width || ty < 1 || ty >= ROWS) return;
+  if (tileAt(tx, ty) !== " ") return;
+  L.grid[ty][tx] = "F";
+  if (!game.flowers) game.flowers = [];
+  game.flowers.push({ tx, ty });
+  SFX.sprout && SFX.sprout(); if (!SFX.sprout) SFX.star();
+  for (let i = 0; i < 6; i++) game.particles.push({ x:(tx+0.5)*TILE+(i-2.5)*2, y:(ty+0.5)*TILE,
+    vx:(i-2.5)*0.4, vy:-1-Math.random(), t:0, c:["#ff8ec4","#ffd166","#b88cff"][i%3] });
+  if (game.flowers.length > 8) {
+    const old = game.flowers.shift();
+    if (L.grid[old.ty][old.tx] === "F") L.grid[old.ty][old.tx] = " ";
+  }
+}
+
 /* ============================== PLAYGROUND ==============================
    A safe, enemy-free hangout reached by going down any pipe. Water slide,
    trampoline, parkour, puppies and an ice-cream stand. Exit anytime. */
@@ -1486,7 +1642,7 @@ function loadPlayground() {
   player.fly = CHARS[heroKey].flyMax; player.shootCool = 0; player.airT = 0;
   game.camX = 0; game.particles = []; game.pops = []; game.powerups = [];
   game.fireballs = []; game.bossFlames = []; game.boss = null; game.pug = null;
-  game.pigeons = []; game.pigeonCool = 0; game.treatT = 0; game.igloos = [];
+  game.pigeons = []; game.pigeonCool = 0; game.treatT = 0; game.igloos = []; game.flowers = [];
   game.state = "play"; showButtons(true);
 }
 function exitPlayground() {
@@ -1541,7 +1697,7 @@ function startLevel(n) {
   player.fly = CHARS[heroKey].flyMax; player.shootCool = 0; player.airT = 0;
   game.camX = 0; game.particles = []; game.pops = []; game.timer = 0;
   game.powerups = []; game.fireballs = []; game.bossFlames = [];
-  game.pigeons = []; game.pigeonCool = 0; game.igloos = [];
+  game.pigeons = []; game.pigeonCool = 0; game.igloos = []; game.flowers = [];
   game.rescued = false;
   game.boss = null; game.pug = null;
   if (game.level.boss) {
@@ -1564,7 +1720,7 @@ function goTitle() {
 }
 
 /* ============================== PHYSICS ============================== */
-const SOLID = "#G=?MUSPTJI";
+const SOLID = "#G=?MUSPTJIF";
 function tileAt(tx, ty) {
   const L = game.level;
   if (tx < 0 || tx >= L.width) return "#";
@@ -1743,6 +1899,14 @@ function updatePlay() {
   moveEntity(player, bumpBlock);
   collectCoins();
 
+  // --- Cutie leaves a blooming flower trail when powered up (blue-star mode) ---
+  if (CHARS[heroKey].look === "butterfly" && player.power >= 2 && (game.timer & 7) === 0 &&
+      (Math.abs(player.vx) > 0.4 || !player.grounded)) {
+    game.particles.push({ x: player.x + player.w/2 - player.facing*4 + (Math.random()*4-2),
+      y: player.y + player.h - 2, vx: -player.facing*0.2, vy: -0.3 - Math.random()*0.3,
+      t: 0, conf: true, flower: true, c: ["#ff8ec4","#ffd166","#b88cff","#7fd0ff"][(game.timer>>3)%4] });
+  }
+
   // --- trampoline bounce (playground) ---
   if (player.grounded) {
     const bx = Math.floor((player.x + player.w/2)/TILE), by = Math.floor((player.y + player.h + 1)/TILE);
@@ -1764,21 +1928,22 @@ function updatePlay() {
     if (player.shootCool === 0 && game.fireballs.length < 3) {
       const cloudKind = CHARS[heroKey].kind === "cloud";
       const look = CHARS[heroKey].look;
-      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : "bolt";
+      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : "bolt";
       game.fireballs.push({ x: player.x + (player.facing > 0 ? player.w : -6),
         y: player.y + player.h * 0.35, w: 5, h: 5,
         vx: (cloudKind ? 3.6 : 3.2) * player.facing, vy: 0,
-        kind, t: 0, igloo: look === "fox" });
+        kind, t: 0, igloo: look === "fox", flower: look === "butterfly" });
       player.shootCool = 16;
       if (cloudKind) SFX.bolt(); else SFX.star();
     }
   }
   for (const f of game.fireballs) {
     f.t++;
-    if (f.kind === "pinkfire" || f.kind === "snowflake") f.vy = Math.min(f.vy + 0.12, 4);  // arc & fall
+    if (f.kind === "pinkfire" || f.kind === "snowflake" || f.kind === "rainbow") f.vy = Math.min(f.vy + 0.12, 4);  // arc & fall
     f.hitWall = false;
     moveEntity(f);
     if (f.igloo && (f.grounded || f.hitWall)) { buildIgloo(f); f.gone = true; }
+    else if (f.flower && (f.grounded || f.hitWall)) { buildFlower(f); f.gone = true; }
     else if (f.grounded || f.hitWall || f.t > 90 ||
         f.x < game.camX - 24 || f.x > game.camX + VIEW_W + 24 || f.y > LEVEL_H + 24) f.gone = true;
   }
@@ -2287,6 +2452,21 @@ function tileSprite(c) {
       t.beginPath(); t.moveTo(R*0.5,2); t.lineTo(R*0.5,R-2); t.stroke();          // ice-brick seams
       t.beginPath(); t.moveTo(2,R*0.5); t.lineTo(R-2,R*0.5); t.stroke();
       t.fillStyle = "rgba(255,255,255,.8)"; t.fillRect(3,3,R-6,3);
+      break;
+    }
+    case "F": {                                  // flower platform — built from rainbows
+      t.fillStyle = lg(0,0,0,R,[[0,"#5fc06a"],[1,"#3a8f44"]]);   // grassy mound
+      rrPath(t, 0, R*0.42, R, R*0.58, 5); t.fill();
+      t.fillStyle = "rgba(255,255,255,.25)"; t.fillRect(2, R*0.42, R-4, 3);
+      // a row of little flowers on top
+      const petals = ["#ff8ec4", "#ffd166", "#b88cff", "#7fd0ff"];
+      for (let i = 0; i < 3; i++) {
+        const fx = R*0.22 + i * R*0.28, fy = R*0.34, c = petals[i % petals.length];
+        t.fillStyle = c;
+        for (let p = 0; p < 5; p++) { const a = p * Math.PI*2/5;
+          t.beginPath(); t.ellipse(fx + Math.cos(a)*3.4, fy + Math.sin(a)*3.4, 2.2, 1.5, a, 0, Math.PI*2); t.fill(); }
+        t.fillStyle = "#fff3a0"; t.beginPath(); t.arc(fx, fy, 2, 0, Math.PI*2); t.fill();
+      }
       break;
     }
     case "T": {
@@ -2905,7 +3085,15 @@ function drawWorld() {
   for (const p of game.particles) {
     if (p.t < 0) continue;
     g.fillStyle = p.c;
-    if (p.conf) { g.save(); g.translate(p.x, p.y); g.rotate(p.t * 0.1 + p.x); g.fillRect(-2, -1.4, 4, 2.8); g.restore(); }
+    if (p.flower) {                                  // tiny blooming flower (Cutie's trail)
+      const s = Math.min(1, p.t / 6) * (1 - p.t / 50);
+      g.save(); g.translate(p.x, p.y); g.scale(s, s);
+      for (let q = 0; q < 5; q++) { const a = q * Math.PI*2/5 + p.x;
+        g.beginPath(); g.ellipse(Math.cos(a)*2, Math.sin(a)*2, 1.4, 0.9, a, 0, Math.PI*2); g.fill(); }
+      g.fillStyle = "#fff3a0"; g.beginPath(); g.arc(0, 0, 1, 0, Math.PI*2); g.fill();
+      g.restore();
+    }
+    else if (p.conf) { g.save(); g.translate(p.x, p.y); g.rotate(p.t * 0.1 + p.x); g.fillRect(-2, -1.4, 4, 2.8); g.restore(); }
     else g.fillRect(p.x - 2, p.y - 2, 4, 4);
   }
 
@@ -2926,6 +3114,8 @@ function drawWorld() {
         drawBambooCarpet(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
       if (player.flying && CHARS[heroKey].look === "fox")
         drawSnowflakeRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
+      if (player.flying && CHARS[heroKey].look === "butterfly")
+        drawFlowerRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
       drawKid(g, player.x + player.w/2, player.y + player.h, pal,
               player.frame, player.facing, !player.grounded, Math.abs(player.vx) > 0.3, player.power);
       g.globalAlpha = 1;
@@ -3044,13 +3234,13 @@ function drawTitle() {
 
   // character cards — sized to fit however many heroes there are
   game.titleCards = [];
-  const keysArr = ["jules", "northern", "nora"];
+  const keysArr = ["jules", "northern", "cutie", "nora"];
   const n = keysArr.length;
-  const gap = Math.min(12, W * 0.018);
-  const cw = Math.min((W * 0.94 - (n-1)*gap) / n, 150, H * 0.4), ch = Math.min(cw * 1.15, H * 0.46);
+  const gap = Math.min(10, W * 0.016);
+  const cw = Math.min((W * 0.96 - (n-1)*gap) / n, 140, H * 0.38), ch = Math.min(cw * 1.18, H * 0.46);
   const cy = H * (W > H ? 0.58 : 0.54);
   const totalW = n * cw + (n-1) * gap, startX = W/2 - totalW/2;
-  const edge = ["#f59cc4", "#7fb6ff", "#4fbfa2"], nameCol = ["#e074a8", "#3f7fd0", "#2f9e7e"];
+  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2"], nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e"];
   keysArr.forEach((k, i) => {
     const sx = startX + i * (cw + gap), cxp = sx + cw/2, sy = cy - ch/2;
     const bounce = Math.sin(game.timer * 0.08 + i * 2) * 4;
@@ -3118,11 +3308,11 @@ function drawWinScreen() {
   outlineText("The heroes saved Peach the pug!", W/2, H*0.32, "#fff");
 
   // all the heroes celebrating
-  const ks = Math.min(W, H) / 120;
-  [["jules", -1.6], ["northern", -0.55], ["nora", 1.5]].forEach(([k, side]) => {
+  const ks = Math.min(W, H) / 130;
+  [["jules", -2.1], ["northern", -0.95], ["cutie", 0.95], ["nora", 2.1]].forEach(([k, side]) => {
     g.save();
     const hop = Math.abs(Math.sin(game.timer * 0.1 + (side+2))) * 14;
-    g.translate(W/2 + side * Math.min(W*0.14, 78), H*0.62 - hop);
+    g.translate(W/2 + side * Math.min(W*0.12, 70), H*0.62 - hop);
     g.scale(ks, ks);
     drawKid(g, 0, 0, CHARS[k], 0, side < 0 ? 1 : -1, true, false);
     g.restore();
