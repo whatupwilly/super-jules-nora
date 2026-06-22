@@ -40,6 +40,8 @@
   #btnR { left:calc(max(16px, env(safe-area-inset-left)) + 90px); }
   #btnJ { right:max(16px, env(safe-area-inset-right)); width:88px; height:88px; line-height:80px; font-size:22px; }
   #btnF { right:calc(max(16px, env(safe-area-inset-right)) + 106px); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 8px); font-size:26px; background:rgba(255,140,205,.35); border-color:rgba(255,195,228,.7); }
+  #btnP { right:calc(max(16px, env(safe-area-inset-right)) + 106px); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 96px); font-size:26px; background:rgba(150,110,235,.4); border-color:rgba(205,185,255,.75); }
+  #btnP.pressed { background:rgba(150,110,235,.7); }
   #btnD { left:50%; transform:translateX(-50%); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 96px); width:84px; height:84px; line-height:78px; font-size:30px; background:rgba(150,220,255,.4); border-color:rgba(200,240,255,.8); }
   #btnD.pressed { background:rgba(150,220,255,.7); }
   #btnX { top:max(14px, env(safe-area-inset-top)); right:max(16px, env(safe-area-inset-right));
@@ -55,6 +57,7 @@
 <div class="btn" id="btnR">&#9654;</div>
 <div class="btn" id="btnJ">JUMP</div>
 <div class="btn" id="btnF">✨</div>
+<div class="btn" id="btnP">🌀</div>
 <div class="btn" id="btnD">&#9660;</div>
 <div class="btn" id="btnX">&#128682; EXIT</div>
 <div id="verlink"><a href="../">🕹 Classic</a><a href="../fortnite/">⚡ Battle</a><a href="../realistic/">🌿 Real</a><a href="../bubble/">🫧 Bubble</a></div>
@@ -117,7 +120,7 @@ const SFX = {
 };
 
 /* ============================== INPUT ============================== */
-const input = { left:false, right:false, jump:false, jumpPressed:false, firePressed:false, downPressed:false, anyTap:false };
+const input = { left:false, right:false, jump:false, jumpPressed:false, firePressed:false, downPressed:false, portalPressed:false, anyTap:false };
 const keys = {};
 window.addEventListener("keydown", e => {
   if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Space"].includes(e.code)) e.preventDefault();
@@ -125,6 +128,7 @@ window.addEventListener("keydown", e => {
   if (!keys[e.code] && (e.code==="Space"||e.code==="ArrowUp"||e.code==="KeyZ"||e.code==="KeyW")) input.jumpPressed = true;
   if (!keys[e.code] && (e.code==="KeyX"||e.code==="KeyB")) input.firePressed = true;
   if (!keys[e.code] && (e.code==="ArrowDown"||e.code==="KeyS")) input.downPressed = true;
+  if (!keys[e.code] && (e.code==="KeyC"||e.code==="KeyQ")) input.portalPressed = true;   // Sparkle's portal
   if (!keys[e.code] && e.code==="KeyP") setPigeonsOff(!game.pigeonsOff);   // P toggles pigeons
   keys[e.code] = true;
   input.anyTap = true;
@@ -138,14 +142,15 @@ function syncKeys() {
   input.down  = !!(keys["ArrowDown"] || keys["KeyS"]) || touch.down;
 }
 
-const touch = { left:false, right:false, jump:false, down:false };
+const touch = { left:false, right:false, jump:false, down:false, portal:false };
 const btnL = document.getElementById("btnL"),
       btnR = document.getElementById("btnR"),
       btnJ = document.getElementById("btnJ"),
       btnF = document.getElementById("btnF"),
       btnD = document.getElementById("btnD"),
+      btnP = document.getElementById("btnP"),
       btnX = document.getElementById("btnX");
-const allBtns = [btnL, btnR, btnJ, btnF, btnD];
+const allBtns = [btnL, btnR, btnJ, btnF, btnP, btnD];
 
 // Controls fade to near-invisible a few seconds after first use (still tappable)
 let fadeScheduled = false;
@@ -174,6 +179,7 @@ bindBtn(btnL, "left"); bindBtn(btnR, "right");
 bindBtn(btnJ, "jump", () => { input.jumpPressed = true; });
 bindBtn(btnF, "fire", () => { input.firePressed = true; });
 bindBtn(btnD, "down", () => { input.downPressed = true; });
+bindBtn(btnP, "portal", () => { input.portalPressed = true; });
 btnX.addEventListener("pointerdown", e => { e.preventDefault(); audio(); btnX.classList.add("pressed");
   if (game.state === "play" && game.inPlayground) exitArea(); }, {passive:false});
 btnX.addEventListener("pointerup", () => btnX.classList.remove("pressed"));
@@ -197,7 +203,7 @@ let tapX = -1, tapY = -1;
 
 function showButtons(on) {
   btnL.style.display = btnR.style.display = btnJ.style.display = on ? "block" : "none";
-  if (!on) { btnD.style.display = btnX.style.display = "none"; downBtnShown = exitBtnShown = false; }
+  if (!on) { btnD.style.display = btnX.style.display = btnP.style.display = "none"; downBtnShown = exitBtnShown = portalBtnShown = false; }
   refreshFireBtn();
   refreshContextBtns();
 }
@@ -206,12 +212,14 @@ function refreshFireBtn() {
   const want = game.state === "play" && (!game.inPlayground || game.subArea === "waterpark");  // water gun in the park
   if (want !== fireBtnShown) { fireBtnShown = want; btnF.style.display = want ? "block" : "none"; }
 }
-let downBtnShown = false, exitBtnShown = false;
+let downBtnShown = false, exitBtnShown = false, portalBtnShown = false;
 function refreshContextBtns() {
   const wantD = game.state === "play" && player.onDownPipe;   // ▼ shows on any pipe that goes deeper
   if (wantD !== downBtnShown) { downBtnShown = wantD; btnD.style.display = wantD ? "block" : "none"; }
   const wantX = game.state === "play" && game.inPlayground;
   if (wantX !== exitBtnShown) { exitBtnShown = wantX; btnX.style.display = wantX ? "block" : "none"; }
+  const wantP = game.state === "play" && !game.inPlayground && CHARS[heroKey].look === "unicorn";  // Sparkle's portal
+  if (wantP !== portalBtnShown) { portalBtnShown = wantP; btnP.style.display = wantP ? "block" : "none"; }
 }
 
 /* ============================== CHARACTERS ============================== */
@@ -233,6 +241,15 @@ const CHARS = {
     bfBody:"#e63b3b", bfBodyDk:"#b21f1f", bfHead:"#fdf6ee", bfFace:"#2a1c12", bfBlush:"#ffb9cf",
     wingGreen:"#41a64b", wingGreenDk:"#2c7a36", wingBlue:"#3f8fe0", wingBlueDk:"#2c6cb4",
     wingSpot:"#ecb73e", antenna:"#6a4ad0", antTip:"#3a2a9e", bfStar:"#5cc8f0",
+  },
+  sparkle: {
+    name: "SPARKLE", kind: "bunny", look: "unicorn", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // unicorn — white body, rainbow mane & tail, spiral horn, brown hooves
+    uBody:"#fdf8ff", uShade:"#e6d8f0", uHoof:"#8a5a32", uEye:"#2a1c3a", uBlush:"#ffb9d8",
+    horn:"#ffe07a", hornDk:"#e6b740",
+    rainbow:["#ff5e6c","#ff9f43","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"],
   },
   northern: {
     name: "NORTHERN LIGHT", kind: "bunny", look: "fox", flyMax: 1200,
@@ -301,7 +318,8 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   ctx.translate(x, y);
   if (power > 0) ctx.scale(1.18, 1.32);
   if (facing < 0) ctx.scale(-1, 1);
-  if (pal.look === "butterfly") drawCutieBody(ctx, pal, frame, airborne, walking, power);
+  if (pal.look === "unicorn") drawSparkleBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "butterfly") drawCutieBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "fox") drawNorthernBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "panda") drawBambooBody(ctx, pal, frame, airborne, walking);
   else if (pal.look === "slime") drawCosmoBody(ctx, pal, frame, airborne, walking);
@@ -626,6 +644,99 @@ function drawPowerup(ctx, p) {
     ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(1.4, -8); ctx.lineTo(0, -3.2); ctx.lineTo(-1, -8); ctx.closePath(); ctx.fill();
   }
   ctx.restore();
+}
+
+/* Sparkle the unicorn: white chibi body, rainbow mane & tail, golden spiral
+   horn, big sparkly eye. Glows with a rainbow shimmer when powered up.
+   Feet at (0,0), facing right. */
+function drawSparkleBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer, rain = pal.rainbow;
+  const glowing = power >= 2 || (player.glow || 0) > 0;
+
+  // flowing rainbow tail (behind)
+  ctx.save();
+  ctx.translate(-5.4, -3); ctx.rotate(Math.sin(t*0.08)*0.08 - 0.18);
+  ctx.lineCap = "round"; ctx.lineWidth = 1.5;
+  for (let i = 0; i < rain.length; i++) { ctx.strokeStyle = rain[i];
+    ctx.beginPath(); ctx.moveTo(0, -2 + i*0.5);
+    ctx.quadraticCurveTo(-4 - i*0.4, -1 + i*0.6, -3 - i*0.5, 5 + i*0.7); ctx.stroke(); }
+  ctx.restore();
+
+  // hooves
+  const po = (walking && frame) ? 1.1 : 0;
+  ctx.fillStyle = pal.uHoof;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -1, 1.7, 1.4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -1, 1.7, 1.4, 0, 0, Math.PI*2); ctx.fill();
+
+  // plush body
+  const bg = ctx.createLinearGradient(0, -12, 0, -1);
+  bg.addColorStop(0, pal.uBody); bg.addColorStop(1, pal.uShade);
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(0, -6, 6, 6.4, 0, 0, Math.PI*2); ctx.fill();
+
+  // head
+  ctx.fillStyle = pal.uBody;
+  ctx.beginPath(); ctx.ellipse(0.4, -15.4, 5.4, 5, 0, 0, Math.PI*2); ctx.fill();
+  // ears
+  ctx.beginPath(); ctx.moveTo(-3.6,-19.2); ctx.lineTo(-2.2,-21.8); ctx.lineTo(-1,-19.4); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(3.6,-19.2); ctx.lineTo(4.8,-21.4); ctx.lineTo(5.4,-18.8); ctx.closePath(); ctx.fill();
+
+  // golden spiral horn
+  ctx.save(); ctx.translate(0.6, -19.8);
+  const hg = ctx.createLinearGradient(0,-6,0,0); hg.addColorStop(0,pal.horn); hg.addColorStop(1,pal.hornDk);
+  ctx.fillStyle = hg;
+  ctx.beginPath(); ctx.moveTo(-1.6, 0.6); ctx.lineTo(0, -6.6); ctx.lineTo(1.6, 0.6); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(150,105,15,.7)"; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(-1.2,-0.4); ctx.lineTo(1,-1.7); ctx.moveTo(-0.8,-2.4); ctx.lineTo(0.8,-3.6); ctx.moveTo(-0.4,-4.4); ctx.lineTo(0.5,-5.2); ctx.stroke();
+  ctx.restore();
+
+  // rainbow forelock between the ears
+  for (let i = 0; i < rain.length; i++) { ctx.fillStyle = rain[i];
+    ctx.beginPath(); ctx.ellipse(-2.4 + i*0.8, -18.4 + Math.abs(i-2.5)*0.35, 1.1, 2.2, -0.15, 0, Math.PI*2); ctx.fill(); }
+  // rainbow mane down the back
+  ctx.save(); ctx.translate(4.7, -17);
+  for (let i = 0; i < rain.length; i++) { ctx.fillStyle = rain[i];
+    ctx.beginPath(); ctx.ellipse(i*0.3, i*1.4 - 1, 1.7, 1.4, 0.3, 0, Math.PI*2); ctx.fill(); }
+  ctx.restore();
+
+  // muzzle + nostril
+  ctx.fillStyle = pal.uShade;
+  ctx.beginPath(); ctx.ellipse(-2.7, -13.4, 2.2, 1.8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(150,120,160,.5)"; ctx.beginPath(); ctx.arc(-3.5, -13.3, 0.5, 0, Math.PI*2); ctx.fill();
+
+  // blush + big sparkly eye + lashes
+  ctx.fillStyle = pal.uBlush; ctx.beginPath(); ctx.ellipse(-0.3, -13.8, 1.3, 0.9, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.uEye;
+  ctx.beginPath(); ctx.ellipse(-0.1, -15.5, 1.6, 2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.95)";
+  ctx.beginPath(); ctx.arc(-0.6, -16.2, 0.6, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0.4, -14.9, 0.34, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.uEye; ctx.lineWidth = 0.5; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(1.2,-16.3); ctx.lineTo(2.1,-16.8); ctx.moveTo(1.3,-15.5); ctx.lineTo(2.2,-15.6); ctx.stroke();
+
+  // a twinkle off the horn tip
+  if ((t>>4)%2===0) drawStarShape(ctx, 0.6, -26.6, 1.2, 0.5, t*0.1, "#fff6c0");
+  // glowing power-up — rainbow sparkles orbiting
+  if (glowing) {
+    for (let i=0;i<3;i++){ const a=t*0.1+i*2.1; ctx.fillStyle = rain[(i*2 + (t>>3)) % rain.length];
+      ctx.globalAlpha = 0.6 + Math.sin(a)*0.3;
+      ctx.beginPath(); ctx.arc(Math.cos(a)*8.5, -10 + Math.sin(a*1.2)*9, 1, 0, Math.PI*2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* A rainbow arc she rides when flying. */
+function drawRainbowRide(cx, feetY, t, facing) {
+  g.save();
+  g.translate(cx, feetY + 3 + Math.sin(t*0.15)*0.8);
+  g.fillStyle = "rgba(0,0,0,.1)"; g.beginPath(); g.ellipse(0, 4, 12, 2.2, 0, 0, Math.PI*2); g.fill();
+  const rain = ["#ff5e6c","#ff9f43","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"];
+  g.lineCap = "round";
+  for (let i = 0; i < rain.length; i++) { g.strokeStyle = rain[i]; g.lineWidth = 2.4;
+    g.beginPath(); g.arc(0, 16, 17 - i*2.2, Math.PI*1.16, Math.PI*1.84); g.stroke(); }
+  for (let i = 0; i < 3; i++) { const a = t*0.12 + i*2; g.fillStyle = "rgba(255,255,255,.85)";
+    g.beginPath(); g.arc(Math.cos(a)*9, -1 + Math.sin(a)*2, 0.8, 0, Math.PI*2); g.fill(); }
+  g.restore();
 }
 
 /* Cutie the butterfly: a smiley red-bodied butterfly with big green/blue
@@ -1014,6 +1125,17 @@ function drawBambooCarpet(cx, feetY, t, facing) {
 
 function drawFireball(ctx, f, t) {
   const cx = f.x + 2.5, cy = f.y + 2.5;
+  if (f.kind === "sparkle") {                // Sparkle's horn sparkles
+    const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 8);
+    glow.addColorStop(0, "rgba(255,240,180,.9)"); glow.addColorStop(1, "rgba(255,210,120,0)");
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2); ctx.fill();
+    const cols = ["#fff6c0","#ffd23e","#ff9ed6","#9b6cff"];
+    drawStarShape(ctx, cx, cy, 3.6, 1.6, f.t*0.3, "#fff6c0", "#ffcf5a");
+    for (let i = 0; i < 3; i++) { const a = f.t*0.25 + i*2.1;
+      ctx.fillStyle = cols[(i + (f.t>>2)) % cols.length];
+      ctx.beginPath(); ctx.arc(cx + Math.cos(a)*4.2, cy + Math.sin(a)*4.2, 0.9, 0, Math.PI*2); ctx.fill(); }
+    return;
+  }
   if (f.kind === "rainbow") {                // Cutie's rainbow
     const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 8);
     glow.addColorStop(0, "rgba(255,255,255,.7)"); glow.addColorStop(1, "rgba(255,255,255,0)");
@@ -1693,7 +1815,7 @@ function resetAreaState() {
   game.camX = 0; game.particles = []; game.pops = []; game.powerups = [];
   game.fireballs = []; game.bossFlames = []; game.boss = null; game.pug = null;
   game.pigeons = []; game.pigeonCool = 0; game.treatT = 0; game.igloos = []; game.flowers = [];
-  game.waterShots = []; game.targets = game.level.targets || [];
+  game.waterShots = []; game.targets = game.level.targets || []; game.portalFx = []; player.glow = 0; player.portalCool = 0;
 }
 function enterPipe() {                              // main level -> playground
   game.savedLevel = game.level; game.savedReturn = snapshotPlayer();
@@ -1731,7 +1853,7 @@ function finishExitArea() {
     restorePlayerTo(game.savedReturn); game.savedLevel = null;
   }
   game.particles = []; game.pops = []; game.powerups = []; game.fireballs = [];
-  game.pigeons = []; game.pigeonCool = 0; game.waterShots = []; game.targets = game.level.targets || [];
+  game.pigeons = []; game.pigeonCool = 0; game.waterShots = []; game.targets = game.level.targets || []; game.portalFx = [];
   game.state = "play"; showButtons(true);
 }
 
@@ -1746,7 +1868,7 @@ const game = {
   boss: null, pug: null, rescued: false,
   titleCards: [],
   inPlayground: false, savedLevel: null, savedReturn: null, treatT: 0,
-  subArea: null, savedPark: null, savedParkReturn: null, enterTo: null, waterShots: [], targets: [],
+  subArea: null, savedPark: null, savedParkReturn: null, enterTo: null, waterShots: [], targets: [], portalFx: [],
   pigeonsOff: (() => { try { return localStorage.getItem("magicPigeonsOff") === "1"; } catch(e) { return false; } })(),
 };
 function setPigeonsOff(off) {
@@ -1757,13 +1879,13 @@ function setPigeonsOff(off) {
 }
 const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
                  coyote:0, jumpBuf:0, animT:0, frame:0,
-                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0, onPipe:false, onDownPipe:false, flying:false,
+                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0, onPipe:false, onDownPipe:false, flying:false, glow:0, portalCool:0,
                  jg:{ hold:0.125, fall:0.4375 } };
 
 function startLevel(n) {
   game.levelNum = n;
   game.level = makeLevel(n);
-  game.inPlayground = false; game.savedLevel = null; game.subArea = null; game.savedPark = null; game.waterShots = []; game.targets = [];
+  game.inPlayground = false; game.savedLevel = null; game.subArea = null; game.savedPark = null; game.waterShots = []; game.targets = []; game.portalFx = []; player.glow = 0; player.portalCool = 0;
   player.h = player.power > 0 ? 24 : 16;
   player.x = 2*TILE; player.y = 13*TILE - player.h;
   player.vx = 0; player.vy = 0; player.facing = 1; player.grounded = false;
@@ -1787,7 +1909,7 @@ function startLevel(n) {
 function goTitle() {
   game.state = "title"; game.score = 0; game.coins = 0; game.lives = 3; game.timer = 0;
   player.power = 0; game.rescued = false;
-  game.inPlayground = false; game.savedLevel = null; game.subArea = null; game.savedPark = null; game.waterShots = []; game.targets = [];
+  game.inPlayground = false; game.savedLevel = null; game.subArea = null; game.savedPark = null; game.waterShots = []; game.targets = []; game.portalFx = []; player.glow = 0; player.portalCool = 0;
   unfadeButtons();
   document.getElementById("verlink").style.display = "block";
   showButtons(false);
@@ -1860,7 +1982,7 @@ function bumpBlock(tx, ty) {
 }
 
 function applyDamage() {
-  if (player.inv > 0) return;
+  if (player.inv > 0 || player.glow > 0) return;   // Sparkle is indestructible while glowing
   if (player.power > 0) {
     player.power--;
     if (player.power === 0) { player.y += 8; player.h = 16; }
@@ -1908,9 +2030,38 @@ function setPower(n) {
   player.power = n;
 }
 
+function doPortal() {
+  const L = game.level;
+  const dir = Math.random() < 0.5 ? -1 : 1;
+  const dist = 14 + Math.floor(Math.random() * 24);          // 14–37 tiles away
+  let tx = Math.max(2, Math.min(L.width - 3, Math.floor((player.x + player.w/2)/TILE) + dir*dist));
+  const groundRow = cx => { for (let y = 2; y < ROWS-1; y++)
+    if (isSolid(tileAt(cx,y)) && !isSolid(tileAt(cx,y-1)) && !isSolid(tileAt(cx,y-2))) return y; return -1; };
+  let ty = groundRow(tx);
+  if (ty < 0) for (let d=1; d<=5 && ty<0; d++) for (const s of [1,-1]) {     // pit? hop to nearby ground
+    const nx = tx + s*d; if (nx < 2 || nx >= L.width-2) continue;
+    const r = groundRow(nx); if (r >= 0) { tx = nx; ty = r; break; }
+  }
+  if (ty < 0) ty = 12;
+  spawnPortal(player.x + player.w/2, player.y + player.h/2);  // depart swirl
+  player.x = tx*TILE; player.y = ty*TILE - player.h; player.vx = 0; player.vy = 0;
+  spawnPortal(player.x + player.w/2, player.y + player.h/2);  // arrive swirl
+  player.portalCool = 45; player.inv = Math.max(player.inv, 24); SFX.grow();
+  game.camX = Math.max(0, Math.min(player.x + player.w/2 - VIEW_W*0.42, L.width*TILE - VIEW_W));
+}
+function spawnPortal(x, y) {
+  if (!game.portalFx) game.portalFx = [];
+  game.portalFx.push({ x, y, t: 0 });
+  const rc = ["#ff5e6c","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"];
+  for (let i = 0; i < 10; i++) { const a = i*0.63;
+    game.particles.push({ x, y, vx: Math.cos(a)*1.8, vy: Math.sin(a)*1.8 - 0.4, t: 0, c: rc[i%5] }); }
+}
+
 function updatePlay() {
   syncKeys();
   if (player.inv > 0) player.inv--;
+  if (player.glow > 0) player.glow--;
+  if (player.portalCool > 0) player.portalCool--;
 
   // --- horizontal: walk/auto-run with SMB accel, release decel and skid ---
   const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
@@ -1995,6 +2146,12 @@ function updatePlay() {
   // --- the playground runs its own (hazard-free) update ---
   if (game.inPlayground) { if (game.subArea === "waterpark") updateWaterparkExtras(); else updatePlaygroundExtras(); return; }
 
+  // --- Sparkle's rainbow portal: teleport to a random spot, forward or back ---
+  if (input.portalPressed) {
+    input.portalPressed = false;
+    if (CHARS[heroKey].look === "unicorn" && player.portalCool <= 0) doPortal();
+  }
+
   // --- magic: Chun-me's stars / Chuckee's lightning ---
   if (player.shootCool > 0) player.shootCool--;
   if (input.firePressed) {
@@ -2002,7 +2159,7 @@ function updatePlay() {
     if (player.shootCool === 0 && game.fireballs.length < 3) {
       const cloudKind = CHARS[heroKey].kind === "cloud";
       const look = CHARS[heroKey].look;
-      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : "bolt";
+      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : look === "unicorn" ? "sparkle" : "bolt";
       game.fireballs.push({ x: player.x + (player.facing > 0 ? player.w : -6),
         y: player.y + player.h * 0.35, w: 5, h: 5,
         vx: (cloudKind ? 3.6 : 3.2) * player.facing, vy: 0,
@@ -2037,6 +2194,7 @@ function updatePlay() {
         player.x < p.x + p.w && player.x + player.w > p.x &&
         player.y < p.y + p.h && player.y + player.h > p.y) {
       p.gone = true; game.score += 1000;
+      if (CHARS[heroKey].look === "unicorn") { player.glow = 300; SFX.grow(); }   // Sparkle: glow + indestructible 5s
       if (p.type === "flower") superBlast();
       else { setPower(1); SFX.grow(); }
       game.pops.push({ x: p.x + p.w/2, y: p.y, t: 0 });
@@ -2410,6 +2568,7 @@ function update() {
   }
   game.particles = game.particles.filter(p => p.t < (p.conf ? 220 : 60) && p.y < LEVEL_H + 80);
   if (game.superFx && ++game.superFx.t > 110) game.superFx = null;
+  if (game.portalFx) { for (const pf of game.portalFx) pf.t++; game.portalFx = game.portalFx.filter(pf => pf.t < 26); }
   for (const c of game.pops) c.t++;
   game.pops = game.pops.filter(c => c.t < 28);
 
@@ -2460,7 +2619,7 @@ function update() {
   }
   else if (game.state === "title") updateTitle();
 
-  input.anyTap = false; input.firePressed = false; input.downPressed = false; tapX = -1;
+  input.anyTap = false; input.firePressed = false; input.downPressed = false; input.portalPressed = false; tapX = -1;
 }
 
 function updateTitle() {
@@ -3317,6 +3476,15 @@ function drawWorld() {
       g.beginPath(); g.ellipse(c.x, yy, 1.6, 3, 0, 0, Math.PI*2); g.fill();
     }
   }
+  // rainbow portal swirls
+  if (game.portalFx) for (const pf of game.portalFx) {
+    const rc = ["#ff5e6c","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"];
+    g.save(); g.translate(pf.x, pf.y); g.rotate(pf.t * 0.3);
+    for (let i = 0; i < rc.length; i++) { g.strokeStyle = rc[i]; g.lineWidth = 2 - i*0.2;
+      g.globalAlpha = Math.max(0, 1 - pf.t/26);
+      g.beginPath(); g.arc(0, 0, 3 + pf.t*0.7 + i*1.6, 0, Math.PI*1.6); g.stroke(); }
+    g.globalAlpha = 1; g.restore();
+  }
   // particles
   for (const p of game.particles) {
     if (p.t < 0) continue;
@@ -3352,6 +3520,13 @@ function drawWorld() {
         drawSnowflakeRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
       if (player.flying && CHARS[heroKey].look === "butterfly")
         drawFlowerRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
+      if (player.flying && CHARS[heroKey].look === "unicorn")
+        drawRainbowRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
+      if (player.glow > 0 && CHARS[heroKey].look === "unicorn") {   // indestructible rainbow glow
+        const rg = g.createRadialGradient(player.x+player.w/2, player.y+player.h/2, 2, player.x+player.w/2, player.y+player.h/2, 20);
+        rg.addColorStop(0, "rgba(255,255,255,.5)"); rg.addColorStop(0.6, "rgba(180,150,255,.35)"); rg.addColorStop(1, "rgba(180,150,255,0)");
+        g.fillStyle = rg; g.beginPath(); g.arc(player.x+player.w/2, player.y+player.h/2, 20, 0, Math.PI*2); g.fill();
+      }
       drawKid(g, player.x + player.w/2, player.y + player.h, pal,
               player.frame, player.facing, !player.grounded, Math.abs(player.vx) > 0.3, player.power);
       g.globalAlpha = 1;
@@ -3468,41 +3643,49 @@ function drawTitle() {
     outlineText("Pick your hero!", W/2, ty1 + big*2.3 + 26, "#fff");
   }
 
-  // character cards — sized to fit however many heroes there are
+  // character cards — sized & wrapped to fit however many heroes there are
   game.titleCards = [];
-  const keysArr = ["jules", "northern", "cutie", "nora"];
+  const keysArr = ["jules", "northern", "cutie", "nora", "sparkle"];
   const n = keysArr.length;
+  const perRow = n <= 4 ? n : Math.ceil(n / 2);     // 5 heroes → 3 on top, 2 below
+  const rows = Math.ceil(n / perRow), rowGap = 10;
   const gap = Math.min(10, W * 0.016);
-  const cw = Math.min((W * 0.96 - (n-1)*gap) / n, 140, H * 0.38), ch = Math.min(cw * 1.18, H * 0.46);
-  const cy = H * (W > H ? 0.58 : 0.54);
-  const totalW = n * cw + (n-1) * gap, startX = W/2 - totalW/2;
-  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2"], nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e"];
+  const cw = Math.min((W * 0.96 - (perRow-1)*gap) / perRow, 132, H * 0.32);
+  const ch = Math.min(cw * 1.18, H * (rows > 1 ? 0.255 : 0.46));
+  const cy0 = H * (W > H ? 0.50 : 0.46);            // top of the card block
+  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2", "#ffce3a"];
+  const nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e", "#d39a1e"];
   keysArr.forEach((k, i) => {
-    const sx = startX + i * (cw + gap), cxp = sx + cw/2, sy = cy - ch/2;
+    const row = Math.floor(i / perRow);
+    const inRow = (row === rows-1) ? (n - perRow*(rows-1)) : perRow;
+    const idxInRow = i - row*perRow;
+    const rowW = inRow*cw + (inRow-1)*gap, startX = W/2 - rowW/2;
+    const sx = startX + idxInRow*(cw + gap), sy = cy0 + row*(ch + rowGap), cxp = sx + cw/2;
     const bounce = Math.sin(game.timer * 0.08 + i * 2) * 4;
     g.fillStyle = "rgba(255,255,255,.92)";
-    roundRect(sx, sy, cw, ch, 16); g.fill();
-    g.lineWidth = 4; g.strokeStyle = edge[i];
-    roundRect(sx, sy, cw, ch, 16); g.stroke();
+    roundRect(sx, sy, cw, ch, 14); g.fill();
+    g.lineWidth = 4; g.strokeStyle = edge[i % edge.length];
+    roundRect(sx, sy, cw, ch, 14); g.stroke();
     g.save();
-    g.translate(cxp, sy + ch * 0.62 + bounce);
-    const ks = cw / 46;
+    g.translate(cxp, sy + ch * 0.6 + bounce);
+    const ks = cw / 48;
     g.scale(ks, ks);
     drawKid(g, 0, 0, CHARS[k], Math.floor(game.timer/20) % 2, 1, false, true);
     g.restore();
-    let nm = CHARS[k].name, fs = cw/6.4;
+    let nm = CHARS[k].name, fs = cw/6.6;
     g.font = "900 " + fs + "px 'Avenir Next',Arial";
     while (g.measureText(nm).width > cw - 10 && fs > 6) { fs -= 0.5; g.font = "900 " + fs + "px 'Avenir Next',Arial"; }
-    outlineText(nm, cxp, sy + ch - cw/8, nameCol[i]);
+    outlineText(nm, cxp, sy + ch - cw/9, nameCol[i % nameCol.length]);
     game.titleCards.push({ key: k, sx, sy, sw: cw, sh: ch });
   });
+  const cardsBottom = cy0 + rows*ch + (rows-1)*rowGap;
 
   g.font = "600 " + Math.min(W/26, 16) + "px 'Avenir Next',Arial";
-  outlineText("tap a hero to start", W/2, cy + ch/2 + 34, "#fff");
+  outlineText("tap a hero to start", W/2, cardsBottom + 20, "#fff");
 
   // pigeons on/off toggle (kid-friendly — tap to flip; remembered next time)
   const off = game.pigeonsOff;
-  const tw = Math.min(W * 0.62, 280), th = Math.min(W/9, 44), tx = W/2 - tw/2, tyT = cy + ch/2 + 54;
+  const tw = Math.min(W * 0.62, 280), th = Math.min(W/10, 40), tx = W/2 - tw/2, tyT = cardsBottom + 38;
   g.fillStyle = off ? "rgba(120,170,90,.85)" : "rgba(120,140,170,.55)";
   roundRect(tx, tyT, tw, th, th/2); g.fill();
   g.lineWidth = 3; g.strokeStyle = off ? "#bff0a0" : "rgba(255,255,255,.6)";
@@ -3544,11 +3727,11 @@ function drawWinScreen() {
   outlineText("The heroes saved Peach the pug!", W/2, H*0.32, "#fff");
 
   // all the heroes celebrating
-  const ks = Math.min(W, H) / 130;
-  [["jules", -2.1], ["northern", -0.95], ["cutie", 0.95], ["nora", 2.1]].forEach(([k, side]) => {
+  const ks = Math.min(W, H) / 140;
+  [["jules", -2.4], ["northern", -1.2], ["cutie", 0], ["sparkle", 1.2], ["nora", 2.4]].forEach(([k, side]) => {
     g.save();
     const hop = Math.abs(Math.sin(game.timer * 0.1 + (side+2))) * 14;
-    g.translate(W/2 + side * Math.min(W*0.12, 70), H*0.62 - hop);
+    g.translate(W/2 + side * Math.min(W*0.11, 64), H*0.62 - hop);
     g.scale(ks, ks);
     drawKid(g, 0, 0, CHARS[k], 0, side < 0 ? 1 : -1, true, false);
     g.restore();
