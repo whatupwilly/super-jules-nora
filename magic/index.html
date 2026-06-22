@@ -251,6 +251,14 @@ const CHARS = {
     horn:"#ffe07a", hornDk:"#e6b740",
     rainbow:["#ff5e6c","#ff9f43","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"],
   },
+  squishy: {
+    name: "SQUISHY", kind: "bunny", look: "dumpling", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // rainbow dumpling in a waffle bowl — kawaii sparkly face
+    waffle:"#e6b16a", waffleDk:"#c98f44", dEye:"#2a1c22", dBlush:"#ff9bb4", dMouth:"#e0506e",
+    rainbow:["#ff7a9c","#ff9f43","#ffe14d","#7fe07a","#5ec8f0","#b58cff"],
+  },
   northern: {
     name: "NORTHERN LIGHT", kind: "bunny", look: "fox", flyMax: 1200,
     body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
@@ -318,7 +326,8 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   ctx.translate(x, y);
   if (power > 0) ctx.scale(1.18, 1.32);
   if (facing < 0) ctx.scale(-1, 1);
-  if (pal.look === "unicorn") drawSparkleBody(ctx, pal, frame, airborne, walking, power);
+  if (pal.look === "dumpling") drawSquishyBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "unicorn") drawSparkleBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "butterfly") drawCutieBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "fox") drawNorthernBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "panda") drawBambooBody(ctx, pal, frame, airborne, walking);
@@ -649,6 +658,86 @@ function drawPowerup(ctx, p) {
 /* Sparkle the unicorn: white chibi body, rainbow mane & tail, golden spiral
    horn, big sparkly eye. Glows with a rainbow shimmer when powered up.
    Feet at (0,0), facing right. */
+/* Squishy the rainbow dumpling: a sparkly rainbow dome in a waffle bowl with a
+   big kawaii face. Feet at (0,0), facing right. */
+function drawSquishyBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer, rc = pal.rainbow;
+  const sq = (walking && frame) ? 0.7 : 0;          // little squish-bob
+
+  // tiny feet
+  const po = (walking && frame) ? 0.8 : 0;
+  ctx.fillStyle = pal.waffleDk;
+  ctx.beginPath(); ctx.ellipse(-3 - po, -0.6, 1.8, 1.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(3 + po, -0.6, 1.8, 1.1, 0, 0, Math.PI*2); ctx.fill();
+
+  // waffle bowl
+  const wg = ctx.createLinearGradient(0, -8, 0, -1);
+  wg.addColorStop(0, pal.waffle); wg.addColorStop(1, pal.waffleDk);
+  ctx.fillStyle = wg;
+  ctx.beginPath(); ctx.moveTo(-7.5, -7); ctx.lineTo(7.5, -7);
+  ctx.lineTo(6, -1); ctx.quadraticCurveTo(0, 0.6, -6, -1); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(150,100,40,.45)"; ctx.lineWidth = 0.5;
+  for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(i*3, -6.5); ctx.lineTo(i*3-2, -1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(i*3, -6.5); ctx.lineTo(i*3+2, -1); ctx.stroke(); }
+  ctx.fillStyle = pal.waffle; ctx.beginPath(); ctx.ellipse(0, -7, 7.6, 1.7, 0, 0, Math.PI*2); ctx.fill();
+
+  // rainbow dome (clipped rainbow bands)
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(-7, -7); ctx.bezierCurveTo(-7.5, -18 - sq, 7.5, -18 - sq, 7, -7); ctx.closePath();
+  ctx.clip();
+  for (let i = 0; i < rc.length; i++) { ctx.fillStyle = rc[i]; ctx.fillRect(-7 + i*(14/rc.length), -19, 14/rc.length + 0.6, 14); }
+  ctx.fillStyle = "rgba(255,255,255,.28)"; ctx.beginPath(); ctx.ellipse(-2.5, -14.5, 3, 4.5, -0.3, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.moveTo(-7, -7); ctx.bezierCurveTo(-7.5, -18 - sq, 7.5, -18 - sq, 7, -7); ctx.stroke();
+  ctx.fillStyle = "#ffe7a0"; ctx.beginPath(); ctx.arc(0, -17 - sq, 1.4, 0, Math.PI*2); ctx.fill();   // top pinch
+
+  // sparkles on the dome
+  for (const s of [[-3.5,-13],[3,-15],[4.6,-10.5],[-0.5,-16],[1.6,-11.5]]) {
+    ctx.globalAlpha = 0.45 + 0.5*Math.abs(Math.sin(t*0.06 + s[0]));
+    drawStarShape(ctx, s[0], s[1] - sq*0.5, 0.95, 0.4, t*0.05, "#ffffff");
+  }
+  ctx.globalAlpha = 1;
+
+  // kawaii face: big sparkly eyes, blush, open smile
+  for (const ex of [-2.7, 2.7]) {
+    ctx.fillStyle = pal.dEye;
+    ctx.beginPath(); ctx.ellipse(ex, -11.6, 1.9, 2.4, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.95)";
+    ctx.beginPath(); ctx.arc(ex - 0.6, -12.5, 0.7, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + 0.5, -10.9, 0.35, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = pal.dBlush;
+  ctx.beginPath(); ctx.ellipse(-4.8, -10, 1.4, 1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(4.8, -10, 1.4, 1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.dMouth;
+  ctx.beginPath(); ctx.ellipse(0, -9.4, 1.8, 1.6, 0, 0, Math.PI); ctx.fill();        // open smile
+  ctx.fillStyle = "#fff"; ctx.fillRect(-1.5, -9.6, 3, 0.6);                          // teeth
+  ctx.fillStyle = "#ff9bb4"; ctx.beginPath(); ctx.ellipse(0, -8.4, 0.9, 0.55, 0, 0, Math.PI*2); ctx.fill();  // tongue
+
+  if (power >= 2) {     // powered sparkle aura
+    for (let i = 0; i < 3; i++) { const a = t*0.1 + i*2.1; ctx.fillStyle = rc[(i*2 + (t>>3)) % rc.length];
+      ctx.globalAlpha = 0.6 + Math.sin(a)*0.3;
+      ctx.beginPath(); ctx.arc(Math.cos(a)*9, -12 + Math.sin(a*1.2)*8, 1, 0, Math.PI*2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* Squishy floats on a little waffle plate with sparkly steam. */
+function drawDumplingRide(cx, feetY, t, facing) {
+  g.save();
+  g.translate(cx, feetY + 4 + Math.sin(t*0.15)*0.8);
+  g.fillStyle = "rgba(0,0,0,.1)"; g.beginPath(); g.ellipse(0, 3, 11, 2, 0, 0, Math.PI*2); g.fill();
+  const wg = g.createLinearGradient(0, -2, 0, 3); wg.addColorStop(0, "#e6b16a"); wg.addColorStop(1, "#c98f44");
+  g.fillStyle = wg; g.beginPath(); g.ellipse(0, 0, 11, 3.4, 0, 0, Math.PI*2); g.fill();
+  g.strokeStyle = "rgba(150,100,40,.5)"; g.lineWidth = 0.6;
+  for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(i*3, -2.2); g.lineTo(i*3, 2.2); g.stroke(); }
+  g.beginPath(); g.moveTo(-10, 0); g.lineTo(10, 0); g.stroke();
+  for (let i = 0; i < 3; i++) { const a = t*0.1 + i*2; g.fillStyle = "rgba(255,255,255,.7)";
+    g.beginPath(); g.arc(Math.cos(a)*7, -2 + Math.sin(a)*1.5, 0.8, 0, Math.PI*2); g.fill(); }
+  g.restore();
+}
+
 function drawSparkleBody(ctx, pal, frame, airborne, walking, power) {
   const t = game.timer, rain = pal.rainbow;
   const glowing = power >= 2 || (player.glow || 0) > 0;
@@ -1125,6 +1214,30 @@ function drawBambooCarpet(cx, feetY, t, facing) {
 
 function drawFireball(ctx, f, t) {
   const cx = f.x + 2.5, cy = f.y + 2.5;
+  if (f.kind === "dumpling") {               // Squishy's thrown mini-dumplings (all sorts of colors)
+    const themes = [
+      { a:"#ff7a9c", b:"#b58cff" },                       // rainbow
+      { a:"#0e1638", b:"#3a4f9e", stars:true },           // space
+      { a:"#1f7ad6", b:"#7fe0ff", wave:true },            // ocean
+      { a:"#ff8ec4", b:"#ffd23e" },                       // candy
+      { a:"#5a2c86", b:"#b58cff", stars:true },           // galaxy
+    ];
+    const th = themes[(f.dumpTheme || 0) % themes.length];
+    const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 7);
+    glow.addColorStop(0, "rgba(255,255,255,.5)"); glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI*2); ctx.fill();
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.sin(f.t*0.2)*0.25);
+    const dg = ctx.createLinearGradient(-3, -3, 3, 3); dg.addColorStop(0, th.a); dg.addColorStop(1, th.b);
+    ctx.fillStyle = dg;
+    ctx.beginPath(); ctx.arc(0, 0.4, 3.4, Math.PI, 2*Math.PI); ctx.fill();   // dome
+    ctx.fillRect(-3.4, 0.2, 6.8, 1.6);
+    ctx.fillStyle = "#d29a52"; ctx.fillRect(-3.4, 1.6, 6.8, 1.4);            // waffle base
+    if (th.stars) { ctx.fillStyle = "#fff"; ctx.fillRect(-1.6, -1.4, 0.7, 0.7); ctx.fillRect(1, -0.6, 0.6, 0.6); }
+    if (th.wave) { ctx.fillStyle = "rgba(255,255,255,.6)"; ctx.fillRect(-2.4, -1, 2, 0.6); }
+    ctx.fillStyle = "rgba(255,255,255,.4)"; ctx.beginPath(); ctx.arc(-1, -1, 0.8, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    return;
+  }
   if (f.kind === "sparkle") {                // Sparkle's horn sparkles
     const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 8);
     glow.addColorStop(0, "rgba(255,240,180,.9)"); glow.addColorStop(1, "rgba(255,210,120,0)");
@@ -2242,11 +2355,11 @@ function updatePlay() {
     if (player.shootCool === 0 && game.fireballs.length < 3) {
       const cloudKind = CHARS[heroKey].kind === "cloud";
       const look = CHARS[heroKey].look;
-      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : look === "unicorn" ? "sparkle" : "bolt";
+      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : look === "unicorn" ? "sparkle" : look === "dumpling" ? "dumpling" : "bolt";
       game.fireballs.push({ x: player.x + (player.facing > 0 ? player.w : -6),
         y: player.y + player.h * 0.35, w: 5, h: 5,
         vx: (cloudKind ? 3.6 : 3.2) * player.facing, vy: 0,
-        kind, t: 0, igloo: look === "fox", flower: look === "butterfly" });
+        kind, t: 0, igloo: look === "fox", flower: look === "butterfly", dumpTheme: Math.floor(Math.random()*5) });
       player.shootCool = 16;
       if (cloudKind) SFX.bolt(); else SFX.star();
     }
@@ -3651,6 +3764,8 @@ function drawWorld() {
         drawFlowerRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
       if (player.flying && CHARS[heroKey].look === "unicorn")
         drawRainbowRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
+      if (player.flying && CHARS[heroKey].look === "dumpling")
+        drawDumplingRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
       if (player.glow > 0 && CHARS[heroKey].look === "unicorn") {   // indestructible rainbow glow
         const rg = g.createRadialGradient(player.x+player.w/2, player.y+player.h/2, 2, player.x+player.w/2, player.y+player.h/2, 20);
         rg.addColorStop(0, "rgba(255,255,255,.5)"); rg.addColorStop(0.6, "rgba(180,150,255,.35)"); rg.addColorStop(1, "rgba(180,150,255,0)");
@@ -3774,16 +3889,16 @@ function drawTitle() {
 
   // character cards — sized & wrapped to fit however many heroes there are
   game.titleCards = [];
-  const keysArr = ["jules", "northern", "cutie", "nora", "sparkle"];
+  const keysArr = ["jules", "northern", "cutie", "nora", "sparkle", "squishy"];
   const n = keysArr.length;
-  const perRow = n <= 4 ? n : Math.ceil(n / 2);     // 5 heroes → 3 on top, 2 below
+  const perRow = n <= 4 ? n : Math.ceil(n / 2);     // 5–6 heroes → wrap to two rows
   const rows = Math.ceil(n / perRow), rowGap = 10;
   const gap = Math.min(10, W * 0.016);
   const cw = Math.min((W * 0.96 - (perRow-1)*gap) / perRow, 132, H * 0.32);
   const ch = Math.min(cw * 1.18, H * (rows > 1 ? 0.255 : 0.46));
   const cy0 = H * (W > H ? 0.50 : 0.46);            // top of the card block
-  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2", "#ffce3a"];
-  const nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e", "#d39a1e"];
+  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2", "#ffce3a", "#ff8ab0"];
+  const nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e", "#d39a1e", "#e0608c"];
   keysArr.forEach((k, i) => {
     const row = Math.floor(i / perRow);
     const inRow = (row === rows-1) ? (n - perRow*(rows-1)) : perRow;
@@ -3857,7 +3972,7 @@ function drawWinScreen() {
 
   // all the heroes celebrating
   const ks = Math.min(W, H) / 140;
-  [["jules", -2.4], ["northern", -1.2], ["cutie", 0], ["sparkle", 1.2], ["nora", 2.4]].forEach(([k, side]) => {
+  [["jules", -2.6], ["northern", -1.55], ["cutie", -0.5], ["squishy", 0.5], ["sparkle", 1.55], ["nora", 2.6]].forEach(([k, side]) => {
     g.save();
     const hop = Math.abs(Math.sin(game.timer * 0.1 + (side+2))) * 14;
     g.translate(W/2 + side * Math.min(W*0.11, 64), H*0.62 - hop);
