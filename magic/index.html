@@ -1225,23 +1225,35 @@ function drawFireball(ctx, f, t) {
 
 function drawGrump(ctx, x, y, frame, squashT) {
   const ice = game.level && (game.level.theme === "snow" || game.level.theme === "icecastle");
+  const rbow = game.level && (game.level.theme === "rainbow" || game.level.theme === "rainbowcastle");
+  const rc = ["#ff5e6c","#ff9f43","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"];
   ctx.save(); ctx.translate(x, y);
   if (squashT > 0) {
-    ctx.fillStyle = ice ? "#9fc4e0" : "#7c4423";
+    ctx.fillStyle = rbow ? "#c79bff" : ice ? "#9fc4e0" : "#7c4423";
     rrPath(ctx, -7, -3.5, 14, 3.5, 1.6); ctx.fill();
     ctx.restore(); return;
   }
   const off = frame ? 0.9 : -0.9;
   // feet
-  ctx.fillStyle = ice ? "#5a7fa0" : "#4f2a14";
+  ctx.fillStyle = rbow ? "#8a5fd0" : ice ? "#5a7fa0" : "#4f2a14";
   rrPath(ctx, -6.6 + off, -2.5, 5.4, 2.5, 1.2); ctx.fill();
   rrPath(ctx, 1.2 - off, -2.5, 5.4, 2.5, 1.2); ctx.fill();
   // body with radial shading
-  const gr = ctx.createRadialGradient(-2, -9.5, 1, 0, -7.2, 9);
-  if (ice) { gr.addColorStop(0, "#eaf6ff"); gr.addColorStop(1, "#8cb6d8"); }
-  else     { gr.addColorStop(0, "#c1763f"); gr.addColorStop(1, "#7e4017"); }
-  ctx.fillStyle = gr;
-  ctx.beginPath(); ctx.ellipse(0, -7.4, 7, 6, 0, 0, Math.PI*2); ctx.fill();
+  if (rbow) {                                  // rainbow-striped body
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(0, -7.4, 7, 6, 0, 0, Math.PI*2); ctx.clip();
+    for (let i = 0; i < rc.length; i++) { ctx.fillStyle = rc[i]; ctx.fillRect(-7, -13.4 + i*2, 14, 2.1); }
+    ctx.fillStyle = "rgba(255,255,255,.25)"; ctx.beginPath(); ctx.ellipse(-2.4, -9.5, 3, 2.4, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.ellipse(0, -7.4, 7, 6, 0, 0, Math.PI*2); ctx.stroke();
+  } else {
+    const gr = ctx.createRadialGradient(-2, -9.5, 1, 0, -7.2, 9);
+    if (ice) { gr.addColorStop(0, "#eaf6ff"); gr.addColorStop(1, "#8cb6d8"); }
+    else     { gr.addColorStop(0, "#c1763f"); gr.addColorStop(1, "#7e4017"); }
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.ellipse(0, -7.4, 7, 6, 0, 0, Math.PI*2); ctx.fill();
+  }
   if (ice) {  // frosty sparkles
     ctx.fillStyle = "rgba(255,255,255,.8)";
     ctx.beginPath(); ctx.arc(-3.5, -5, 0.8, 0, Math.PI*2); ctx.arc(3, -10, 0.7, 0, Math.PI*2); ctx.fill();
@@ -1254,7 +1266,7 @@ function drawGrump(ctx, x, y, frame, squashT) {
     ctx.beginPath(); ctx.arc(s*2.6, -8.1, 0.9, 0, Math.PI*2); ctx.fill();
   }
   // angry brows + frown
-  ctx.strokeStyle = ice ? "#2f5274" : "#3c2410"; ctx.lineWidth = 1.1; ctx.lineCap = "round";
+  ctx.strokeStyle = rbow ? "#5a2c8a" : ice ? "#2f5274" : "#3c2410"; ctx.lineWidth = 1.1; ctx.lineCap = "round";
   ctx.beginPath();
   ctx.moveTo(-4.4, -11.8); ctx.lineTo(-1.2, -10.6);
   ctx.moveTo(4.4, -11.8); ctx.lineTo(1.2, -10.6);
@@ -1311,30 +1323,43 @@ function drawPigeon(ctx, pg) {
 
 function drawBowser(ctx, B) {
   const ice = game.level && game.level.theme === "icecastle";
+  const rbow = game.level && game.level.theme === "rainbowcastle";
+  const rc = ["#ff5e6c","#ff9f43","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"];
   ctx.save();
   ctx.translate(B.x + B.w/2, B.y + B.h);
   if (B.dead) ctx.scale(1, -1);
   if ((B.facing || -1) < 0) ctx.scale(-1, 1);
   const flash = !B.dead && B.stun > 0 && (B.stun >> 2) % 2 === 0;
-  ctx.fillStyle = ice ? "#7f9fc0" : "#c9a23c";
+  ctx.fillStyle = rbow ? "#b07fe0" : ice ? "#7f9fc0" : "#c9a23c";
   rrPath(ctx, -12, -7, 8, 7, 2.5); ctx.fill();
   rrPath(ctx, 4, -7, 8, 7, 2.5); ctx.fill();
-  const sg = ctx.createRadialGradient(-5, -20, 2, -3, -16, 15);
-  sg.addColorStop(0, flash ? "#ffffff" : (ice ? "#dff1ff" : "#6cc873"));
-  sg.addColorStop(1, flash ? "#cfeaff" : (ice ? "#6f9ec4" : "#2c7a36"));
-  ctx.fillStyle = sg;
-  ctx.beginPath(); ctx.ellipse(-3, -16, 11.5, 10.5, 0, 0, Math.PI*2); ctx.fill();
+  if (rbow && !flash) {                              // rainbow shell
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(-3, -16, 11.5, 10.5, 0, 0, Math.PI*2); ctx.clip();
+    for (let i = 0; i < rc.length; i++) { ctx.fillStyle = rc[i]; ctx.fillRect(-15, -26.6 + i*3.6, 24, 3.7); }
+    ctx.fillStyle = "rgba(255,255,255,.22)"; ctx.beginPath(); ctx.ellipse(-7, -20, 4, 3.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(-3, -16, 11.5, 10.5, 0, 0, Math.PI*2); ctx.stroke();
+  } else {
+    const sg = ctx.createRadialGradient(-5, -20, 2, -3, -16, 15);
+    sg.addColorStop(0, flash ? "#ffffff" : (ice ? "#dff1ff" : "#6cc873"));
+    sg.addColorStop(1, flash ? "#cfeaff" : (ice ? "#6f9ec4" : "#2c7a36"));
+    ctx.fillStyle = sg;
+    ctx.beginPath(); ctx.ellipse(-3, -16, 11.5, 10.5, 0, 0, Math.PI*2); ctx.fill();
+  }
   ctx.fillStyle = "#f3eedd";
   for (const [px, py] of [[-11.5, -24], [-5, -26.5], [1.5, -24]]) {
     ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + 2.4, py - 4.5); ctx.lineTo(px + 4.8, py);
     ctx.closePath(); ctx.fill();
   }
   const bg2 = ctx.createLinearGradient(0, -20, 0, -2);
-  if (ice) { bg2.addColorStop(0, "#eaf5ff"); bg2.addColorStop(1, "#b4cfe6"); }
+  if (rbow) { bg2.addColorStop(0, "#fff3fb"); bg2.addColorStop(1, "#ffd6f0"); }
+  else if (ice) { bg2.addColorStop(0, "#eaf5ff"); bg2.addColorStop(1, "#b4cfe6"); }
   else     { bg2.addColorStop(0, "#f5e2b2"); bg2.addColorStop(1, "#d8b87e"); }
   ctx.fillStyle = bg2;
   ctx.beginPath(); ctx.ellipse(5, -11, 7, 9, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = flash ? "#ffffff" : (ice ? "#c6e2f5" : "#8fce58");
+  ctx.fillStyle = flash ? "#ffffff" : (rbow ? "#ff9ed6" : ice ? "#c6e2f5" : "#8fce58");
   ctx.beginPath(); ctx.ellipse(9, -26, 7, 6, 0, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = "#e8632c";
   ctx.beginPath(); ctx.ellipse(6, -31.5, 4.5, 2.5, -0.3, 0, Math.PI*2); ctx.fill();
@@ -1442,7 +1467,7 @@ function drawSuperFx() {
 
 /* ============================== LEVELS ============================== */
 function makeLevel(num) {
-  const widths = [150, 170, 160, 170, 140, 165, 170, 160, 145];
+  const widths = [150, 170, 160, 170, 140, 165, 170, 160, 145, 168, 172, 150];
   const Wd = widths[num] || 150;
   const grid = Array.from({length: ROWS}, () => Array(Wd).fill(" "));
   const enemies = [];
@@ -1630,7 +1655,7 @@ function makeLevel(num) {
     enemy(144); enemy(148);
     stair(150, 5, 1);
     flagX = 156;
-  } else {                                   // 2-4: Ice Bowser's castle — save Peach again!
+  } else if (num === 8) {                    // 2-4: Ice Bowser's castle — save Peach again!
     const cground = (a, b) => { for (let x=a; x<=b; x++){ stone(x,13); stone(x,14); } };
     for (let x = 0; x < 138; x++) brick(x, 1);          // icy ceiling
     cground(0, 15);
@@ -1651,13 +1676,71 @@ function makeLevel(num) {
     boss = { x: 116 * TILE };
     cageX = 130;
     for (let x = 138; x < Wd; x++) for (let y = 2; y <= 12; y++) stone(x, y);
+  } else if (num === 9) {                    // 3-1: rainbow road
+    ground(0, 36);
+    qb(10,9); mb(13,9); coins(10,5,3);
+    enemy(16); enemy(22);
+    stone(26,10); stone(27,10); stone(28,10); coins(26,7,3);
+    enemy(31);
+    ground(42, 74);                          // gap 37-41
+    brick(48,9); qb(49,9); brick(50,9); coins(48,5,4);
+    enemy(54); enemy(55); enemy(62);
+    stair(66, 4, 1);
+    ground(80, 114);                         // gap 75-79
+    stone(86,9); stone(87,9); stone(88,9); coins(86,6,4);
+    enemy(92); enemy(98); enemy(99);
+    mb(106,9);
+    ground(120, Wd-1);                       // gap 115-119
+    coins(124,8,4);
+    enemy(128); enemy(134); enemy(135);
+    stair(144, 5, 1);
+    flagX = 154;
+  } else if (num === 10) {                   // 3-2: cloud-tops in the sky
+    ground(0, 16);
+    enemy(9);
+    stone(20,10); stone(21,10); stone(22,10); stone(23,10); coins(20,7,4);
+    stone(27,8); stone(28,8); stone(29,8);
+    ground(34, 50); enemy(40); enemy(46); stair(46, 3, 1);
+    stone(54,10); stone(55,10); stone(56,10); coins(54,7,3);
+    ground(62, 88);
+    brick(68,9); brick(69,9); mb(70,9); brick(71,9); coins(68,5,4);
+    enemy(76); enemy(80); enemy(81);
+    ground(94, 124);                         // gap 89-93
+    stair(98, 4, 1); stair(106, 4, -1);
+    enemy(112); enemy(118);
+    coins(120,8,5);
+    ground(130, Wd-1);
+    enemy(136); enemy(142);
+    stair(148, 6, 1);
+    flagX = 160;
+  } else {                                   // 3-3: Rainbow Bowser's castle — final rescue!
+    const cground = (a, b) => { for (let x=a; x<=b; x++){ stone(x,13); stone(x,14); } };
+    for (let x = 0; x < 140; x++) brick(x, 1);          // rainbow ceiling
+    cground(0, 15);
+    enemy(10);
+    stone(17,11);
+    cground(19, 30); mb(24,9); enemy(27);
+    stone(32,11);
+    cground(34, 50); stone(38,2); stone(38,3); enemy(42); enemy(45);
+    stone(52,11);
+    cground(54, 70); stone(58,2); stone(58,3); enemy(63);
+    stone(72,11);
+    cground(74, 104);
+    brick(80,9); brick(81,9); brick(82,9); coins(80,6,3);
+    enemy(86); enemy(92);
+    stone(96,2); stone(96,3);
+    cground(105, Wd-1);                                 // bridge + cage
+    coins(108,8,3);
+    boss = { x: 118 * TILE };
+    cageX = 132;
+    for (let x = 140; x < Wd; x++) for (let y = 2; y <= 12; y++) stone(x, y);
   }
-  const theme = ["beach", "village", "carousel", "sunset", "castle", "snow", "snow", "snow", "icecastle"][num] || "beach";
-  const name = num < 5 ? "1-" + (num+1) : "2-" + (num-4);
+  const theme = ["beach","village","carousel","sunset","castle","snow","snow","snow","icecastle","rainbow","rainbow","rainbowcastle"][num] || "beach";
+  const name = num < 5 ? "1-" + (num+1) : num < 9 ? "2-" + (num-4) : "3-" + (num-8);
   return { grid, width: Wd, enemies, flagX, name, boss, cageX, theme,
            icy: theme === "snow" || theme === "icecastle" };
 }
-const LEVEL_COUNT = 9;
+const LEVEL_COUNT = 12;
 
 /* Northern Light's snowflakes build little igloo platforms where they land
    (up to 8 — the oldest melts away). */
@@ -2680,6 +2763,15 @@ function tileSprite(c) {
         t.fillStyle = "rgba(180,210,235,.5)"; t.fillRect(0, R*0.4, R, 2);
         break;
       }
+      if (themeKey === "rainbow" || themeKey === "rainbowcastle") {
+        t.fillStyle = lg(0,0,0,R,[[0,"#c79bff"],[1,"#9b6cff"]]); t.fillRect(0,0,R,R);   // candy body
+        const rcg = ["#ff5e6c","#ff9f43","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"];      // rainbow top stripe
+        const sw = R*0.34/rcg.length;
+        for (let i = 0; i < rcg.length; i++) { t.fillStyle = rcg[i]; t.fillRect(0, i*sw, R, sw+0.5); }
+        t.fillStyle = "rgba(255,255,255,.4)"; t.fillRect(0, 0, R, 3);
+        speckle(8, ["#ffffff","#ffe0ff","#d9c8ff"], R*0.42, R);
+        break;
+      }
       t.fillStyle = lg(0,0,0,R,[[0,"#8a5a32"],[1,"#6b431f"]]); t.fillRect(0,0,R,R);
       speckle(14, ["#7a4b24","#9c6a3c","#5e3a18"], R*0.4, R);
       t.fillStyle = lg(0,0,0,R*0.36,[[0,"#8fd95e"],[1,"#4c9a32"]]); t.fillRect(0,0,R,R*0.34);
@@ -2704,6 +2796,11 @@ function tileSprite(c) {
       if (themeKey === "snow" || themeKey === "icecastle") {
         t.fillStyle = lg(0,0,0,R,[[0,"#bcd2e8"],[1,"#90add0"]]); t.fillRect(0,0,R,R);   // packed snow/ice
         speckle(12, ["#a8c4dd","#d6e6f4","#86a4c8"], 0, R);
+        break;
+      }
+      if (themeKey === "rainbow" || themeKey === "rainbowcastle") {
+        t.fillStyle = lg(0,0,0,R,[[0,"#9b6cff"],[1,"#6f48c8"]]); t.fillRect(0,0,R,R);   // candy underground
+        speckle(14, ["#7e54d8","#b79bf0","#5a38a8"], 0, R);
         break;
       }
       t.fillStyle = lg(0,0,0,R,[[0,"#7d4d26"],[1,"#62391a"]]); t.fillRect(0,0,R,R);
@@ -2995,6 +3092,16 @@ function drawIceWater(tx0, tx1) {
     if ((tx % 4) === 0) { g.fillStyle = "rgba(235,248,255,.85)"; g.fillRect(x + 4, LEVEL_H - 11 + fl, 7, 3); }
   }
 }
+function drawRainbowPit(tx0, tx1) {
+  const t = game.timer, rc = ["#ff5e6c","#ff9f43","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"];
+  for (let tx = tx0; tx <= tx1; tx++) {
+    if (tileAt(tx, 13) !== " " || tileAt(tx, 14) !== " ") continue;
+    const x = tx * TILE, fl = Math.sin(t * 0.07 + tx * 1.1) * 1.5;
+    for (let i = 0; i < rc.length; i++) { g.fillStyle = rc[i];
+      g.fillRect(x, LEVEL_H - 9 + i*2.2 + fl*0.3, TILE, 2.3); }
+    g.fillStyle = "rgba(255,255,255,.7)"; g.fillRect(x + 3, LEVEL_H - 10 + fl*0.6, 4, 2);
+  }
+}
 
 function drawFlag(fx) {
   const x = fx * TILE + 8, top = 2*TILE;
@@ -3062,6 +3169,27 @@ function drawBackground(camX) {
     const off = camX % 22;
     for (let i=-1;i<VIEW_W/22+2;i++){ const bx = camX + i*22 - off, c = ["#ff5e7e","#ffd166","#6ee7b7","#7fb5ff"][((i%4)+4)%4];
       g.fillStyle = c; g.beginPath(); g.moveTo(bx, 14); g.lineTo(bx+22, 14); g.lineTo(bx+11, 25); g.closePath(); g.fill(); }
+    return;
+  }
+  if (theme === "rainbow" || theme === "rainbowcastle") {
+    const dark = theme === "rainbowcastle";
+    const sky = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
+    if (dark) { sky.addColorStop(0, "#2a1450"); sky.addColorStop(1, "#5b2c86"); }
+    else { sky.addColorStop(0, "#ffd6f2"); sky.addColorStop(0.5, "#d9e0ff"); sky.addColorStop(1, "#cdeeff"); }
+    g.fillStyle = sky; g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
+    // big rainbow arcs sweeping the sky (parallax)
+    const rcx = camX * 0.4 + VIEW_W * 0.5, bands = ["#ff5e6c","#ff9f43","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"];
+    g.lineWidth = 7; g.globalAlpha = dark ? 0.5 : 0.85;
+    for (let i = 0; i < bands.length; i++) { g.strokeStyle = bands[i];
+      g.beginPath(); g.arc(rcx, 250, 175 - i*7, Math.PI, 0); g.stroke(); }
+    g.globalAlpha = 1;
+    // twinkling stars + floating sparkles
+    for (let i = 0; i < 30; i++) {
+      const stx = camX * 0.5 + (i * 71.3) % (VIEW_W + 40), sty = (i * 39.7) % 120;
+      const tw = Math.sin(game.timer * 0.06 + i) * 0.5 + 0.5;
+      g.fillStyle = (dark ? "rgba(255,255,255," : "rgba(255,255,255,") + (0.3 + tw*0.6) + ")";
+      g.fillRect(stx, sty, 1.8, 1.8);
+    }
     return;
   }
   if (theme === "castle") {
@@ -3431,6 +3559,7 @@ function drawWorld() {
     }
   if (L.theme === "castle") drawLava(tx0, tx1);
   if (L.theme === "icecastle") drawIceWater(tx0, tx1);
+  if (L.theme === "rainbowcastle") drawRainbowPit(tx0, tx1);
   if (L.theme === "playground") drawPlayground();
   if (L.theme === "waterpark") drawWaterpark();
   if (L.flagX) drawFlag(L.flagX);
@@ -3795,14 +3924,14 @@ function draw() {
   if (game.state === "gameover") drawGameOver();
   if (game.state === "clear") centerCard(game.rescued ? (game.levelNum + 1 < LEVEL_COUNT ? [
     ["PEACH IS SAFE! \ud83d\udc36", Math.min(W/10, 40), "#ffd166"],
-    ["...but a blizzard sweeps her away!", Math.min(W/24, 18), "#fff"],
-    ["on to the snow world! \u2744\ufe0f", Math.min(W/24, 18), "#bfe6ff"],
+    [game.levelNum === 4 ? "...but a blizzard sweeps her away!" : "...but Bowser grabs her again!", Math.min(W/24, 18), "#fff"],
+    [game.levelNum === 4 ? "on to the snow world! \u2744\ufe0f" : "on to the rainbow world! \ud83c\udf08", Math.min(W/24, 18), "#bfe6ff"],
   ] : [
     ["PEACH IS SAFE! \ud83d\udc36", Math.min(W/10, 40), "#ffd166"],
     ["you rescued the pug princess!", Math.min(W/24, 18), "#fff"],
   ]) : [
     ["LEVEL CLEAR!", Math.min(W/10, 44), "#ffd166"],
-    [(game.levelNum + 1 < LEVEL_COUNT ? "get ready for " + (game.levelNum+1 < 5 ? "1-"+(game.levelNum+2) : "2-"+(game.levelNum-3)) + "..." : "one more surprise..."), Math.min(W/24, 18), "#fff"],
+    [(game.levelNum + 1 < LEVEL_COUNT ? "get ready for " + (game.levelNum+1 < 5 ? "1-"+(game.levelNum+2) : game.levelNum+1 < 9 ? "2-"+(game.levelNum-3) : "3-"+(game.levelNum-7)) + "..." : "one more surprise..."), Math.min(W/24, 18), "#fff"],
   ]);
 }
 
