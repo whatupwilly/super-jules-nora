@@ -42,6 +42,8 @@
   #btnF { right:calc(max(16px, env(safe-area-inset-right)) + 106px); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 8px); font-size:26px; background:rgba(255,140,205,.35); border-color:rgba(255,195,228,.7); }
   #btnP { right:calc(max(16px, env(safe-area-inset-right)) + 106px); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 96px); font-size:26px; background:rgba(150,110,235,.4); border-color:rgba(205,185,255,.75); }
   #btnP.pressed { background:rgba(150,110,235,.7); }
+  #btnS { left:calc(max(16px, env(safe-area-inset-left)) + 45px); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 96px); font-size:26px; background:rgba(90,170,235,.4); border-color:rgba(180,225,255,.8); }
+  #btnS.pressed { background:rgba(90,170,235,.75); }
   #btnD { left:50%; transform:translateX(-50%); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 96px); width:84px; height:84px; line-height:78px; font-size:30px; background:rgba(150,220,255,.4); border-color:rgba(200,240,255,.8); }
   #btnD.pressed { background:rgba(150,220,255,.7); }
   #btnX { top:max(14px, env(safe-area-inset-top)); right:max(16px, env(safe-area-inset-right));
@@ -58,6 +60,7 @@
 <div class="btn" id="btnJ">JUMP</div>
 <div class="btn" id="btnF">✨</div>
 <div class="btn" id="btnP">🌀</div>
+<div class="btn" id="btnS">🛡️</div>
 <div class="btn" id="btnD">&#9660;</div>
 <div class="btn" id="btnX">&#128682; EXIT</div>
 <div id="verlink"><a href="../">🕹 Classic</a><a href="../fortnite/">⚡ Battle</a><a href="../realistic/">🌿 Real</a><a href="../bubble/">🫧 Bubble</a></div>
@@ -115,6 +118,7 @@ const SFX = {
   superb:() => [392,523,659,784,1047,1319,1568].forEach((f,i) => setTimeout(() => tone(f, .18, "square", .1), i*80),),
   pipe:  () => { tone(520, .14, "square", .12, -260); setTimeout(() => tone(300, .2, "square", .10, -160), 110); },
   boing: () => tone(300, .26, "sine", .14, 520),
+  swim:  () => tone(360, .12, "sine", .10, 240),
   yum:   () => [523,659,784].forEach((f,i) => setTimeout(() => tone(f, .12, "triangle", .12), i*70)),
   yip:   () => { tone(880, .06, "square", .10); setTimeout(() => tone(1100, .07, "square", .08), 60); },
 };
@@ -140,17 +144,19 @@ function syncKeys() {
   input.right = !!(keys["ArrowRight"]|| keys["KeyD"]) || touch.right;
   input.jump  = !!(keys["Space"] || keys["ArrowUp"] || keys["KeyZ"] || keys["KeyW"]) || touch.jump;
   input.down  = !!(keys["ArrowDown"] || keys["KeyS"]) || touch.down;
+  input.shield = !!(keys["ShiftLeft"] || keys["ShiftRight"] || keys["KeyV"]) || touch.shield;   // Icy's wing shield (hold)
 }
 
-const touch = { left:false, right:false, jump:false, down:false, portal:false };
+const touch = { left:false, right:false, jump:false, down:false, portal:false, shield:false };
 const btnL = document.getElementById("btnL"),
       btnR = document.getElementById("btnR"),
       btnJ = document.getElementById("btnJ"),
       btnF = document.getElementById("btnF"),
       btnD = document.getElementById("btnD"),
       btnP = document.getElementById("btnP"),
+      btnS = document.getElementById("btnS"),
       btnX = document.getElementById("btnX");
-const allBtns = [btnL, btnR, btnJ, btnF, btnP, btnD];
+const allBtns = [btnL, btnR, btnJ, btnF, btnP, btnS, btnD];
 
 // Controls fade to near-invisible a few seconds after first use (still tappable)
 let fadeScheduled = false;
@@ -180,6 +186,7 @@ bindBtn(btnJ, "jump", () => { input.jumpPressed = true; });
 bindBtn(btnF, "fire", () => { input.firePressed = true; });
 bindBtn(btnD, "down", () => { input.downPressed = true; });
 bindBtn(btnP, "portal", () => { input.portalPressed = true; });
+bindBtn(btnS, "shield");                              // held, not tapped — blocks while pressed
 btnX.addEventListener("pointerdown", e => { e.preventDefault(); audio(); btnX.classList.add("pressed");
   if (game.state === "play" && game.inPlayground) exitArea(); }, {passive:false});
 btnX.addEventListener("pointerup", () => btnX.classList.remove("pressed"));
@@ -203,7 +210,8 @@ let tapX = -1, tapY = -1;
 
 function showButtons(on) {
   btnL.style.display = btnR.style.display = btnJ.style.display = on ? "block" : "none";
-  if (!on) { btnD.style.display = btnX.style.display = btnP.style.display = "none"; downBtnShown = exitBtnShown = portalBtnShown = false; }
+  if (!on) { btnD.style.display = btnX.style.display = btnP.style.display = btnS.style.display = "none";
+             downBtnShown = exitBtnShown = portalBtnShown = shieldBtnShown = false; }
   refreshFireBtn();
   refreshContextBtns();
 }
@@ -212,7 +220,7 @@ function refreshFireBtn() {
   const want = game.state === "play" && (!game.inPlayground || game.subArea === "waterpark");  // water gun in the park
   if (want !== fireBtnShown) { fireBtnShown = want; btnF.style.display = want ? "block" : "none"; }
 }
-let downBtnShown = false, exitBtnShown = false, portalBtnShown = false;
+let downBtnShown = false, exitBtnShown = false, portalBtnShown = false, shieldBtnShown = false;
 function refreshContextBtns() {
   const wantD = game.state === "play" && player.onDownPipe;   // ▼ shows on any pipe that goes deeper
   if (wantD !== downBtnShown) { downBtnShown = wantD; btnD.style.display = wantD ? "block" : "none"; }
@@ -220,6 +228,8 @@ function refreshContextBtns() {
   if (wantX !== exitBtnShown) { exitBtnShown = wantX; btnX.style.display = wantX ? "block" : "none"; }
   const wantP = game.state === "play" && !game.inPlayground && CHARS[heroKey].look === "unicorn";  // Sparkle's portal
   if (wantP !== portalBtnShown) { portalBtnShown = wantP; btnP.style.display = wantP ? "block" : "none"; }
+  const wantS = game.state === "play" && CHARS[heroKey].look === "penguin";                        // Icy's wing shield
+  if (wantS !== shieldBtnShown) { shieldBtnShown = wantS; btnS.style.display = wantS ? "block" : "none"; }
 }
 
 /* ============================== CHARACTERS ============================== */
@@ -258,6 +268,15 @@ const CHARS = {
     // rainbow dumpling in a waffle bowl — kawaii sparkly face
     waffle:"#e6b16a", waffleDk:"#c98f44", dEye:"#2a1c22", dBlush:"#ff9bb4", dMouth:"#e0506e",
     rainbow:["#ff7a9c","#ff9f43","#ffe14d","#7fe07a","#5ec8f0","#b58cff"],
+  },
+  icy: {
+    name: "ICY", kind: "bunny", look: "penguin", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // penguin — black & white with a pink bow; turns blue & white behind her wing shield
+    pgDark:"#23272f", pgDarkLt:"#3a4049", pgBlue:"#3f8fe0", pgBlueLt:"#7fc4f0",
+    pgBelly:"#ffffff", pgBellyShade:"#e2e8f0", pgBeak:"#ff9f43", pgFeet:"#ffb35c",
+    pgBow:"#f0559c", pgEye:"#16181d", pgBlush:"#ffb9cf",
   },
   northern: {
     name: "NORTHERN LIGHT", kind: "bunny", look: "fox", flyMax: 1200,
@@ -326,7 +345,8 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   ctx.translate(x, y);
   if (power > 0) ctx.scale(1.18, 1.32);
   if (facing < 0) ctx.scale(-1, 1);
-  if (pal.look === "dumpling") drawSquishyBody(ctx, pal, frame, airborne, walking, power);
+  if (pal.look === "penguin") drawIcyBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "dumpling") drawSquishyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "unicorn") drawSparkleBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "butterfly") drawCutieBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "fox") drawNorthernBody(ctx, pal, frame, airborne, walking, power);
@@ -658,6 +678,116 @@ function drawPowerup(ctx, p) {
 /* Sparkle the unicorn: white chibi body, rainbow mane & tail, golden spiral
    horn, big sparkly eye. Glows with a rainbow shimmer when powered up.
    Feet at (0,0), facing right. */
+/* Icy the penguin: black & white with a pink bow, orange beak and feet.
+   Holding her wing shield turns her blue & white and raises a wing in front.
+   Feet at (0,0), facing right. */
+function drawIcyBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  const sh = !!player.shielding;                     // powers 5+6: blue & white behind the wing
+  const dark = sh ? pal.pgBlue : pal.pgDark;
+  const darkLt = sh ? pal.pgBlueLt : pal.pgDarkLt;
+  const belly = sh ? "#f3faff" : pal.pgBelly;
+
+  // orange feet
+  const po = (walking && frame) ? 1.1 : 0;
+  ctx.fillStyle = pal.pgFeet;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -0.8, 2, 1.2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -0.8, 2, 1.2, 0, 0, Math.PI*2); ctx.fill();
+
+  // egg body — dark back/hood
+  const bg = ctx.createLinearGradient(0, -20, 0, -1);
+  bg.addColorStop(0, darkLt); bg.addColorStop(0.5, dark); bg.addColorStop(1, dark);
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(-6.4, -2);
+  ctx.bezierCurveTo(-7.4, -14, -4.5, -20.5, 0, -20.5);
+  ctx.bezierCurveTo(4.5, -20.5, 7.4, -14, 6.4, -2);
+  ctx.quadraticCurveTo(0, -0.2, -6.4, -2);
+  ctx.closePath(); ctx.fill();
+
+  // flippers (tucked wings) — or one big raised wing when shielding
+  if (!sh) {
+    const flap = airborne ? Math.sin(t * 0.4) * 0.5 : 0.15;
+    for (const sgn of [-1, 1]) {
+      ctx.save(); ctx.translate(sgn * 6, -11); ctx.rotate(sgn * (0.35 + flap));
+      ctx.fillStyle = dark;
+      ctx.beginPath(); ctx.ellipse(0, 2, 1.9, 5, 0, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // white face + belly patch
+  ctx.fillStyle = belly;
+  ctx.beginPath();
+  ctx.moveTo(-4.4, -2.4);
+  ctx.bezierCurveTo(-5.4, -12, -3.6, -16.8, 0, -16.8);
+  ctx.bezierCurveTo(3.6, -16.8, 5.4, -12, 4.4, -2.4);
+  ctx.quadraticCurveTo(0, -1, -4.4, -2.4);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = sh ? "rgba(150,200,240,.35)" : "rgba(180,195,215,.3)";   // soft belly shade
+  ctx.beginPath(); ctx.ellipse(0, -3.4, 3.8, 1.6, 0, 0, Math.PI*2); ctx.fill();
+
+  // close-together sparkly eyes (like Nora's drawing) + blush
+  for (const ex of [-1.5, 1.5]) {
+    ctx.fillStyle = pal.pgEye;
+    ctx.beginPath(); ctx.ellipse(ex, -13.6, 1.15, 1.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.95)";
+    ctx.beginPath(); ctx.arc(ex - 0.35, -14.2, 0.42, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = pal.pgBlush;
+  ctx.beginPath(); ctx.ellipse(-3.1, -12, 1.1, 0.75, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(3.1, -12, 1.1, 0.75, 0, 0, Math.PI*2); ctx.fill();
+  // little orange beak
+  ctx.fillStyle = pal.pgBeak;
+  ctx.beginPath(); ctx.moveTo(-1.1, -12.5); ctx.lineTo(1.1, -12.5); ctx.lineTo(0, -11.1); ctx.closePath(); ctx.fill();
+
+  // pink bow, up on her head
+  ctx.save(); ctx.translate(3.4, -20.6); ctx.rotate(0.15);
+  ctx.fillStyle = pal.pgBow;
+  ctx.beginPath(); ctx.ellipse(-1.7, 0, 1.6, 1.1, -0.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(1.7, 0, 1.6, 1.1, 0.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#d13c82"; ctx.beginPath(); ctx.arc(0, 0, 0.85, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // the raised wing shield, in front of everything
+  if (sh) {
+    ctx.save(); ctx.translate(4.2, -9);
+    const wgr = ctx.createLinearGradient(-2, -9, 2, 6);
+    wgr.addColorStop(0, pal.pgBlueLt); wgr.addColorStop(1, pal.pgBlue);
+    ctx.fillStyle = wgr;
+    ctx.beginPath(); ctx.ellipse(0, -1, 3.4, 9.4, 0.08, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(0, -1, 3.4, 9.4, 0.08, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.ellipse(-0.8, -3, 1.2, 4.4, 0.08, Math.PI*0.9, Math.PI*1.7); ctx.stroke();  // shine
+    ctx.restore();
+    // shimmer sparkles while protected
+    for (let i = 0; i < 2; i++) { const a = t*0.14 + i*3;
+      ctx.fillStyle = "rgba(200,235,255," + (0.5 + Math.sin(a)*0.3) + ")";
+      ctx.beginPath(); ctx.arc(Math.cos(a)*8, -11 + Math.sin(a*1.3)*8, 0.9, 0, Math.PI*2); ctx.fill(); }
+  }
+}
+
+/* Icy floats on a drifting chunk of ice. */
+function drawIceFloeRide(cx, feetY, t, facing) {
+  g.save();
+  g.translate(cx, feetY + 3.5 + Math.sin(t*0.15)*0.8);
+  g.rotate(Math.sin(t*0.1)*0.04);
+  g.fillStyle = "rgba(0,0,0,.1)"; g.beginPath(); g.ellipse(0, 3.5, 12, 2, 0, 0, Math.PI*2); g.fill();
+  const ig = g.createLinearGradient(0, -3, 0, 4);
+  ig.addColorStop(0, "#ffffff"); ig.addColorStop(1, "#a7d2ef");
+  g.fillStyle = ig;
+  g.beginPath();
+  g.moveTo(-11, 0); g.lineTo(-8, -3); g.lineTo(-3, -2.2); g.lineTo(2, -3.4); g.lineTo(8, -2.4);
+  g.lineTo(11, 0); g.lineTo(8, 3.4); g.lineTo(-2, 4); g.lineTo(-8, 3);
+  g.closePath(); g.fill();
+  g.strokeStyle = "rgba(130,180,220,.6)"; g.lineWidth = 0.8;
+  g.beginPath(); g.moveTo(-6, -1); g.lineTo(-2, 1.5); g.moveTo(3, -1.5); g.lineTo(5, 1.5); g.stroke();
+  for (let i = 0; i < 2; i++) { const a = t*0.1 + i*2.6; g.fillStyle = "rgba(255,255,255,.8)";
+    g.beginPath(); g.arc(Math.cos(a)*8, -3 + Math.sin(a)*1.4, 0.7, 0, Math.PI*2); g.fill(); }
+  g.restore();
+}
+
 /* Squishy the rainbow dumpling: a sparkly rainbow dome in a waffle bowl with a
    big kawaii face. Feet at (0,0), facing right. */
 function drawSquishyBody(ctx, pal, frame, airborne, walking, power) {
@@ -1221,6 +1351,27 @@ function drawBambooCarpet(cx, feetY, t, facing) {
 
 function drawFireball(ctx, f, t) {
   const cx = f.x + 2.5, cy = f.y + 2.5;
+  if (f.kind === "fish") {                   // Icy's thrown fish — wiggles as it flies
+    ctx.save();
+    ctx.translate(cx, cy);
+    if ((Math.sign(f.vx) || 1) < 0) ctx.scale(-1, 1);
+    ctx.rotate(Math.sin(f.t * 0.4) * 0.25);
+    const fg = ctx.createLinearGradient(0, -3, 0, 3);
+    fg.addColorStop(0, "#7fd4f0"); fg.addColorStop(1, "#3f8fc8");
+    ctx.fillStyle = fg;
+    ctx.beginPath(); ctx.ellipse(0.6, 0, 4, 2.4, 0, 0, Math.PI*2); ctx.fill();   // body
+    const flick = Math.sin(f.t * 0.5) * 1.4;
+    ctx.beginPath(); ctx.moveTo(-3, 0); ctx.lineTo(-6, -2.4 + flick); ctx.lineTo(-6, 2.4 + flick); ctx.closePath(); ctx.fill();  // tail
+    ctx.fillStyle = "#dff3ff";
+    ctx.beginPath(); ctx.ellipse(1, 1, 2.6, 1.1, 0, 0, Math.PI*2); ctx.fill();   // belly
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(3, -0.7, 1, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#16181d"; ctx.beginPath(); ctx.arc(3.3, -0.7, 0.55, 0, Math.PI*2); ctx.fill();  // eye
+    ctx.restore();
+    // trailing bubbles
+    ctx.fillStyle = "rgba(190,230,255,.6)";
+    ctx.beginPath(); ctx.arc(cx - f.vx*2, cy - 2 + Math.sin(f.t*0.3)*1.5, 1, 0, Math.PI*2); ctx.fill();
+    return;
+  }
   if (f.kind === "dumpling") {               // Squishy's thrown mini-dumplings (all sorts of colors)
     const themes = [
       { a:"#ff7a9c", b:"#b58cff" },                       // rainbow
@@ -2107,7 +2258,7 @@ function setPigeonsOff(off) {
 }
 const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
                  coyote:0, jumpBuf:0, animT:0, frame:0,
-                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0, onPipe:false, onDownPipe:false, flying:false, glow:0, portalCool:0, dumpSparkle:0,
+                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0, onPipe:false, onDownPipe:false, flying:false, glow:0, portalCool:0, dumpSparkle:0, shielding:false,
                  jg:{ hold:0.125, fall:0.4375 } };
 
 function startLevel(n) {
@@ -2211,6 +2362,13 @@ function bumpBlock(tx, ty) {
 
 function applyDamage() {
   if (player.inv > 0 || player.glow > 0) return;   // Sparkle is indestructible while glowing
+  if (player.shielding) {                          // Icy's wing shield blocks the hit
+    SFX.bump();
+    for (let i = 0; i < 4; i++) game.particles.push({ x: player.x + player.w/2 + player.facing*7,
+      y: player.y + player.h*0.4 + (i-1.5)*3, vx: player.facing*1.2 + Math.random()-0.5,
+      vy: -Math.random()*1.4, t: 0, c: "#bfe4ff" });
+    return;
+  }
   if (player.power > 0) {
     player.power--;
     if (player.power === 0) { player.y += 8; player.h = 16; }
@@ -2292,8 +2450,12 @@ function updatePlay() {
   if (player.dumpSparkle > 0) player.dumpSparkle--;
   if (player.portalCool > 0) player.portalCool--;
 
+  // --- Icy's wing shield: hold to block everything (she hunkers down, can't walk) ---
+  player.shielding = CHARS[heroKey].look === "penguin" && input.shield && player.grounded;
+  if (player.shielding) { player.vx *= 0.55; input.jumpPressed = false; player.jumpBuf = 0; }
+
   // --- horizontal: walk/auto-run with SMB accel, release decel and skid ---
-  const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+  const dir = player.shielding ? 0 : (input.right ? 1 : 0) - (input.left ? 1 : 0);
   if (dir !== 0) {
     if (dir === player.runDir) player.runCharge++;
     else { player.runCharge = 0; player.runDir = dir; }
@@ -2326,6 +2488,7 @@ function updatePlay() {
   if (player.jumpBuf > 0 && player.coyote > 0) {
     const t = jumpTier(player.vx);
     player.vy = t.v; player.jg = t;
+    if (CHARS[heroKey].look === "penguin") player.vy = t.v * 1.28;   // Icy jumps REALLY high
     player.coyote = 0; player.jumpBuf = 0; SFX.jump();
   }
   if (player.jumpBuf > 0) player.jumpBuf--;
@@ -2389,7 +2552,7 @@ function updatePlay() {
     const look = CHARS[heroKey].look;
     const fan = look === "dumpling" && player.dumpSparkle > 0;   // blue-gem mode: throw every color at once
     if (player.shootCool === 0 && game.fireballs.length < (fan ? 9 : 3)) {
-      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : look === "unicorn" ? "sparkle" : look === "dumpling" ? "dumpling" : "bolt";
+      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : look === "unicorn" ? "sparkle" : look === "dumpling" ? "dumpling" : look === "penguin" ? "fish" : "bolt";
       const sx = player.x + (player.facing > 0 ? player.w : -6), sy = player.y + player.h * 0.35;
       const spd = (cloudKind ? 3.6 : 3.2) * player.facing;
       if (fan) {
@@ -2447,7 +2610,15 @@ function updatePlay() {
   } else player.frame = 0;
 
   // fell in a pit
-  if (player.y > LEVEL_H + 40) { killPlayer(); return; }
+  if (player.y > LEVEL_H + 40) {
+    // Icy can breathe underwater — she dives into the icy water and bursts back out
+    if (CHARS[heroKey].look === "penguin" && game.level.theme === "icecastle") {
+      player.y = LEVEL_H - 6; player.vy = -8.8; player.inv = Math.max(player.inv, 40);
+      SFX.swim();
+      for (let i = 0; i < 8; i++) game.particles.push({ x: player.x + player.w/2 + (i-4)*2.4,
+        y: LEVEL_H - 4, vx: (i-4)*0.4, vy: -1.5 - Math.random()*2, t: 0, c: "#9be0ff" });
+    } else { killPlayer(); return; }
+  }
 
   // enemies
   const L = game.level;
@@ -3807,6 +3978,8 @@ function drawWorld() {
         drawRainbowRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
       if (player.flying && CHARS[heroKey].look === "dumpling")
         drawDumplingRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
+      if (player.flying && CHARS[heroKey].look === "penguin")
+        drawIceFloeRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
       if (player.glow > 0 && CHARS[heroKey].look === "unicorn") {   // indestructible rainbow glow
         const rg = g.createRadialGradient(player.x+player.w/2, player.y+player.h/2, 2, player.x+player.w/2, player.y+player.h/2, 20);
         rg.addColorStop(0, "rgba(255,255,255,.5)"); rg.addColorStop(0.6, "rgba(180,150,255,.35)"); rg.addColorStop(1, "rgba(180,150,255,0)");
@@ -3938,16 +4111,16 @@ function drawTitle() {
 
   // character cards — sized & wrapped to fit however many heroes there are
   game.titleCards = [];
-  const keysArr = ["jules", "northern", "cutie", "nora", "sparkle", "squishy"];
+  const keysArr = ["jules", "northern", "cutie", "nora", "sparkle", "squishy", "icy"];
   const n = keysArr.length;
-  const perRow = n <= 4 ? n : Math.ceil(n / 2);     // 5–6 heroes → wrap to two rows
+  const perRow = n <= 4 ? n : Math.ceil(n / 2);     // 5+ heroes → wrap to two rows
   const rows = Math.ceil(n / perRow), rowGap = 10;
   const gap = Math.min(10, W * 0.016);
   const cw = Math.min((W * 0.96 - (perRow-1)*gap) / perRow, 132, H * 0.32);
   const ch = Math.min(cw * 1.18, H * (rows > 1 ? 0.255 : 0.46));
   const cy0 = H * (W > H ? 0.50 : 0.46);            // top of the card block
-  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2", "#ffce3a", "#ff8ab0"];
-  const nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e", "#d39a1e", "#e0608c"];
+  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2", "#ffce3a", "#ff8ab0", "#5ec2e0"];
+  const nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e", "#d39a1e", "#e0608c", "#2f8fb0"];
   keysArr.forEach((k, i) => {
     const row = Math.floor(i / perRow);
     const inRow = (row === rows-1) ? (n - perRow*(rows-1)) : perRow;
@@ -4027,10 +4200,10 @@ function drawWinScreen() {
 
   // all the heroes celebrating
   const ks = Math.min(W, H) / 140;
-  [["jules", -2.6], ["northern", -1.55], ["cutie", -0.5], ["squishy", 0.5], ["sparkle", 1.55], ["nora", 2.6]].forEach(([k, side]) => {
+  [["jules", -3], ["northern", -2], ["cutie", -1], ["squishy", 0], ["icy", 1], ["sparkle", 2], ["nora", 3]].forEach(([k, side]) => {
     g.save();
     const hop = Math.abs(Math.sin(game.timer * 0.1 + (side+2))) * 14;
-    g.translate(W/2 + side * Math.min(W*0.11, 64), H*0.62 - hop);
+    g.translate(W/2 + side * Math.min(W*0.095, 55), H*0.62 - hop);
     g.scale(ks, ks);
     drawKid(g, 0, 0, CHARS[k], 0, side < 0 ? 1 : -1, true, false);
     g.restore();
