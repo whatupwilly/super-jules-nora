@@ -723,18 +723,25 @@ function drawSquishyBody(ctx, pal, frame, airborne, walking, power) {
   }
 }
 
-/* Squishy floats on a little waffle plate with sparkly steam. */
+/* Squishy floats on a steamy dim sum bamboo steamer tray. */
 function drawDumplingRide(cx, feetY, t, facing) {
   g.save();
   g.translate(cx, feetY + 4 + Math.sin(t*0.15)*0.8);
-  g.fillStyle = "rgba(0,0,0,.1)"; g.beginPath(); g.ellipse(0, 3, 11, 2, 0, 0, Math.PI*2); g.fill();
-  const wg = g.createLinearGradient(0, -2, 0, 3); wg.addColorStop(0, "#e6b16a"); wg.addColorStop(1, "#c98f44");
-  g.fillStyle = wg; g.beginPath(); g.ellipse(0, 0, 11, 3.4, 0, 0, Math.PI*2); g.fill();
-  g.strokeStyle = "rgba(150,100,40,.5)"; g.lineWidth = 0.6;
-  for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(i*3, -2.2); g.lineTo(i*3, 2.2); g.stroke(); }
-  g.beginPath(); g.moveTo(-10, 0); g.lineTo(10, 0); g.stroke();
-  for (let i = 0; i < 3; i++) { const a = t*0.1 + i*2; g.fillStyle = "rgba(255,255,255,.7)";
-    g.beginPath(); g.arc(Math.cos(a)*7, -2 + Math.sin(a)*1.5, 0.8, 0, Math.PI*2); g.fill(); }
+  g.fillStyle = "rgba(0,0,0,.1)"; g.beginPath(); g.ellipse(0, 3.5, 12, 2, 0, 0, Math.PI*2); g.fill();
+  // bamboo basket body + woven slats
+  const bg = g.createLinearGradient(0, -2, 0, 4); bg.addColorStop(0, "#e8c483"); bg.addColorStop(1, "#c79a52");
+  g.fillStyle = bg; g.beginPath(); g.ellipse(0, 0.8, 11.5, 4, 0, 0, Math.PI*2); g.fill();
+  g.strokeStyle = "rgba(140,100,50,.45)"; g.lineWidth = 0.7;
+  for (const yy of [-1, 0.6, 2.2, 3.6]) { g.beginPath(); g.moveTo(-11, yy); g.lineTo(11, yy); g.stroke(); }
+  for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(i*3.3, -1.2); g.lineTo(i*3.3, 3.6); g.stroke(); }
+  // lighter top rim with a shaded inner lip
+  g.fillStyle = "#f0d49a"; g.beginPath(); g.ellipse(0, -2.2, 11, 2.5, 0, 0, Math.PI*2); g.fill();
+  g.fillStyle = "rgba(120,90,50,.3)"; g.beginPath(); g.ellipse(0, -2, 8.6, 1.6, 0, 0, Math.PI*2); g.fill();
+  g.strokeStyle = "#b8915a"; g.lineWidth = 1; g.beginPath(); g.ellipse(0, -2.2, 11, 2.5, 0, 0, Math.PI*2); g.stroke();
+  // steam wisps rising
+  g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 1; g.lineCap = "round";
+  for (let i = 0; i < 3; i++) { const bx = (i-1)*5, sw = Math.sin(t*0.1 + i*2)*1.6;
+    g.beginPath(); g.moveTo(bx, -3); g.quadraticCurveTo(bx + sw, -6, bx - sw, -9.5); g.stroke(); }
   g.restore();
 }
 
@@ -1580,7 +1587,7 @@ function drawSuperFx() {
 
 /* ============================== LEVELS ============================== */
 function makeLevel(num) {
-  const widths = [150, 170, 160, 170, 140, 165, 170, 160, 145, 168, 172, 150];
+  const widths = [150, 170, 160, 170, 140, 165, 170, 160, 145, 168, 172, 174, 150];
   const Wd = widths[num] || 150;
   const grid = Array.from({length: ROWS}, () => Array(Wd).fill(" "));
   const enemies = [];
@@ -1826,7 +1833,32 @@ function makeLevel(num) {
     enemy(136); enemy(142);
     stair(148, 6, 1);
     flagX = 160;
-  } else {                                   // 3-3: Rainbow Bowser's castle — final rescue!
+  } else if (num === 11) {                   // 3-3: candy-cloud bounce run
+    ground(0, 20);
+    qb(8,9); mb(11,9); coins(8,5,3);
+    enemy(14); enemy(15);
+    setT(20,12,"J");                         // bounce pads everywhere
+    brick(24,8); brick(25,8); brick(26,8); coins(24,5,3);
+    ground(30, 58);
+    enemy(36); enemy(42); enemy(43);
+    setT(46,12,"J"); setT(47,12,"J");
+    brick(50,6); brick(51,6); brick(52,6); coins(50,3,3);
+    stone(56,10); stone(57,10);
+    ground(64, 94);                          // gap 59-63
+    stair(68, 4, 1); stair(76, 4, -1);
+    enemy(82); enemy(88); enemy(89);
+    setT(92,12,"J");
+    mb(98,9);
+    ground(104, 134);                        // gap 95-103
+    brick(110,9); qb(111,9); brick(112,9); coins(110,5,4);
+    enemy(116); enemy(122); enemy(123);
+    setT(128,12,"J"); setT(129,12,"J");
+    ground(140, Wd-1);                       // gap 135-139
+    coins(144,8,5);
+    enemy(148); enemy(154);
+    stair(160, 6, 1);
+    flagX = 170;
+  } else {                                   // 3-4: Rainbow Bowser's castle — final rescue!
     const cground = (a, b) => { for (let x=a; x<=b; x++){ stone(x,13); stone(x,14); } };
     for (let x = 0; x < 140; x++) brick(x, 1);          // rainbow ceiling
     cground(0, 15);
@@ -1848,12 +1880,12 @@ function makeLevel(num) {
     cageX = 132;
     for (let x = 140; x < Wd; x++) for (let y = 2; y <= 12; y++) stone(x, y);
   }
-  const theme = ["beach","village","carousel","sunset","castle","snow","snow","snow","icecastle","rainbow","rainbow","rainbowcastle"][num] || "beach";
+  const theme = ["beach","village","carousel","sunset","castle","snow","snow","snow","icecastle","rainbow","rainbow","rainbow","rainbowcastle"][num] || "beach";
   const name = num < 5 ? "1-" + (num+1) : num < 9 ? "2-" + (num-4) : "3-" + (num-8);
   return { grid, width: Wd, enemies, flagX, name, boss, cageX, theme,
            icy: theme === "snow" || theme === "icecastle" };
 }
-const LEVEL_COUNT = 12;
+const LEVEL_COUNT = 13;
 
 /* Northern Light's snowflakes build little igloo platforms where they land
    (up to 8 — the oldest melts away). */
@@ -2011,7 +2043,7 @@ function resetAreaState() {
   game.camX = 0; game.particles = []; game.pops = []; game.powerups = [];
   game.fireballs = []; game.bossFlames = []; game.boss = null; game.pug = null;
   game.pigeons = []; game.pigeonCool = 0; game.treatT = 0; game.igloos = []; game.flowers = [];
-  game.waterShots = []; game.targets = game.level.targets || []; game.portalFx = []; player.glow = 0; player.portalCool = 0;
+  game.waterShots = []; game.targets = game.level.targets || []; game.portalFx = []; player.glow = 0; player.portalCool = 0; player.dumpSparkle = 0;
 }
 function enterPipe() {                              // main level -> playground
   game.savedLevel = game.level; game.savedReturn = snapshotPlayer();
@@ -2075,13 +2107,13 @@ function setPigeonsOff(off) {
 }
 const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
                  coyote:0, jumpBuf:0, animT:0, frame:0,
-                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0, onPipe:false, onDownPipe:false, flying:false, glow:0, portalCool:0,
+                 power:0, inv:0, runCharge:0, runDir:0, fly:1200, shootCool:0, airT:0, onPipe:false, onDownPipe:false, flying:false, glow:0, portalCool:0, dumpSparkle:0,
                  jg:{ hold:0.125, fall:0.4375 } };
 
 function startLevel(n) {
   game.levelNum = n;
   game.level = makeLevel(n);
-  game.inPlayground = false; game.savedLevel = null; game.subArea = null; game.savedPark = null; game.waterShots = []; game.targets = []; game.portalFx = []; player.glow = 0; player.portalCool = 0;
+  game.inPlayground = false; game.savedLevel = null; game.subArea = null; game.savedPark = null; game.waterShots = []; game.targets = []; game.portalFx = []; player.glow = 0; player.portalCool = 0; player.dumpSparkle = 0;
   player.h = player.power > 0 ? 24 : 16;
   player.x = 2*TILE; player.y = 13*TILE - player.h;
   player.vx = 0; player.vy = 0; player.facing = 1; player.grounded = false;
@@ -2105,7 +2137,7 @@ function startLevel(n) {
 function goTitle() {
   game.state = "title"; game.score = 0; game.coins = 0; game.lives = 3; game.timer = 0;
   player.power = 0; game.rescued = false;
-  game.inPlayground = false; game.savedLevel = null; game.subArea = null; game.savedPark = null; game.waterShots = []; game.targets = []; game.portalFx = []; player.glow = 0; player.portalCool = 0;
+  game.inPlayground = false; game.savedLevel = null; game.subArea = null; game.savedPark = null; game.waterShots = []; game.targets = []; game.portalFx = []; player.glow = 0; player.portalCool = 0; player.dumpSparkle = 0;
   unfadeButtons();
   document.getElementById("verlink").style.display = "block";
   showButtons(false);
@@ -2257,6 +2289,7 @@ function updatePlay() {
   syncKeys();
   if (player.inv > 0) player.inv--;
   if (player.glow > 0) player.glow--;
+  if (player.dumpSparkle > 0) player.dumpSparkle--;
   if (player.portalCool > 0) player.portalCool--;
 
   // --- horizontal: walk/auto-run with SMB accel, release decel and skid ---
@@ -2352,15 +2385,22 @@ function updatePlay() {
   if (player.shootCool > 0) player.shootCool--;
   if (input.firePressed) {
     input.firePressed = false;
-    if (player.shootCool === 0 && game.fireballs.length < 3) {
-      const cloudKind = CHARS[heroKey].kind === "cloud";
-      const look = CHARS[heroKey].look;
+    const cloudKind = CHARS[heroKey].kind === "cloud";
+    const look = CHARS[heroKey].look;
+    const fan = look === "dumpling" && player.dumpSparkle > 0;   // blue-gem mode: throw every color at once
+    if (player.shootCool === 0 && game.fireballs.length < (fan ? 9 : 3)) {
       const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : look === "unicorn" ? "sparkle" : look === "dumpling" ? "dumpling" : "bolt";
-      game.fireballs.push({ x: player.x + (player.facing > 0 ? player.w : -6),
-        y: player.y + player.h * 0.35, w: 5, h: 5,
-        vx: (cloudKind ? 3.6 : 3.2) * player.facing, vy: 0,
-        kind, t: 0, igloo: look === "fox", flower: look === "butterfly", dumpTheme: Math.floor(Math.random()*5) });
-      player.shootCool = 16;
+      const sx = player.x + (player.facing > 0 ? player.w : -6), sy = player.y + player.h * 0.35;
+      const spd = (cloudKind ? 3.6 : 3.2) * player.facing;
+      if (fan) {
+        const ys = [-1.1, 0, 1.1];
+        for (let i = 0; i < 3; i++) game.fireballs.push({ x: sx, y: sy, w: 5, h: 5,
+          vx: spd, vy: ys[i], kind: "dumpling", t: 0, dumpTheme: ((game.timer>>1) + i*2) % 5 });
+      } else {
+        game.fireballs.push({ x: sx, y: sy, w: 5, h: 5, vx: spd, vy: 0,
+          kind, t: 0, igloo: look === "fox", flower: look === "butterfly", dumpTheme: Math.floor(Math.random()*5) });
+      }
+      player.shootCool = fan ? 11 : 16;
       if (cloudKind) SFX.bolt(); else SFX.star();
     }
   }
@@ -2391,6 +2431,7 @@ function updatePlay() {
         player.y < p.y + p.h && player.y + player.h > p.y) {
       p.gone = true; game.score += 1000;
       if (CHARS[heroKey].look === "unicorn") { player.glow = 300; SFX.grow(); }   // Sparkle: glow + indestructible 5s
+      if (CHARS[heroKey].look === "dumpling") { player.dumpSparkle = 1200; SFX.grow(); }  // Squishy: blue gem → 20s sparkle, every-color dumplings
       if (p.type === "flower") superBlast();
       else { setPower(1); SFX.grow(); }
       game.pops.push({ x: p.x + p.w/2, y: p.y, t: 0 });
@@ -3771,6 +3812,14 @@ function drawWorld() {
         rg.addColorStop(0, "rgba(255,255,255,.5)"); rg.addColorStop(0.6, "rgba(180,150,255,.35)"); rg.addColorStop(1, "rgba(180,150,255,0)");
         g.fillStyle = rg; g.beginPath(); g.arc(player.x+player.w/2, player.y+player.h/2, 20, 0, Math.PI*2); g.fill();
       }
+      if (player.dumpSparkle > 0 && CHARS[heroKey].look === "dumpling") {   // blue-gem sparkle aura
+        const cx0 = player.x+player.w/2, cy0 = player.y+player.h/2, rc = CHARS.squishy.rainbow;
+        const rg = g.createRadialGradient(cx0, cy0, 2, cx0, cy0, 19);
+        rg.addColorStop(0, "rgba(255,255,255,.45)"); rg.addColorStop(1, "rgba(120,200,255,0)");
+        g.fillStyle = rg; g.beginPath(); g.arc(cx0, cy0, 19, 0, Math.PI*2); g.fill();
+        for (let i = 0; i < 4; i++) { const a = game.timer*0.12 + i*1.6;
+          drawStarShape(g, cx0 + Math.cos(a)*12, cy0 + Math.sin(a)*12, 1.3, 0.55, a, rc[(i + (game.timer>>3)) % rc.length]); }
+      }
       drawKid(g, player.x + player.w/2, player.y + player.h, pal,
               player.frame, player.facing, !player.grounded, Math.abs(player.vx) > 0.3, player.power);
       g.globalAlpha = 1;
@@ -3916,10 +3965,16 @@ function drawTitle() {
     g.scale(ks, ks);
     drawKid(g, 0, 0, CHARS[k], Math.floor(game.timer/20) % 2, 1, false, true);
     g.restore();
-    let nm = CHARS[k].name, fs = cw/6.6;
+    let nm = CHARS[k].name, fs = cw/6.4;
     g.font = "900 " + fs + "px 'Avenir Next',Arial";
-    while (g.measureText(nm).width > cw - 10 && fs > 6) { fs -= 0.5; g.font = "900 " + fs + "px 'Avenir Next',Arial"; }
-    outlineText(nm, cxp, sy + ch - cw/9, nameCol[i % nameCol.length]);
+    while (g.measureText(nm).width > cw - 16 && fs > 7) { fs -= 0.5; g.font = "900 " + fs + "px 'Avenir Next',Arial"; }
+    // readable name plate: solid colored pill + white text (high contrast for long names)
+    const ntw = g.measureText(nm).width, pillH = fs + 7, pillW = Math.min(cw - 3, ntw + 14), py = sy + ch - cw/8.5;
+    g.fillStyle = nameCol[i % nameCol.length];
+    roundRect(cxp - pillW/2, py - pillH/2, pillW, pillH, pillH/2); g.fill();
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.lineWidth = 3; g.lineJoin = "round"; g.strokeStyle = "rgba(0,0,0,.28)"; g.strokeText(nm, cxp, py);
+    g.fillStyle = "#fff"; g.fillText(nm, cxp, py);
     game.titleCards.push({ key: k, sx, sy, sw: cw, sh: ch });
   });
   const cardsBottom = cy0 + rows*ch + (rows-1)*rowGap;
