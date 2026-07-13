@@ -2349,6 +2349,7 @@ const game = {
   titleCards: [],
   inPlayground: false, savedLevel: null, savedReturn: null, treatT: 0,
   subArea: null, savedPark: null, savedParkReturn: null, enterTo: null, waterShots: [], targets: [], portalFx: [],
+  levelSelect: 0,
   pigeonsOff: (() => { try { return localStorage.getItem("magicPigeonsOff") === "1"; } catch(e) { return false; } })(),
 };
 function setPigeonsOff(off) {
@@ -2714,8 +2715,8 @@ function updatePlay() {
       p.gone = true; game.score += 1000;
       if (CHARS[heroKey].look === "unicorn") { player.glow = 300; SFX.grow(); }   // Sparkle: glow + indestructible 5s
       if (CHARS[heroKey].look === "dumpling") { player.dumpSparkle = 1200; SFX.grow(); }  // Squishy: blue gem → 20s sparkle, every-color dumplings
-      if (p.type === "flower") superBlast();
-      else { setPower(1); SFX.grow(); }
+      if (p.type === "flower") { setPower(2); superBlast(); }      // blue star: super form + blast
+      else { setPower(Math.max(1, player.power)); SFX.grow(); }    // mushroom never downgrades
       game.pops.push({ x: p.x + p.w/2, y: p.y, t: 0 });
     }
   }
@@ -3155,15 +3156,20 @@ function updateTitle() {
     if (tg && tapX >= tg.x && tapX <= tg.x + tg.w && tapY >= tg.y && tapY <= tg.y + tg.h) {
       setPigeonsOff(!game.pigeonsOff); return;
     }
+    for (const lb of (game.levelBtnRects || [])) {          // pick a starting level
+      if (tapX >= lb.x && tapX <= lb.x + lb.w && tapY >= lb.y && tapY <= lb.y + lb.h) {
+        game.levelSelect = lb.n; SFX.select(); return;
+      }
+    }
     for (const c of game.titleCards) {
       if (tapX >= c.sx && tapX <= c.sx + c.sw && tapY >= c.sy && tapY <= c.sy + c.sh) {
         heroKey = c.key; SFX.select();
-        startLevel(0);
+        startLevel(game.levelSelect || 0);
         return;
       }
     }
   }
-  if (keys["Enter"]) { SFX.select(); startLevel(0); }
+  if (keys["Enter"]) { SFX.select(); startLevel(game.levelSelect || 0); }
 }
 
 /* ============================== DRAW ============================== */
@@ -4237,7 +4243,10 @@ function drawTitle() {
   const gap = Math.min(10, W * 0.016);
   const cw = Math.min((W * 0.96 - (perRow-1)*gap) / perRow, 132, H * 0.32);
   const ch = Math.min(cw * 1.18, H * (rows > 1 ? 0.255 : 0.46));
-  const cy0 = H * (W > H ? 0.50 : 0.46);            // top of the card block
+  // top of the card block — clamped so cards + toggle + level picker + footer all fit
+  const thT = Math.min(W/10, 40), chipHT = Math.max(17, Math.min(W/17, 24));
+  const stackH = rows*ch + (rows-1)*rowGap + 30 + thT + 12 + 14 + chipHT + 34;
+  const cy0 = Math.min(H * (W > H ? 0.50 : 0.46), H - stackH);
   const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2", "#ffce3a", "#ff8ab0", "#5ec2e0", "#f0564a"];
   const nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e", "#d39a1e", "#e0608c", "#2f8fb0", "#c8362c"];
   keysArr.forEach((k, i) => {
@@ -4276,7 +4285,7 @@ function drawTitle() {
 
   // pigeons on/off toggle (kid-friendly — tap to flip; remembered next time)
   const off = game.pigeonsOff;
-  const tw = Math.min(W * 0.62, 280), th = Math.min(W/10, 40), tx = W/2 - tw/2, tyT = cardsBottom + 38;
+  const tw = Math.min(W * 0.62, 280), th = Math.min(W/10, 40), tx = W/2 - tw/2, tyT = cardsBottom + 30;
   g.fillStyle = off ? "rgba(120,170,90,.85)" : "rgba(120,140,170,.55)";
   roundRect(tx, tyT, tw, th, th/2); g.fill();
   g.lineWidth = 3; g.strokeStyle = off ? "#bff0a0" : "rgba(255,255,255,.6)";
@@ -4287,6 +4296,32 @@ function drawTitle() {
   g.font = "800 " + Math.min(W/30, 15) + "px 'Avenir Next',Arial";
   outlineText("🕊️ Pigeons: " + (off ? "OFF" : "ON"), W/2, tyT + th/2, off ? "#eaffe0" : "#fff");
   game.pigeonToggleRect = { x: tx, y: tyT, w: tw, h: th };
+
+  // level picker — tap a chip to choose where to start
+  game.levelBtnRects = [];
+  const lvName = n => n < 5 ? "1-" + (n+1) : n < 9 ? "2-" + (n-4) : "3-" + (n-8);
+  const worldCol = n => n < 5 ? "#3fae52" : n < 9 ? "#3f8fd0" : "#9b6cff";
+  const chipGap = 3, chipW = Math.min((W * 0.96 - (LEVEL_COUNT-1)*chipGap) / LEVEL_COUNT, 42);
+  const chipH = Math.max(17, Math.min(W/17, 24));
+  const rowW = LEVEL_COUNT * chipW + (LEVEL_COUNT-1) * chipGap;
+  const cx0 = W/2 - rowW/2, cyL = tyT + th + 12;
+  g.font = "700 " + Math.min(W/34, 12) + "px 'Avenir Next',Arial";
+  outlineText("start at level:", W/2, cyL - 3, "#fff");
+  for (let n = 0; n < LEVEL_COUNT; n++) {
+    const bx = cx0 + n * (chipW + chipGap), by = cyL + 6;
+    const sel = n === (game.levelSelect || 0);
+    g.fillStyle = sel ? worldCol(n) : "rgba(255,255,255,.28)";
+    roundRect(bx, by, chipW, chipH, 6); g.fill();
+    g.lineWidth = sel ? 2.5 : 1.2;
+    g.strokeStyle = sel ? "#fff" : "rgba(255,255,255,.5)";
+    roundRect(bx, by, chipW, chipH, 6); g.stroke();
+    g.font = (sel ? "900 " : "700 ") + Math.max(7, Math.min(chipW/3.1, 11)) + "px 'Avenir Next',Arial";
+    g.textAlign = "center"; g.textBaseline = "middle";
+    if (sel) { g.lineWidth = 3; g.lineJoin = "round"; g.strokeStyle = "rgba(0,0,0,.3)"; g.strokeText(lvName(n), bx + chipW/2, by + chipH/2 + 0.5); }
+    g.fillStyle = sel ? "#fff" : "rgba(255,255,255,.95)";
+    g.fillText(lvName(n), bx + chipW/2, by + chipH/2 + 0.5);
+    game.levelBtnRects.push({ n, x: bx, y: by, w: chipW, h: chipH });
+  }
 
   g.font = "600 12px 'Avenir Next',Arial";
   outlineText("made with ♥ for Jules & Nora", W/2, H - 16, "#ffe9f0");
