@@ -286,6 +286,16 @@ const CHARS = {
     apRed:["#f0564a","#c22c24"], apGreen:["#7ed058","#4a9e30"], apYellow:["#ffd94d","#e0a820"],
     apStem:"#8a5a32", apLeaf:"#5cc463", apFace:"#241a12", apBlush:"#ffb0c0",
   },
+  misty: {
+    name: "MISTY", kind: "bunny", look: "horse", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // golden horse — cream mane & tail, white wings when she flies, moon glitter
+    hBody:"#f2c14e", hBodyLt:"#ffe094", hBodyDk:"#cf9a2c",
+    hMane:"#fdf6e3", hManeDk:"#e8d5a8", hHoof:"#8a6a3a", hMuzzle:"#ffe8c0",
+    hEye:"#2a1c0e", hBlush:"#ffb9cf", hWing:"#ffffff", hWingShade:"#dfe8f5",
+    crystal:"#bfe0ff", crystalDk:"#7fb0e8",
+  },
   northern: {
     name: "NORTHERN LIGHT", kind: "bunny", look: "fox", flyMax: 1200,
     body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
@@ -353,7 +363,8 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   ctx.translate(x, y);
   if (power > 0) ctx.scale(1.18, 1.32);
   if (facing < 0) ctx.scale(-1, 1);
-  if (pal.look === "apple") drawAppyBody(ctx, pal, frame, airborne, walking, power);
+  if (pal.look === "horse") drawMistyBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "apple") drawAppyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "penguin") drawIcyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "dumpling") drawSquishyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "unicorn") drawSparkleBody(ctx, pal, frame, airborne, walking, power);
@@ -687,6 +698,119 @@ function drawPowerup(ctx, p) {
 /* Sparkle the unicorn: white chibi body, rainbow mane & tail, golden spiral
    horn, big sparkly eye. Glows with a rainbow shimmer when powered up.
    Feet at (0,0), facing right. */
+/* Misty the golden horse: very pretty — cream mane and tail, long lashes,
+   a white star blaze. She turns into a FLYING horse (white wings) when she
+   flies, gallops faster than anyone, and glitters when the moon touches her.
+   Feet at (0,0), facing right. */
+function drawMistyBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  const gait = walking ? (frame ? 1.4 : -1.4) : 0;
+  const moonlit = game.level && game.level.theme === "moon";
+
+  // flowing cream tail
+  ctx.save(); ctx.translate(-7.2, -8); ctx.rotate(Math.sin(t*0.07)*0.1 - 0.1);
+  ctx.lineCap = "round";
+  for (let i = 0; i < 4; i++) {
+    ctx.strokeStyle = i % 2 ? pal.hMane : pal.hManeDk; ctx.lineWidth = 2 - i*0.25;
+    ctx.beginPath(); ctx.moveTo(0, -1 + i*0.8);
+    ctx.quadraticCurveTo(-5 - i, 2 + i, -4 - i*0.8, 8 + i*0.6); ctx.stroke();
+  }
+  ctx.restore();
+
+  // wings — she becomes a flying horse!
+  if (player.flying) {
+    const flap = Math.sin(t * 0.4);
+    for (const near of [false, true]) {              // shaded far wing, then bright near wing
+      ctx.save(); ctx.translate(near ? -1.5 : -3.5, -11.5);
+      ctx.rotate((near ? -0.5 : -0.75) - flap * 0.45);
+      const wg = ctx.createLinearGradient(0, 0, -14, -6);
+      wg.addColorStop(0, near ? pal.hWing : pal.hWingShade); wg.addColorStop(1, near ? "#ffffff" : pal.hWingShade);
+      ctx.fillStyle = wg;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(-8, -9, -16, -7);
+      ctx.quadraticCurveTo(-12, -4, -13, -1.5);      // feather scallops
+      ctx.quadraticCurveTo(-9, -2.5, -10, 0.5);
+      ctx.quadraticCurveTo(-5, -0.5, 0, 1.6);
+      ctx.closePath(); ctx.fill();
+      if (near) {
+        ctx.strokeStyle = "rgba(160,180,210,.5)"; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(-2, -1); ctx.quadraticCurveTo(-8, -5, -14, -5.5); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  // slender legs with little hooves (trot gait)
+  for (const [lx, ph] of [[-4.6, 1], [-2.2, -1], [2.4, -1], [4.8, 1]]) {
+    const lift = walking ? Math.max(0, Math.sin((frame ? 1 : -1) * ph) * 1.6) : 0;
+    ctx.strokeStyle = pal.hBody; ctx.lineWidth = 2.2; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(lx, -7); ctx.lineTo(lx + ph*gait*0.4, -1.6 - lift); ctx.stroke();
+    ctx.fillStyle = pal.hHoof;
+    ctx.beginPath(); ctx.ellipse(lx + ph*gait*0.4, -1 - lift, 1.5, 1.1, 0, 0, Math.PI*2); ctx.fill();
+  }
+
+  // body — a longer golden barrel
+  const bg = ctx.createLinearGradient(0, -13, 0, -4);
+  bg.addColorStop(0, pal.hBodyLt); bg.addColorStop(0.55, pal.hBody); bg.addColorStop(1, pal.hBodyDk);
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(-0.4, -9, 7.4, 5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.28)";
+  ctx.beginPath(); ctx.ellipse(-2.6, -11.2, 3, 1.8, -0.3, 0, Math.PI*2); ctx.fill();
+
+  // neck + head, held high and pretty
+  ctx.fillStyle = pal.hBody;
+  ctx.beginPath();
+  ctx.moveTo(3, -6.5);
+  ctx.quadraticCurveTo(6.6, -11, 5.6, -16.5);
+  ctx.lineTo(9.2, -16.5);
+  ctx.quadraticCurveTo(9, -9, 6.6, -6);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(7.4, -17.6, 4.2, 3.2, -0.12, 0, Math.PI*2); ctx.fill();   // head
+  ctx.fillStyle = pal.hMuzzle;
+  ctx.beginPath(); ctx.ellipse(10.6, -16.8, 2.2, 1.8, -0.12, 0, Math.PI*2); ctx.fill();  // muzzle
+  ctx.fillStyle = "rgba(150,110,60,.6)";
+  ctx.beginPath(); ctx.arc(11.3, -16.4, 0.4, 0, Math.PI*2); ctx.fill();                  // nostril
+  // ears
+  ctx.fillStyle = pal.hBody;
+  ctx.beginPath(); ctx.moveTo(4.6,-20); ctx.lineTo(5.6,-23); ctx.lineTo(6.9,-20.3); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(7.4,-20.2); ctx.lineTo(8.7,-22.6); ctx.lineTo(9.6,-19.8); ctx.closePath(); ctx.fill();
+  // white star blaze
+  drawStarShape(ctx, 7.8, -18.6, 1.3, 0.55, 0.2, "#ffffff");
+  // pretty eye with lashes + blush
+  ctx.fillStyle = pal.hEye;
+  ctx.beginPath(); ctx.ellipse(6.4, -17.2, 1.15, 1.5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.95)";
+  ctx.beginPath(); ctx.arc(6, -17.8, 0.45, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.hEye; ctx.lineWidth = 0.5; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(5.6,-18.9); ctx.lineTo(4.7,-19.5); ctx.moveTo(6.4,-19.1); ctx.lineTo(6,-19.9); ctx.moveTo(7.1,-18.9); ctx.lineTo(7.5,-19.7); ctx.stroke();
+  ctx.fillStyle = pal.hBlush;
+  ctx.beginPath(); ctx.ellipse(8.6, -15.6, 1.1, 0.7, 0, 0, Math.PI*2); ctx.fill();
+
+  // cream mane down the neck + forelock
+  ctx.fillStyle = pal.hMane;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath(); ctx.ellipse(4.4 - i*1.2, -15.5 + i*2.4 + Math.sin(t*0.08+i)*0.4, 1.9, 1.3, 0.5, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.beginPath(); ctx.ellipse(5.4, -20.6, 2, 1.2, -0.4, 0, Math.PI*2); ctx.fill();      // forelock
+  ctx.fillStyle = pal.hManeDk;
+  ctx.beginPath(); ctx.ellipse(3.4, -13, 1.4, 1, 0.5, 0, Math.PI*2); ctx.fill();
+
+  // the moon touches her — she glitters and really sparkles ✨
+  if (moonlit) {
+    for (let i = 0; i < 5; i++) {
+      const a = t * 0.09 + i * 1.26;
+      const gx = Math.cos(a) * (7 + (i%2)*4), gy = -11 + Math.sin(a * 1.3 + i) * 8;
+      ctx.globalAlpha = 0.5 + Math.sin(t*0.15 + i*2) * 0.4;
+      drawStarShape(ctx, gx, gy, 1.2 + (i%2)*0.5, 0.5, a, i % 2 ? "#ffffff" : "#cfe6ff");
+    }
+    ctx.globalAlpha = 1;
+    const sg = ctx.createRadialGradient(0, -11, 2, 0, -11, 15);
+    sg.addColorStop(0, "rgba(220,235,255,.18)"); sg.addColorStop(1, "rgba(220,235,255,0)");
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(0, -11, 15, 0, Math.PI*2); ctx.fill();
+  }
+}
+
 /* Appy the apple: a smiley apple that shifts form with her power —
    red normally, GREEN when big, YELLOW with the blue star. Her leaf spins
    like a propeller when she flies, and when big she can split in half onto
@@ -1433,6 +1557,29 @@ function drawBambooCarpet(cx, feetY, t, facing) {
 
 function drawFireball(ctx, f, t) {
   const cx = f.x + 2.5, cy = f.y + 2.5;
+  if (f.kind === "crystal") {                // Misty's moon crystals
+    const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 8);
+    glow.addColorStop(0, "rgba(200,230,255,.9)"); glow.addColorStop(1, "rgba(150,200,255,0)");
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2); ctx.fill();
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(f.t * 0.18 * (Math.sign(f.vx) || 1));
+    const cg = ctx.createLinearGradient(-3, -4, 3, 4);
+    cg.addColorStop(0, "#eaf6ff"); cg.addColorStop(0.5, "#bfe0ff"); cg.addColorStop(1, "#7fb0e8");
+    ctx.fillStyle = cg;
+    ctx.beginPath();                                        // faceted moon-crystal shard
+    ctx.moveTo(0, -5.2); ctx.lineTo(3, -1.2); ctx.lineTo(1.8, 4.6); ctx.lineTo(-1.8, 4.6); ctx.lineTo(-3, -1.2);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,.8)"; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(0, -5.2); ctx.lineTo(0, 4.6); ctx.moveTo(-3, -1.2); ctx.lineTo(3, -1.2); ctx.stroke();
+    // tiny crescent etched inside
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    ctx.beginPath(); ctx.arc(-0.4, 0.4, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#a8cef2";
+    ctx.beginPath(); ctx.arc(0.3, 0.1, 1.3, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    if ((f.t & 3) === 0) drawStarShape(ctx, cx - f.vx*2, cy - 3 + Math.sin(f.t*0.4)*3, 1.1, 0.5, f.t*0.2, "#eaf6ff");
+    return;
+  }
   if (f.kind === "apple") {                  // Appy's smiley apples — color matches her form
     const cols = f.form >= 2 ? ["#ffd94d","#e0a820"] : f.form >= 1 ? ["#7ed058","#4a9e30"] : ["#f0564a","#c22c24"];
     ctx.save();
@@ -1598,16 +1745,17 @@ function drawFireball(ctx, f, t) {
 function drawGrump(ctx, x, y, frame, squashT) {
   const ice = game.level && (game.level.theme === "snow" || game.level.theme === "icecastle");
   const rbow = game.level && (game.level.theme === "rainbow" || game.level.theme === "rainbowcastle");
+  const moon = game.level && game.level.theme === "moon";
   const rc = ["#ff5e6c","#ff9f43","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"];
   ctx.save(); ctx.translate(x, y);
   if (squashT > 0) {
-    ctx.fillStyle = rbow ? "#c79bff" : ice ? "#9fc4e0" : "#7c4423";
+    ctx.fillStyle = rbow ? "#c79bff" : ice ? "#9fc4e0" : moon ? "#9aa0b8" : "#7c4423";
     rrPath(ctx, -7, -3.5, 14, 3.5, 1.6); ctx.fill();
     ctx.restore(); return;
   }
   const off = frame ? 0.9 : -0.9;
   // feet
-  ctx.fillStyle = rbow ? "#8a5fd0" : ice ? "#5a7fa0" : "#4f2a14";
+  ctx.fillStyle = rbow ? "#8a5fd0" : ice ? "#5a7fa0" : moon ? "#565c72" : "#4f2a14";
   rrPath(ctx, -6.6 + off, -2.5, 5.4, 2.5, 1.2); ctx.fill();
   rrPath(ctx, 1.2 - off, -2.5, 5.4, 2.5, 1.2); ctx.fill();
   // body with radial shading
@@ -1621,8 +1769,9 @@ function drawGrump(ctx, x, y, frame, squashT) {
     ctx.beginPath(); ctx.ellipse(0, -7.4, 7, 6, 0, 0, Math.PI*2); ctx.stroke();
   } else {
     const gr = ctx.createRadialGradient(-2, -9.5, 1, 0, -7.2, 9);
-    if (ice) { gr.addColorStop(0, "#eaf6ff"); gr.addColorStop(1, "#8cb6d8"); }
-    else     { gr.addColorStop(0, "#c1763f"); gr.addColorStop(1, "#7e4017"); }
+    if (ice)       { gr.addColorStop(0, "#eaf6ff"); gr.addColorStop(1, "#8cb6d8"); }
+    else if (moon) { gr.addColorStop(0, "#d4d9e8"); gr.addColorStop(1, "#7e849c"); }   // moon-dust grump
+    else           { gr.addColorStop(0, "#c1763f"); gr.addColorStop(1, "#7e4017"); }
     ctx.fillStyle = gr;
     ctx.beginPath(); ctx.ellipse(0, -7.4, 7, 6, 0, 0, Math.PI*2); ctx.fill();
   }
@@ -1839,7 +1988,7 @@ function drawSuperFx() {
 
 /* ============================== LEVELS ============================== */
 function makeLevel(num) {
-  const widths = [150, 170, 160, 170, 140, 165, 170, 160, 145, 168, 172, 174, 150];
+  const widths = [150, 170, 160, 170, 140, 165, 170, 160, 145, 168, 172, 174, 165, 150];
   const Wd = widths[num] || 150;
   const grid = Array.from({length: ROWS}, () => Array(Wd).fill(" "));
   const enemies = [];
@@ -2110,7 +2259,31 @@ function makeLevel(num) {
     enemy(148); enemy(154);
     stair(160, 6, 1);
     flagX = 170;
-  } else {                                   // 3-4: Rainbow Bowser's castle — final rescue!
+  } else if (num === 12) {                   // 3-4: the moon! low gravity — giant floaty leaps
+    ground(0, 22);
+    stone(8,12); stone(16,12);                       // little crater bumps
+    enemy(12);
+    coins(10,6,3);
+    ground(29, 48);                          // gap 23-28 — soar across!
+    coins(24,5,3);
+    enemy(36); enemy(42);
+    stone(52,9); stone(53,9); stone(54,9); coins(52,5,3);   // floating rock
+    ground(57, 78);                          // gap 49-56
+    qb(62,8); mb(64,8);
+    enemy(68); enemy(72);
+    stone(82,10); stone(83,10);                      // stepping rock mid-gap
+    ground(87, 108);                         // gap 79-86
+    coins(92,4,5);
+    enemy(98); enemy(102);
+    ground(116, 138);                        // gap 109-115
+    brick(124,8); brick(125,8); brick(126,8); coins(124,4,3);
+    enemy(128); enemy(132);
+    ground(139, Wd-1);
+    coins(144,6,4);
+    enemy(148);
+    stair(150, 4, 1);
+    flagX = 158;
+  } else {                                   // 3-5: Rainbow Bowser's castle — final rescue!
     const cground = (a, b) => { for (let x=a; x<=b; x++){ stone(x,13); stone(x,14); } };
     for (let x = 0; x < 140; x++) brick(x, 1);          // rainbow ceiling
     cground(0, 15);
@@ -2132,12 +2305,12 @@ function makeLevel(num) {
     cageX = 132;
     for (let x = 140; x < Wd; x++) for (let y = 2; y <= 12; y++) stone(x, y);
   }
-  const theme = ["beach","village","carousel","sunset","castle","snow","snow","snow","icecastle","rainbow","rainbow","rainbow","rainbowcastle"][num] || "beach";
+  const theme = ["beach","village","carousel","sunset","castle","snow","snow","snow","icecastle","rainbow","rainbow","rainbow","moon","rainbowcastle"][num] || "beach";
   const name = num < 5 ? "1-" + (num+1) : num < 9 ? "2-" + (num-4) : "3-" + (num-8);
   return { grid, width: Wd, enemies, flagX, name, boss, cageX, theme,
-           icy: theme === "snow" || theme === "icecastle" };
+           icy: theme === "snow" || theme === "icecastle", lowG: theme === "moon" };
 }
-const LEVEL_COUNT = 13;
+const LEVEL_COUNT = 14;
 
 /* Northern Light's snowflakes build little igloo platforms where they land
    (up to 8 — the oldest melts away). */
@@ -2580,8 +2753,9 @@ function updatePlay() {
     if (dir === player.runDir) player.runCharge++;
     else { player.runCharge = 0; player.runDir = dir; }
   } else player.runCharge = 0;
-  const running = player.runCharge > 30;            // hold a direction ~0.5s to run
-  const maxV = running ? RUN_MAX : WALK_MAX;
+  const horse = CHARS[heroKey].look === "horse";     // Misty gallops: quick to run, and FAST
+  const running = player.runCharge > (horse ? 10 : 30);
+  const maxV = (running ? RUN_MAX : WALK_MAX) * (horse ? 1.45 : 1);
   // ice is slippery — low grip means you keep sliding. Northern Light skates best.
   const icy = game.level.icy && player.grounded;
   const grip = icy ? (CHARS[heroKey].look === "fox" ? 0.62 : 0.32) : 1;
@@ -2591,8 +2765,11 @@ function updatePlay() {
     if (player.vx * dir < 0) {
       player.vx += dir * (player.grounded ? DEC_SKID * (icy ? grip : 1) : ACC_RUN);   // skid turn
     } else if (Math.abs(player.vx) < maxV) {
-      player.vx += dir * (running ? ACC_RUN : ACC_WALK);
+      player.vx += dir * (running ? ACC_RUN : ACC_WALK) * (horse ? 1.5 : 1);
       if (Math.abs(player.vx) > maxV) player.vx = dir * maxV;
+      if (horse && player.grounded && Math.abs(player.vx) > 2.4 && (game.timer & 7) === 0)
+        game.particles.push({ x: player.x + player.w/2 - dir*8, y: player.y + player.h - 1,
+          vx: -dir*0.6, vy: -0.5 - Math.random()*0.7, t: 0, c: "rgba(230,220,200,.7)" });   // gallop dust
     } else if (player.grounded && Math.abs(player.vx) > maxV) {
       player.vx -= Math.sign(player.vx) * DEC_REL;                 // ease back to walk speed
     }
@@ -2615,8 +2792,9 @@ function updatePlay() {
   if (player.coyote > 0) player.coyote--;
 
   // --- gravity: light while rising & holding jump, heavy otherwise (SMB) ---
-  player.vy += (player.vy < 0 && input.jump) ? player.jg.hold : player.jg.fall;
-  player.vy = Math.min(player.vy, MAX_FALL);
+  const gMul = game.level.lowG ? 0.42 : 1;           // on the moon everything floats
+  player.vy += ((player.vy < 0 && input.jump) ? player.jg.hold : player.jg.fall) * gMul;
+  player.vy = Math.min(player.vy, MAX_FALL * (game.level.lowG ? 0.6 : 1));
 
   // --- magic flight: Bamboo flies on a carpet (20s), Rosalina floats (10s) ---
   if (player.grounded) player.fly = CHARS[heroKey].flyMax;
@@ -2672,7 +2850,7 @@ function updatePlay() {
     const look = CHARS[heroKey].look;
     const fan = look === "dumpling" && player.dumpSparkle > 0;   // blue-gem mode: throw every color at once
     if (player.shootCool === 0 && game.fireballs.length < (fan ? 9 : 3)) {
-      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : look === "unicorn" ? "sparkle" : look === "dumpling" ? "dumpling" : look === "penguin" ? "fish" : look === "apple" ? "apple" : "bolt";
+      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : look === "unicorn" ? "sparkle" : look === "dumpling" ? "dumpling" : look === "penguin" ? "fish" : look === "apple" ? "apple" : look === "horse" ? "crystal" : "bolt";
       const sx = player.x + (player.facing > 0 ? player.w : -6), sy = player.y + player.h * 0.35;
       const spd = (cloudKind ? 3.6 : 3.2) * player.facing;
       if (fan) {
@@ -3222,6 +3400,15 @@ function tileSprite(c) {
         speckle(8, ["#ffffff","#ffe0ff","#d9c8ff"], R*0.42, R);
         break;
       }
+      if (themeKey === "moon") {
+        t.fillStyle = lg(0,0,0,R,[[0,"#c8ccd8"],[1,"#8f95a8"]]); t.fillRect(0,0,R,R);   // moon dust
+        t.fillStyle = "rgba(255,255,255,.5)"; t.fillRect(0, 0, R, 4);
+        speckle(8, ["#aab0c2","#dde2ec","#7a8095"], R*0.2, R);
+        t.strokeStyle = "rgba(90,95,115,.5)"; t.lineWidth = 1.5;                        // little craters
+        t.beginPath(); t.arc(R*0.3, R*0.4, 5, 0.2, Math.PI+0.5); t.stroke();
+        t.beginPath(); t.arc(R*0.72, R*0.68, 4, 0.4, Math.PI+0.2); t.stroke();
+        break;
+      }
       t.fillStyle = lg(0,0,0,R,[[0,"#8a5a32"],[1,"#6b431f"]]); t.fillRect(0,0,R,R);
       speckle(14, ["#7a4b24","#9c6a3c","#5e3a18"], R*0.4, R);
       t.fillStyle = lg(0,0,0,R*0.36,[[0,"#8fd95e"],[1,"#4c9a32"]]); t.fillRect(0,0,R,R*0.34);
@@ -3251,6 +3438,11 @@ function tileSprite(c) {
       if (themeKey === "rainbow" || themeKey === "rainbowcastle") {
         t.fillStyle = lg(0,0,0,R,[[0,"#9b6cff"],[1,"#6f48c8"]]); t.fillRect(0,0,R,R);   // candy underground
         speckle(14, ["#7e54d8","#b79bf0","#5a38a8"], 0, R);
+        break;
+      }
+      if (themeKey === "moon") {
+        t.fillStyle = lg(0,0,0,R,[[0,"#6a7085"],[1,"#4a4f62"]]); t.fillRect(0,0,R,R);   // deep moon rock
+        speckle(14, ["#5a6076","#7e8498","#3c4052"], 0, R);
         break;
       }
       t.fillStyle = lg(0,0,0,R,[[0,"#7d4d26"],[1,"#62391a"]]); t.fillRect(0,0,R,R);
@@ -3619,6 +3811,49 @@ function drawBackground(camX) {
     const off = camX % 22;
     for (let i=-1;i<VIEW_W/22+2;i++){ const bx = camX + i*22 - off, c = ["#ff5e7e","#ffd166","#6ee7b7","#7fb5ff"][((i%4)+4)%4];
       g.fillStyle = c; g.beginPath(); g.moveTo(bx, 14); g.lineTo(bx+22, 14); g.lineTo(bx+11, 25); g.closePath(); g.fill(); }
+    return;
+  }
+  if (theme === "moon") {
+    const sky = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
+    sky.addColorStop(0, "#05060f"); sky.addColorStop(1, "#161a33");
+    g.fillStyle = sky; g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
+    // a sky full of stars
+    for (let i = 0; i < 70; i++) {
+      const sx2 = camX * 0.55 + (i * 47.7) % (VIEW_W + 40), sy2 = (i * 31.3) % 180;
+      const tw = Math.sin(game.timer * 0.05 + i) * 0.5 + 0.5;
+      g.fillStyle = "rgba(255,255,255," + (0.25 + tw * 0.65) + ")";
+      g.fillRect(sx2, sy2, i % 7 === 0 ? 2.2 : 1.4, i % 7 === 0 ? 2.2 : 1.4);
+    }
+    // the Earth, hanging in the sky
+    const ex = camX + VIEW_W * 0.78, ey = 44;
+    const eg = g.createRadialGradient(ex - 5, ey - 5, 2, ex, ey, 20);
+    eg.addColorStop(0, "#8fd0ff"); eg.addColorStop(0.7, "#3f8fd0"); eg.addColorStop(1, "#2a5fa0");
+    const halo = g.createRadialGradient(ex, ey, 14, ex, ey, 32);
+    halo.addColorStop(0, "rgba(140,200,255,.30)"); halo.addColorStop(1, "rgba(140,200,255,0)");
+    g.fillStyle = halo; g.beginPath(); g.arc(ex, ey, 32, 0, Math.PI*2); g.fill();
+    g.fillStyle = eg; g.beginPath(); g.arc(ex, ey, 17, 0, Math.PI*2); g.fill();
+    g.save(); g.beginPath(); g.arc(ex, ey, 17, 0, Math.PI*2); g.clip();
+    g.fillStyle = "#5fae5a";                                             // little continents
+    g.beginPath(); g.ellipse(ex-6, ey-4, 6, 4, 0.5, 0, Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(ex+7, ey+6, 5, 3.4, -0.4, 0, Math.PI*2); g.fill();
+    g.fillStyle = "rgba(255,255,255,.55)";                                // swirly clouds
+    g.beginPath(); g.ellipse(ex+2, ey-8, 8, 2.2, 0.2, 0, Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(ex-5, ey+7, 7, 2, -0.3, 0, Math.PI*2); g.fill();
+    g.restore();
+    // a slow shooting star now and then
+    const ph = game.timer % 420;
+    if (ph < 40) { const p = ph / 40, sx3 = camX + VIEW_W*0.15 + p*130, sy3 = 26 + p*46;
+      g.strokeStyle = "rgba(255,255,255," + (0.7*(1-p)) + ")"; g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(sx3-14, sy3-6); g.lineTo(sx3, sy3); g.stroke();
+      g.fillStyle = "#fff"; g.beginPath(); g.arc(sx3, sy3, 1.6, 0, Math.PI*2); g.fill(); }
+    // gray crater hills
+    bgLayer(camX, 0.18, 300, bx => {
+      g.fillStyle = "#2e3348";
+      g.beginPath(); g.arc(bx + 70, 214, 52, Math.PI, 0); g.closePath(); g.fill();
+      g.beginPath(); g.arc(bx + 200, 214, 34, Math.PI, 0); g.closePath(); g.fill();
+      g.fillStyle = "rgba(0,0,0,.25)";
+      g.beginPath(); g.ellipse(bx + 70, 176, 12, 4, 0, 0, Math.PI*2); g.fill();
+    });
     return;
   }
   if (theme === "rainbow" || theme === "rainbowcastle") {
@@ -4236,7 +4471,7 @@ function drawTitle() {
 
   // character cards — sized & wrapped to fit however many heroes there are
   game.titleCards = [];
-  const keysArr = ["jules", "northern", "cutie", "nora", "sparkle", "squishy", "icy", "appy"];
+  const keysArr = ["jules", "northern", "cutie", "nora", "sparkle", "squishy", "icy", "appy", "misty"];
   const n = keysArr.length;
   const perRow = n <= 4 ? n : Math.ceil(n / 2);     // 5+ heroes → wrap to two rows
   const rows = Math.ceil(n / perRow), rowGap = 10;
@@ -4247,8 +4482,8 @@ function drawTitle() {
   const thT = Math.min(W/10, 40), chipHT = Math.max(17, Math.min(W/17, 24));
   const stackH = rows*ch + (rows-1)*rowGap + 30 + thT + 12 + 14 + chipHT + 34;
   const cy0 = Math.min(H * (W > H ? 0.50 : 0.46), H - stackH);
-  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2", "#ffce3a", "#ff8ab0", "#5ec2e0", "#f0564a"];
-  const nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e", "#d39a1e", "#e0608c", "#2f8fb0", "#c8362c"];
+  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2", "#ffce3a", "#ff8ab0", "#5ec2e0", "#f0564a", "#e8b64a"];
+  const nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e", "#d39a1e", "#e0608c", "#2f8fb0", "#c8362c", "#b8862c"];
   keysArr.forEach((k, i) => {
     const row = Math.floor(i / perRow);
     const inRow = (row === rows-1) ? (n - perRow*(rows-1)) : perRow;
@@ -4354,10 +4589,10 @@ function drawWinScreen() {
 
   // all the heroes celebrating
   const ks = Math.min(W, H) / 140;
-  [["jules", -3.5], ["northern", -2.5], ["cutie", -1.5], ["squishy", -0.5], ["appy", 0.5], ["icy", 1.5], ["sparkle", 2.5], ["nora", 3.5]].forEach(([k, side]) => {
+  [["jules", -4], ["northern", -3], ["cutie", -2], ["squishy", -1], ["misty", 0], ["appy", 1], ["icy", 2], ["sparkle", 3], ["nora", 4]].forEach(([k, side]) => {
     g.save();
     const hop = Math.abs(Math.sin(game.timer * 0.1 + (side+2))) * 14;
-    g.translate(W/2 + side * Math.min(W*0.085, 48), H*0.62 - hop);
+    g.translate(W/2 + side * Math.min(W*0.078, 42), H*0.62 - hop);
     g.scale(ks, ks);
     drawKid(g, 0, 0, CHARS[k], 0, side < 0 ? 1 : -1, true, false);
     g.restore();
