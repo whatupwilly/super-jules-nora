@@ -227,13 +227,13 @@ function refreshContextBtns() {
   const wantX = game.state === "play" && game.inPlayground;
   if (wantX !== exitBtnShown) { exitBtnShown = wantX; btnX.style.display = wantX ? "block" : "none"; }
   const look = CHARS[heroKey].look;
-  // btnP is Sparkle's portal 🌀 — and Chun Mi's SING 🎤 (charged by 4 blue gems)
+  // btnP is Sparkle's portal 🌀 — and Chun Mi's SING 🎤 (charged by 2 blue gems)
   const wantP = game.state === "play" && !game.inPlayground && (look === "unicorn" || look === "chunmi");
   if (wantP !== portalBtnShown) { portalBtnShown = wantP; btnP.style.display = wantP ? "block" : "none"; }
   if (wantP) {
     const label = look === "chunmi" ? "🎤" : "🌀";
     if (btnP.textContent !== label) btnP.textContent = label;
-    btnP.style.opacity = (look === "chunmi" && (player.songGems || 0) < 4) ? "0.4" : "1";
+    btnP.style.opacity = (look === "chunmi" && (player.songGems || 0) < 2) ? "0.4" : "1";
   }
   // btnS is Icy's wing shield 🛡️ — and Chun Mi's hold-to-skate ⛸️ (she ices the ground)
   const wantS = game.state === "play" && (look === "penguin" || look === "chunmi");
@@ -3412,8 +3412,8 @@ function updatePlay() {
   if (input.portalPressed) {
     input.portalPressed = false;
     if (CHARS[heroKey].look === "unicorn" && player.portalCool <= 0) doPortal();
-    // Chun Mi's super singing voice — charged by 4 blue gems
-    if (CHARS[heroKey].look === "chunmi" && (player.songGems || 0) >= 4) songBlast();
+    // Chun Mi's super singing voice — charged by just 2 blue gems
+    if (CHARS[heroKey].look === "chunmi" && (player.songGems || 0) >= 2) songBlast();
   }
 
   // --- magic: Chun-me's stars / Chuckee's lightning ---
@@ -3469,8 +3469,8 @@ function updatePlay() {
       p.gone = true; game.score += 1000;
       if (CHARS[heroKey].look === "unicorn") { player.glow = 300; SFX.grow(); }   // Sparkle: glow + indestructible 5s
       if (CHARS[heroKey].look === "dumpling") { player.dumpSparkle = 1200; SFX.grow(); }  // Squishy: blue gem → 20s sparkle, every-color dumplings
-      if (p.type === "flower" && CHARS[heroKey].look === "chunmi")                // Chun Mi: 4 blue gems charge her singing voice
-        player.songGems = Math.min(4, (player.songGems || 0) + 1);
+      if (p.type === "flower" && CHARS[heroKey].look === "chunmi")                // Chun Mi: 2 blue gems charge her singing voice
+        player.songGems = Math.min(2, (player.songGems || 0) + 1);
       if (p.type === "flower") { setPower(2); superBlast(); }      // blue star: super form + blast
       else { setPower(Math.max(1, player.power)); SFX.grow(); }    // mushroom never downgrades
       game.pops.push({ x: p.x + p.w/2, y: p.y, t: 0 });
