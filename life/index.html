@@ -161,6 +161,22 @@ const CHARS = {
     fEye:"#2a1c12", fMouth:"#dd5f7e", fHairFlower:"#4aa6f0", fHairFlowerCtr:"#ffd166",
     wandStem:"#5aa84f", wandPetal:"#f0559c", wandCtr:"#ffd166", wandLeaf:"#5cc463",
   },
+  chunmi: {
+    name: "CHUN MI", kind: "bunny", look: "chunmi", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // Chun Mi — a stylish HUMAN girl straight from Jules's sketch: long black
+    // hair with a purple band on her bangs, winking eye, red-rosy cheeks,
+    // necklace, white crop top, open blue jacket, teal skirt, heeled boots.
+    // Blue gem: hair shifts purple/blue/black + two little pink bang pieces.
+    cmHair:"#1a1418", cmHairLt:"#3a3038",
+    cmHairPurple:"#5a3aa8", cmHairBlue:"#2c4fb0", cmPink:"#ff8ec4",
+    cmBand:"#6a3ad0", cmSkin:"#fce0c2", cmCheek:"#e0475a", cmEye:"#2a2026",
+    cmJacket:"#1f4fc8", cmJacketDk:"#16389a", cmTop:"#fdfdfd", cmTopShade:"#e2e2ea",
+    cmSkirt:"#35b8cc", cmSkirtDk:"#2492a8", cmBoot:"#2ba8bc", cmBootDk:"#1a7a8c",
+    cmMouth:"#dd5f7e", cmNeck:"#c8ccd8",
+    note:"#ffd166", noteDk:"#e8a33d",
+  },
   northern: {
     name: "NORTHERN LIGHT", kind: "bunny", look: "fox", flyMax: 1200,
     body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
@@ -213,7 +229,8 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   ctx.translate(x, y);
   if (power > 0) ctx.scale(1.18, 1.32);
   if (facing < 0) ctx.scale(-1, 1);
-  if (pal.look === "fairy") drawFairyBody(ctx, pal, frame, airborne, walking, power);
+  if (pal.look === "chunmi") drawChunMiBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "fairy") drawFairyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "horse") drawMistyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "apple") drawAppyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "penguin") drawIcyBody(ctx, pal, frame, airborne, walking, power);
@@ -226,6 +243,146 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   else if (pal.look === "princess") drawRosalinaBody(ctx, pal, frame, airborne, walking);
   else if (pal.kind === "cloud") drawChuckeeBody(ctx, pal);
   else drawChunmeBody(ctx, pal, frame, airborne, walking);
+  ctx.restore();
+}
+
+/* Chun Mi: a stylish HUMAN girl from Jules's sketch — long black hair with a
+   purple band across her bangs, one big sparkly eye and one winking eye, red
+   rosy cheeks, a necklace, white crop top under an open blue jacket, teal
+   skirt and heeled boots. With the blue gem her hair shifts purple/blue/black
+   and TWO little pink pieces appear on her upper bangs. Feet at (0,0). */
+function drawChunMiBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  // gem hair magic: slowly cycles purple → blue → black
+  const hairCol = power >= 2 ? [pal.cmHairPurple, pal.cmHairBlue, pal.cmHair][Math.floor(t / 160) % 3] : pal.cmHair;
+  const hairLt  = power >= 2 ? "rgba(255,255,255,.25)" : pal.cmHairLt;
+
+  // ---- long hair behind her (two soft falls with wavy ends) ----
+  ctx.fillStyle = hairCol;
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(s * 3, -36);
+    ctx.quadraticCurveTo(s * 9.5, -33, s * 8.6, -22);
+    ctx.quadraticCurveTo(s * 8.2, -16, s * 9.6, -13.5);   // wavy flick at the end
+    ctx.quadraticCurveTo(s * 6.4, -11.5, s * 5.4, -14);
+    ctx.quadraticCurveTo(s * 5.8, -20, s * 4.2, -26);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // ---- long legs + heeled boots ----
+  const step = walking ? (frame ? 1.8 : -1.8) : 0;
+  ctx.strokeStyle = pal.cmSkin; ctx.lineWidth = 2.6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-2.4, -12); ctx.lineTo(-2.6 + step, -3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(2.4, -12); ctx.lineTo(2.6 - step, -3); ctx.stroke();
+  ctx.fillStyle = pal.cmBoot;
+  for (const [bx, sd] of [[-2.6 + step, -1], [2.6 - step, 1]]) {
+    rrPath(ctx, bx - 2, -4.6, 4, 4, 1.4); ctx.fill();                 // boot
+    ctx.fillRect(bx - 2, -1, 4.6, 1.2);                               // foot
+    ctx.fillStyle = pal.cmBootDk; ctx.fillRect(bx + 1.4, -1, 1.4, 1.2); // little heel
+    ctx.fillStyle = pal.cmBoot;
+  }
+
+  // ---- teal skirt with the black marks from her sketch ----
+  const sg = ctx.createLinearGradient(0, -18, 0, -10);
+  sg.addColorStop(0, pal.cmSkirt); sg.addColorStop(1, pal.cmSkirtDk);
+  ctx.fillStyle = sg;
+  ctx.beginPath();
+  ctx.moveTo(-4.2, -18); ctx.lineTo(4.2, -18);
+  ctx.lineTo(6.4, -10.5); ctx.lineTo(-6.4, -10.5);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#16181d"; ctx.lineWidth = 1.1; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-2.2, -15.5); ctx.lineTo(-2.6, -12);
+  ctx.moveTo(0, -15.5); ctx.lineTo(0, -12);
+  ctx.moveTo(2.2, -15.5); ctx.lineTo(2.6, -12);
+  ctx.stroke();
+
+  // ---- bare tummy + white crop top ----
+  ctx.fillStyle = pal.cmSkin; ctx.fillRect(-3.4, -20.5, 6.8, 2.8);
+  const tg = ctx.createLinearGradient(0, -25, 0, -20);
+  tg.addColorStop(0, pal.cmTop); tg.addColorStop(1, pal.cmTopShade);
+  ctx.fillStyle = tg; rrPath(ctx, -3.8, -25.5, 7.6, 5.4, 1.5); ctx.fill();
+
+  // ---- open blue jacket: two front panels + sleeves ----
+  const jg = ctx.createLinearGradient(0, -26, 0, -13);
+  jg.addColorStop(0, pal.cmJacket); jg.addColorStop(1, pal.cmJacketDk);
+  ctx.fillStyle = jg;
+  ctx.beginPath();                                        // left panel
+  ctx.moveTo(-5.6, -26); ctx.lineTo(-3.2, -26); ctx.lineTo(-3.6, -17.5);
+  ctx.lineTo(-6.2, -18.5); ctx.closePath(); ctx.fill();
+  ctx.beginPath();                                        // right panel
+  ctx.moveTo(5.6, -26); ctx.lineTo(3.2, -26); ctx.lineTo(3.6, -17.5);
+  ctx.lineTo(6.2, -18.5); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = pal.cmJacket; ctx.lineWidth = 2.8; ctx.lineCap = "round";
+  const armSwing = airborne ? -2 : step * 0.6;
+  ctx.beginPath(); ctx.moveTo(-5, -24.5); ctx.lineTo(-6.8, -16.5 + armSwing); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(5, -24.5); ctx.lineTo(6.8, -16.5 - armSwing); ctx.stroke();
+  ctx.fillStyle = pal.cmSkin;                             // little hands
+  ctx.beginPath(); ctx.arc(-6.9, -15 + armSwing, 1.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(6.9, -15 - armSwing, 1.5, 0, Math.PI*2); ctx.fill();
+  // necklace
+  ctx.strokeStyle = pal.cmNeck; ctx.lineWidth = 0.7;
+  ctx.beginPath(); ctx.arc(0, -26.5, 2.2, 0.25 * Math.PI, 0.75 * Math.PI); ctx.stroke();
+  ctx.fillStyle = "#eef2f8"; ctx.beginPath(); ctx.arc(0, -24.6, 0.9, 0, Math.PI*2); ctx.fill();
+
+  // ---- head ----
+  ctx.fillStyle = pal.cmSkin;
+  ctx.beginPath(); ctx.arc(0, -32.5, 7, 0, Math.PI*2); ctx.fill();
+  // bangs — soft cap of hair over the top
+  ctx.fillStyle = hairCol;
+  ctx.beginPath(); ctx.arc(0, -34, 7.15, Math.PI * 0.98, Math.PI * 2.02); ctx.fill();
+  ctx.beginPath();                                        // bang tips over the forehead
+  ctx.moveTo(-7.1, -33.5);
+  ctx.quadraticCurveTo(-5, -30.5, -3.4, -33);
+  ctx.quadraticCurveTo(-1.5, -30.8, 0.6, -33.2);
+  ctx.quadraticCurveTo(2.6, -31, 4.4, -33.2);
+  ctx.quadraticCurveTo(6, -31.5, 7.1, -33.5);
+  ctx.lineTo(7.1, -36); ctx.lineTo(-7.1, -36);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = hairLt;                                 // hair shine
+  ctx.beginPath(); ctx.arc(-2.4, -38, 2.4, Math.PI, Math.PI * 1.7); ctx.fill();
+  // purple band across the top of her bangs
+  ctx.strokeStyle = pal.cmBand; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(0, -33.6, 6.5, Math.PI * 1.18, Math.PI * 1.82); ctx.stroke();
+  // gem magic: exactly TWO little pink pieces on the upper side of her bangs
+  if (power >= 2) {
+    ctx.strokeStyle = pal.cmPink; ctx.lineWidth = 1.1; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-3.2, -38.6); ctx.quadraticCurveTo(-2.6, -36.4, -3.1, -34.6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-0.8, -39.2); ctx.quadraticCurveTo(-0.2, -37, -0.7, -35.2); ctx.stroke();
+  }
+  // face: one big sparkly eye, one winking eye — just like the sketch
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(-2.4, -31.5, 1.9, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.cmEye;
+  ctx.beginPath(); ctx.arc(-2.2, -31.4, 1.2, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(-2.7, -31.9, 0.55, 0, Math.PI*2); ctx.fill();   // sparkle
+  ctx.strokeStyle = pal.cmEye; ctx.lineWidth = 0.8; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(2.8, -31.6, 1.5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();  // wink ~
+  // red-rosy cheeks (bold, like she drew them!)
+  ctx.fillStyle = pal.cmCheek;
+  ctx.globalAlpha = 0.8;
+  ctx.beginPath(); ctx.arc(-4.6, -29.4, 1.5, 0, Math.PI*2); ctx.arc(4.8, -29.4, 1.5, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+  // little smile
+  ctx.strokeStyle = pal.cmMouth; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.arc(0.2, -28.8, 1.5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+  // tiny music note floating by her when powered up — she's ready to SING
+  if (power >= 2 && (t & 15) < 9)
+    drawMusicNote(ctx, 10, -40 + Math.sin(t * 0.1) * 1.6, 0.55, pal.note);
+}
+
+/* a little eighth-note ♪ used for Chun Mi's magic everywhere */
+function drawMusicNote(ctx, x, y, s, col) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.fillStyle = col || "#ffd166";
+  ctx.strokeStyle = col || "#ffd166"; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.ellipse(-2, 4.5, 3.1, 2.3, -0.35, 0, Math.PI*2); ctx.fill();  // note head
+  ctx.beginPath(); ctx.moveTo(0.9, 3.8); ctx.lineTo(0.9, -5.5); ctx.stroke();        // stem
+  ctx.beginPath();                                                                    // flag
+  ctx.moveTo(0.9, -5.5); ctx.quadraticCurveTo(4.6, -4.2, 4.2, -0.6);
+  ctx.quadraticCurveTo(3.4, -2.8, 0.9, -3.2);
+  ctx.closePath(); ctx.fill();
   ctx.restore();
 }
 
@@ -1266,7 +1423,7 @@ function drawPug(ctx, cx, feetY) {
 }
 
 /* ------------------------------ world ------------------------------ */
-const DOLL_KEYS = ["jules","northern","cutie","nora","sparkle","squishy","icy","appy","misty","fairy"];
+const DOLL_KEYS = ["jules","northern","cutie","nora","sparkle","squishy","icy","appy","misty","fairy","chunmi"];
 const ROOMS = [
   { key:"living",     name:"Home",     emoji:"🛋" },
   { key:"kitchen",    name:"Kitchen",  emoji:"🍳" },
