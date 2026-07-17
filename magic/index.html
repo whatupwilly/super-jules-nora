@@ -3323,8 +3323,8 @@ function updatePlay() {
   const horse = CHARS[heroKey].look === "horse";     // Misty gallops: quick to run, and FAST
   const fastWings = CHARS[heroKey].look === "fairy" && player.flying;   // Nora flies REALLY fast
   const running = player.runCharge > (horse ? 10 : 30);
-  const maxV = (running ? RUN_MAX : WALK_MAX) * (horse ? 1.45 : 1) * (fastWings ? 1.6 : 1)
-             * (player.skating ? 1.12 : 1);           // Chun Mi glides on her own ice — gently, not too fast
+  const maxV = (running ? RUN_MAX : WALK_MAX) * (horse ? 1.45 : 1) * (fastWings ? 1.6 : 1);
+  // Chun Mi's skating glides at good regular running speed — no extra boost
   // ice is slippery — low grip means you keep sliding. Northern Light skates best.
   const icy = (game.level.icy || player.skating) && player.grounded;
   const grip = icy ? (player.skating ? 0.68 : CHARS[heroKey].look === "fox" ? 0.62 : 0.32) : 1;
@@ -3334,7 +3334,7 @@ function updatePlay() {
     if (player.vx * dir < 0) {
       player.vx += dir * (player.grounded ? DEC_SKID * (icy ? grip : 1) : ACC_RUN);   // skid turn
     } else if (Math.abs(player.vx) < maxV) {
-      player.vx += dir * (running ? ACC_RUN : ACC_WALK) * (horse ? 1.5 : 1) * (fastWings ? 1.6 : 1) * (player.skating ? 1.12 : 1);
+      player.vx += dir * (running ? ACC_RUN : ACC_WALK) * (horse ? 1.5 : 1) * (fastWings ? 1.6 : 1);
       if (Math.abs(player.vx) > maxV) player.vx = dir * maxV;
       if (horse && player.grounded && Math.abs(player.vx) > 2.4 && (game.timer & 7) === 0)
         game.particles.push({ x: player.x + player.w/2 - dir*8, y: player.y + player.h - 1,
