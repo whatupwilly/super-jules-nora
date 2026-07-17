@@ -226,10 +226,22 @@ function refreshContextBtns() {
   if (wantD !== downBtnShown) { downBtnShown = wantD; btnD.style.display = wantD ? "block" : "none"; }
   const wantX = game.state === "play" && game.inPlayground;
   if (wantX !== exitBtnShown) { exitBtnShown = wantX; btnX.style.display = wantX ? "block" : "none"; }
-  const wantP = game.state === "play" && !game.inPlayground && CHARS[heroKey].look === "unicorn";  // Sparkle's portal
+  const look = CHARS[heroKey].look;
+  // btnP is Sparkle's portal 🌀 — and Chun Mi's SING 🎤 (charged by 4 blue gems)
+  const wantP = game.state === "play" && !game.inPlayground && (look === "unicorn" || look === "chunmi");
   if (wantP !== portalBtnShown) { portalBtnShown = wantP; btnP.style.display = wantP ? "block" : "none"; }
-  const wantS = game.state === "play" && CHARS[heroKey].look === "penguin";                        // Icy's wing shield
+  if (wantP) {
+    const label = look === "chunmi" ? "🎤" : "🌀";
+    if (btnP.textContent !== label) btnP.textContent = label;
+    btnP.style.opacity = (look === "chunmi" && (player.songGems || 0) < 4) ? "0.4" : "1";
+  }
+  // btnS is Icy's wing shield 🛡️ — and Chun Mi's hold-to-skate ⛸️ (she ices the ground)
+  const wantS = game.state === "play" && (look === "penguin" || look === "chunmi");
   if (wantS !== shieldBtnShown) { shieldBtnShown = wantS; btnS.style.display = wantS ? "block" : "none"; }
+  if (wantS) {
+    const labelS = look === "chunmi" ? "⛸️" : "🛡️";
+    if (btnS.textContent !== labelS) btnS.textContent = labelS;
+  }
 }
 
 /* ============================== CHARACTERS ============================== */
@@ -309,6 +321,22 @@ const CHARS = {
     fEye:"#2a1c12", fMouth:"#dd5f7e", fHairFlower:"#4aa6f0", fHairFlowerCtr:"#ffd166",
     wandStem:"#5aa84f", wandPetal:"#f0559c", wandCtr:"#ffd166", wandLeaf:"#5cc463",
   },
+  chunmi: {
+    name: "CHUN MI", kind: "bunny", look: "chunmi", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // Chun Mi — a stylish HUMAN girl straight from Jules's sketch: long black
+    // hair with a purple band on her bangs, winking eye, red-rosy cheeks,
+    // necklace, white crop top, open blue jacket, teal skirt, heeled boots.
+    // Blue gem: hair shifts purple/blue/black + two little pink bang pieces.
+    cmHair:"#1a1418", cmHairLt:"#3a3038",
+    cmHairPurple:"#5a3aa8", cmHairBlue:"#2c4fb0", cmPink:"#ff8ec4",
+    cmBand:"#6a3ad0", cmSkin:"#fce0c2", cmCheek:"#e0475a", cmEye:"#2a2026",
+    cmJacket:"#1f4fc8", cmJacketDk:"#16389a", cmTop:"#fdfdfd", cmTopShade:"#e2e2ea",
+    cmSkirt:"#35b8cc", cmSkirtDk:"#2492a8", cmBoot:"#2ba8bc", cmBootDk:"#1a7a8c",
+    cmMouth:"#dd5f7e", cmNeck:"#c8ccd8",
+    note:"#ffd166", noteDk:"#e8a33d",
+  },
   northern: {
     name: "NORTHERN LIGHT", kind: "bunny", look: "fox", flyMax: 1200,
     body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
@@ -376,7 +404,8 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   ctx.translate(x, y);
   if (power > 0) ctx.scale(1.18, 1.32);
   if (facing < 0) ctx.scale(-1, 1);
-  if (pal.look === "fairy") drawFairyBody(ctx, pal, frame, airborne, walking, power);
+  if (pal.look === "chunmi") drawChunMiBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "fairy") drawFairyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "horse") drawMistyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "apple") drawAppyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "penguin") drawIcyBody(ctx, pal, frame, airborne, walking, power);
@@ -712,6 +741,146 @@ function drawPowerup(ctx, p) {
 /* Sparkle the unicorn: white chibi body, rainbow mane & tail, golden spiral
    horn, big sparkly eye. Glows with a rainbow shimmer when powered up.
    Feet at (0,0), facing right. */
+/* Chun Mi: a stylish HUMAN girl from Jules's sketch — long black hair with a
+   purple band across her bangs, one big sparkly eye and one winking eye, red
+   rosy cheeks, a necklace, white crop top under an open blue jacket, teal
+   skirt and heeled boots. With the blue gem her hair shifts purple/blue/black
+   and TWO little pink pieces appear on her upper bangs. Feet at (0,0). */
+function drawChunMiBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  // gem hair magic: slowly cycles purple → blue → black
+  const hairCol = power >= 2 ? [pal.cmHairPurple, pal.cmHairBlue, pal.cmHair][Math.floor(t / 160) % 3] : pal.cmHair;
+  const hairLt  = power >= 2 ? "rgba(255,255,255,.25)" : pal.cmHairLt;
+
+  // ---- long hair behind her (two soft falls with wavy ends) ----
+  ctx.fillStyle = hairCol;
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(s * 3, -36);
+    ctx.quadraticCurveTo(s * 9.5, -33, s * 8.6, -22);
+    ctx.quadraticCurveTo(s * 8.2, -16, s * 9.6, -13.5);   // wavy flick at the end
+    ctx.quadraticCurveTo(s * 6.4, -11.5, s * 5.4, -14);
+    ctx.quadraticCurveTo(s * 5.8, -20, s * 4.2, -26);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // ---- long legs + heeled boots ----
+  const step = walking ? (frame ? 1.8 : -1.8) : 0;
+  ctx.strokeStyle = pal.cmSkin; ctx.lineWidth = 2.6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-2.4, -12); ctx.lineTo(-2.6 + step, -3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(2.4, -12); ctx.lineTo(2.6 - step, -3); ctx.stroke();
+  ctx.fillStyle = pal.cmBoot;
+  for (const [bx, sd] of [[-2.6 + step, -1], [2.6 - step, 1]]) {
+    rrPath(ctx, bx - 2, -4.6, 4, 4, 1.4); ctx.fill();                 // boot
+    ctx.fillRect(bx - 2, -1, 4.6, 1.2);                               // foot
+    ctx.fillStyle = pal.cmBootDk; ctx.fillRect(bx + 1.4, -1, 1.4, 1.2); // little heel
+    ctx.fillStyle = pal.cmBoot;
+  }
+
+  // ---- teal skirt with the black marks from her sketch ----
+  const sg = ctx.createLinearGradient(0, -18, 0, -10);
+  sg.addColorStop(0, pal.cmSkirt); sg.addColorStop(1, pal.cmSkirtDk);
+  ctx.fillStyle = sg;
+  ctx.beginPath();
+  ctx.moveTo(-4.2, -18); ctx.lineTo(4.2, -18);
+  ctx.lineTo(6.4, -10.5); ctx.lineTo(-6.4, -10.5);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#16181d"; ctx.lineWidth = 1.1; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-2.2, -15.5); ctx.lineTo(-2.6, -12);
+  ctx.moveTo(0, -15.5); ctx.lineTo(0, -12);
+  ctx.moveTo(2.2, -15.5); ctx.lineTo(2.6, -12);
+  ctx.stroke();
+
+  // ---- bare tummy + white crop top ----
+  ctx.fillStyle = pal.cmSkin; ctx.fillRect(-3.4, -20.5, 6.8, 2.8);
+  const tg = ctx.createLinearGradient(0, -25, 0, -20);
+  tg.addColorStop(0, pal.cmTop); tg.addColorStop(1, pal.cmTopShade);
+  ctx.fillStyle = tg; rrPath(ctx, -3.8, -25.5, 7.6, 5.4, 1.5); ctx.fill();
+
+  // ---- open blue jacket: two front panels + sleeves ----
+  const jg = ctx.createLinearGradient(0, -26, 0, -13);
+  jg.addColorStop(0, pal.cmJacket); jg.addColorStop(1, pal.cmJacketDk);
+  ctx.fillStyle = jg;
+  ctx.beginPath();                                        // left panel
+  ctx.moveTo(-5.6, -26); ctx.lineTo(-3.2, -26); ctx.lineTo(-3.6, -17.5);
+  ctx.lineTo(-6.2, -18.5); ctx.closePath(); ctx.fill();
+  ctx.beginPath();                                        // right panel
+  ctx.moveTo(5.6, -26); ctx.lineTo(3.2, -26); ctx.lineTo(3.6, -17.5);
+  ctx.lineTo(6.2, -18.5); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = pal.cmJacket; ctx.lineWidth = 2.8; ctx.lineCap = "round";
+  const armSwing = airborne ? -2 : step * 0.6;
+  ctx.beginPath(); ctx.moveTo(-5, -24.5); ctx.lineTo(-6.8, -16.5 + armSwing); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(5, -24.5); ctx.lineTo(6.8, -16.5 - armSwing); ctx.stroke();
+  ctx.fillStyle = pal.cmSkin;                             // little hands
+  ctx.beginPath(); ctx.arc(-6.9, -15 + armSwing, 1.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(6.9, -15 - armSwing, 1.5, 0, Math.PI*2); ctx.fill();
+  // necklace
+  ctx.strokeStyle = pal.cmNeck; ctx.lineWidth = 0.7;
+  ctx.beginPath(); ctx.arc(0, -26.5, 2.2, 0.25 * Math.PI, 0.75 * Math.PI); ctx.stroke();
+  ctx.fillStyle = "#eef2f8"; ctx.beginPath(); ctx.arc(0, -24.6, 0.9, 0, Math.PI*2); ctx.fill();
+
+  // ---- head ----
+  ctx.fillStyle = pal.cmSkin;
+  ctx.beginPath(); ctx.arc(0, -32.5, 7, 0, Math.PI*2); ctx.fill();
+  // bangs — soft cap of hair over the top
+  ctx.fillStyle = hairCol;
+  ctx.beginPath(); ctx.arc(0, -34, 7.15, Math.PI * 0.98, Math.PI * 2.02); ctx.fill();
+  ctx.beginPath();                                        // bang tips over the forehead
+  ctx.moveTo(-7.1, -33.5);
+  ctx.quadraticCurveTo(-5, -30.5, -3.4, -33);
+  ctx.quadraticCurveTo(-1.5, -30.8, 0.6, -33.2);
+  ctx.quadraticCurveTo(2.6, -31, 4.4, -33.2);
+  ctx.quadraticCurveTo(6, -31.5, 7.1, -33.5);
+  ctx.lineTo(7.1, -36); ctx.lineTo(-7.1, -36);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = hairLt;                                 // hair shine
+  ctx.beginPath(); ctx.arc(-2.4, -38, 2.4, Math.PI, Math.PI * 1.7); ctx.fill();
+  // purple band across the top of her bangs
+  ctx.strokeStyle = pal.cmBand; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(0, -33.6, 6.5, Math.PI * 1.18, Math.PI * 1.82); ctx.stroke();
+  // gem magic: exactly TWO little pink pieces on the upper side of her bangs
+  if (power >= 2) {
+    ctx.strokeStyle = pal.cmPink; ctx.lineWidth = 1.1; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-3.2, -38.6); ctx.quadraticCurveTo(-2.6, -36.4, -3.1, -34.6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-0.8, -39.2); ctx.quadraticCurveTo(-0.2, -37, -0.7, -35.2); ctx.stroke();
+  }
+  // face: one big sparkly eye, one winking eye — just like the sketch
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(-2.4, -31.5, 1.9, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.cmEye;
+  ctx.beginPath(); ctx.arc(-2.2, -31.4, 1.2, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(-2.7, -31.9, 0.55, 0, Math.PI*2); ctx.fill();   // sparkle
+  ctx.strokeStyle = pal.cmEye; ctx.lineWidth = 0.8; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(2.8, -31.6, 1.5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();  // wink ~
+  // red-rosy cheeks (bold, like she drew them!)
+  ctx.fillStyle = pal.cmCheek;
+  ctx.globalAlpha = 0.8;
+  ctx.beginPath(); ctx.arc(-4.6, -29.4, 1.5, 0, Math.PI*2); ctx.arc(4.8, -29.4, 1.5, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+  // little smile
+  ctx.strokeStyle = pal.cmMouth; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.arc(0.2, -28.8, 1.5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+  // tiny music note floating by her when powered up — she's ready to SING
+  if (power >= 2 && (t & 15) < 9)
+    drawMusicNote(ctx, 10, -40 + Math.sin(t * 0.1) * 1.6, 0.55, pal.note);
+}
+
+/* a little eighth-note ♪ used for Chun Mi's magic everywhere */
+function drawMusicNote(ctx, x, y, s, col) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.fillStyle = col || "#ffd166";
+  ctx.strokeStyle = col || "#ffd166"; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.ellipse(-2, 4.5, 3.1, 2.3, -0.35, 0, Math.PI*2); ctx.fill();  // note head
+  ctx.beginPath(); ctx.moveTo(0.9, 3.8); ctx.lineTo(0.9, -5.5); ctx.stroke();        // stem
+  ctx.beginPath();                                                                    // flag
+  ctx.moveTo(0.9, -5.5); ctx.quadraticCurveTo(4.6, -4.2, 4.2, -0.6);
+  ctx.quadraticCurveTo(3.4, -2.8, 0.9, -3.2);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
 /* Nora the fairy: dark hair with a blue flower, sparkly purple butterfly
    wings (they turn BLUE when she has the blue diamond), a teal skirt and a
    flower wand in her hand. Feet at (0,0), facing right. */
@@ -1177,6 +1346,27 @@ function drawIcyBody(ctx, pal, frame, airborne, walking, power) {
 }
 
 /* Icy floats on a drifting chunk of ice. */
+/* Chun Mi flies on MAGICAL MUSIC NOTES — a little dancing chord under her
+   feet, each note bobbing to its own beat, with sparkles between them. */
+function drawNotesRide(cx, feetY, t, facing) {
+  g.save();
+  g.translate(cx, feetY + 6);
+  if (facing < 0) g.scale(-1, 1);
+  // soft golden glow underneath
+  const glow = g.createRadialGradient(0, 0, 2, 0, 0, 24);
+  glow.addColorStop(0, "rgba(255,220,120,.45)"); glow.addColorStop(1, "rgba(255,220,120,0)");
+  g.fillStyle = glow; g.beginPath(); g.ellipse(0, 2, 24, 10, 0, 0, Math.PI*2); g.fill();
+  // three notes bobbing to their own beats
+  for (let i = 0; i < 3; i++) {
+    const bx = (i - 1) * 13, by = Math.sin(t * 0.18 + i * 2.1) * 2.4;
+    drawMusicNote(g, bx, by, 1.05, ["#ffd166", "#ffb8dd", "#9bd0ff"][i]);
+  }
+  // sparkles dancing along
+  if ((t & 7) < 4) drawStarShape(g, -18, Math.sin(t * 0.2) * 3 - 4, 1.6, 0.7, t * 0.1, "#fff");
+  if ((t & 7) >= 4) drawStarShape(g, 18, Math.cos(t * 0.17) * 3 - 2, 1.4, 0.6, t * 0.12, "#fff3b0");
+  g.restore();
+}
+
 function drawIceFloeRide(cx, feetY, t, facing) {
   g.save();
   g.translate(cx, feetY + 3.5 + Math.sin(t*0.15)*0.8);
@@ -1788,6 +1978,19 @@ function drawWaterWeb(ctx, cx, cy, r, webT) {
 
 function drawFireball(ctx, f, t) {
   const cx = f.x + 2.5, cy = f.y + 2.5;
+  if (f.kind === "note") {                   // Chun Mi's musical notes — golden, glowing, dancing
+    const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 8);
+    glow.addColorStop(0, "rgba(255,225,140,.85)"); glow.addColorStop(1, "rgba(255,210,100,0)");
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2); ctx.fill();
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(Math.sin(f.t * 0.25) * 0.3);
+    if ((Math.sign(f.vx) || 1) < 0) ctx.scale(-1, 1);
+    drawMusicNote(ctx, 0, 0, 0.8, "#ffd166");
+    ctx.restore();
+    if ((f.t & 3) === 0) drawStarShape(ctx, cx - f.vx * 2, cy + Math.sin(f.t * 0.5) * 3, 1.1, 0.5, f.t * 0.2, "#fff3b0");
+    return;
+  }
   if (f.kind === "bubble") {                 // Nora's wand bubbles — wobbly, rainbow-sheened
     const wob = 1 + Math.sin(f.t * 0.35) * 0.1;
     ctx.save();
@@ -2196,6 +2399,32 @@ function drawPug(ctx, cx, feetY) {
   ctx.fillStyle = "#ff5e7e";
   ctx.fillRect(-8.8, -5, 6.4, 1.4);
   ctx.restore();
+}
+
+/* Chun Mi's REALLY powerful singing voice: her song explodes into musical
+   notes — every bad guy on screen turns into a note and floats away. */
+function songBlast() {
+  player.songGems = 0;
+  game.superFx = { type: "fireworks", t: 0 };
+  SFX.superb();
+  // a burst of notes rings out around her
+  for (let i = 0; i < 12; i++)
+    game.particles.push({ x: player.x + player.w/2, y: player.y + player.h * 0.3,
+      vx: Math.cos(i * 0.524) * 2.6, vy: Math.sin(i * 0.524) * 2.6 - 0.8, t: 0,
+      c: ["#ffd166", "#ffb8dd", "#9bd0ff", "#fff3b0"][i % 4] });
+  for (const e of game.level.enemies) {
+    if (e.dead || !e.active) continue;
+    if (e.x > game.camX - 20 && e.x < game.camX + VIEW_W + 20) {
+      e.dead = 1; e.noted = true; game.score += 200;
+      for (let i = 0; i < 6; i++)
+        game.particles.push({ x: e.x + 6, y: e.y + 6,
+          vx: Math.cos(i * 1.05) * 2, vy: Math.sin(i * 1.05) * 2 - 1, t: 0,
+          c: ["#ffd166", "#fff3b0", "#ffb8dd"][i % 3] });
+    }
+  }
+  for (const pg of game.pigeons) {
+    if (pg.dead === 0) { pg.dead = 1; pg.vy = -1.6; game.score += 150; }
+  }
 }
 
 function superBlast() {
@@ -3001,6 +3230,13 @@ function updatePlay() {
   player.shielding = CHARS[heroKey].look === "penguin" && input.shield && player.grounded;
   if (player.shielding) { player.vx *= 0.55; input.jumpPressed = false; player.jumpBuf = 0; }
 
+  // --- Chun Mi's skate: hold ⛸️ to freeze the ground under her to ice and glide fast ---
+  player.skating = CHARS[heroKey].look === "chunmi" && input.shield && player.grounded;
+  if (player.skating && Math.abs(player.vx) > 0.8 && (game.timer & 2) === 0)
+    game.particles.push({ x: player.x + player.w/2 - Math.sign(player.vx) * 6, y: player.y + player.h - 1,
+      vx: -Math.sign(player.vx) * 0.4, vy: -0.3 - Math.random() * 0.5, t: 0,
+      c: ["#bfe8ff", "#e8f6ff"][game.timer % 2] });
+
   // --- horizontal: walk/auto-run with SMB accel, release decel and skid ---
   const dir = player.shielding ? 0 : (input.right ? 1 : 0) - (input.left ? 1 : 0);
   if (dir !== 0) {
@@ -3010,17 +3246,18 @@ function updatePlay() {
   const horse = CHARS[heroKey].look === "horse";     // Misty gallops: quick to run, and FAST
   const fastWings = CHARS[heroKey].look === "fairy" && player.flying;   // Nora flies REALLY fast
   const running = player.runCharge > (horse ? 10 : 30);
-  const maxV = (running ? RUN_MAX : WALK_MAX) * (horse ? 1.45 : 1) * (fastWings ? 1.6 : 1);
+  const maxV = (running ? RUN_MAX : WALK_MAX) * (horse ? 1.45 : 1) * (fastWings ? 1.6 : 1)
+             * (player.skating ? 1.35 : 1);           // Chun Mi glides fast on her own ice
   // ice is slippery — low grip means you keep sliding. Northern Light skates best.
-  const icy = game.level.icy && player.grounded;
-  const grip = icy ? (CHARS[heroKey].look === "fox" ? 0.62 : 0.32) : 1;
+  const icy = (game.level.icy || player.skating) && player.grounded;
+  const grip = icy ? (CHARS[heroKey].look === "fox" ? 0.62 : player.skating ? 0.58 : 0.32) : 1;
 
   if (dir !== 0) {
     player.facing = dir;
     if (player.vx * dir < 0) {
       player.vx += dir * (player.grounded ? DEC_SKID * (icy ? grip : 1) : ACC_RUN);   // skid turn
     } else if (Math.abs(player.vx) < maxV) {
-      player.vx += dir * (running ? ACC_RUN : ACC_WALK) * (horse ? 1.5 : 1) * (fastWings ? 1.6 : 1);
+      player.vx += dir * (running ? ACC_RUN : ACC_WALK) * (horse ? 1.5 : 1) * (fastWings ? 1.6 : 1) * (player.skating ? 1.3 : 1);
       if (Math.abs(player.vx) > maxV) player.vx = dir * maxV;
       if (horse && player.grounded && Math.abs(player.vx) > 2.4 && (game.timer & 7) === 0)
         game.particles.push({ x: player.x + player.w/2 - dir*8, y: player.y + player.h - 1,
@@ -3098,6 +3335,8 @@ function updatePlay() {
   if (input.portalPressed) {
     input.portalPressed = false;
     if (CHARS[heroKey].look === "unicorn" && player.portalCool <= 0) doPortal();
+    // Chun Mi's super singing voice — charged by 4 blue gems
+    if (CHARS[heroKey].look === "chunmi" && (player.songGems || 0) >= 4) songBlast();
   }
 
   // --- magic: Chun-me's stars / Chuckee's lightning ---
@@ -3108,7 +3347,7 @@ function updatePlay() {
     const look = CHARS[heroKey].look;
     const fan = look === "dumpling" && player.dumpSparkle > 0;   // blue-gem mode: throw every color at once
     if (player.shootCool === 0 && game.fireballs.length < (fan ? 9 : 3)) {
-      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : look === "unicorn" ? "sparkle" : look === "dumpling" ? "dumpling" : look === "penguin" ? "fish" : look === "apple" ? "apple" : look === "horse" ? "crystal" : look === "fairy" ? "bubble" : "bolt";
+      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : look === "unicorn" ? "sparkle" : look === "dumpling" ? "dumpling" : look === "penguin" ? "fish" : look === "apple" ? "apple" : look === "horse" ? "crystal" : look === "fairy" ? "bubble" : look === "chunmi" ? "note" : "bolt";
       const sx = player.x + (player.facing > 0 ? player.w : -6), sy = player.y + player.h * 0.35;
       const spd = (cloudKind ? 3.6 : 3.2) * player.facing;
       if (fan) {
@@ -3127,6 +3366,7 @@ function updatePlay() {
     f.t++;
     if (f.kind === "pinkfire" || f.kind === "snowflake" || f.kind === "rainbow") f.vy = Math.min(f.vy + 0.12, 4);  // arc & fall
     if (f.kind === "bubble") f.vy = Math.max(f.vy - 0.035, -0.9);   // Nora's bubbles drift gently upward
+    if (f.kind === "note") f.vy = Math.sin(f.t * 0.35) * 0.7;       // Chun Mi's notes dance up and down
     f.hitWall = false;
     moveEntity(f);
     if (f.igloo && (f.grounded || f.hitWall)) { buildIgloo(f); f.gone = true; }
@@ -3152,6 +3392,8 @@ function updatePlay() {
       p.gone = true; game.score += 1000;
       if (CHARS[heroKey].look === "unicorn") { player.glow = 300; SFX.grow(); }   // Sparkle: glow + indestructible 5s
       if (CHARS[heroKey].look === "dumpling") { player.dumpSparkle = 1200; SFX.grow(); }  // Squishy: blue gem → 20s sparkle, every-color dumplings
+      if (p.type === "flower" && CHARS[heroKey].look === "chunmi")                // Chun Mi: 4 blue gems charge her singing voice
+        player.songGems = Math.min(4, (player.songGems || 0) + 1);
       if (p.type === "flower") { setPower(2); superBlast(); }      // blue star: super form + blast
       else { setPower(Math.max(1, player.power)); SFX.grow(); }    // mushroom never downgrades
       game.pops.push({ x: p.x + p.w/2, y: p.y, t: 0 });
@@ -3218,6 +3460,12 @@ function updatePlay() {
           e.webT = 300; f.gone = true; game.score += 100; SFX.swim();
           for (let i = 0; i < 8; i++) game.particles.push({ x: e.x + e.w/2 + (i-4)*2.2,
             y: e.y + e.h/2, vx: (i-4)*0.5, vy: -1 - Math.random()*1.4, t: 0, c: "#9be0ff" });
+        } else if (f.kind === "note") {
+          // Chun Mi's magic: the bad guy TURNS INTO a musical note and floats away
+          e.dead = 1; e.noted = true; f.gone = true; game.score += 200; SFX.star();
+          for (let i = 0; i < 6; i++) game.particles.push({ x: e.x + e.w/2, y: e.y + e.h/2,
+            vx: Math.cos(i * 1.05) * 1.6, vy: Math.sin(i * 1.05) * 1.6 - 0.6, t: 0,
+            c: ["#ffd166", "#fff3b0", "#ffb8dd"][i % 3] });
         } else {
           e.dead = 1; f.gone = true; game.score += 200; SFX.stomp();
         }
@@ -4542,6 +4790,15 @@ function drawWorld() {
 
   for (const e of L.enemies) {
     if (!e.active || e.dead > 25) continue;
+    if (e.noted && e.dead > 0) {
+      // he IS a musical note now — floats up, swaying, and fades away
+      g.save();
+      g.globalAlpha = Math.max(0, 1 - e.dead / 25);
+      drawMusicNote(g, e.x + e.w/2 + Math.sin(e.dead * 0.3) * 3, e.y + e.h/2 - e.dead * 1.4, 1.5, "#ffd166");
+      g.restore();
+      if ((e.dead & 3) === 0) drawStarShape(g, e.x + e.w/2 + Math.sin(e.dead) * 8, e.y + e.h/2 - e.dead, 1.4, 0.6, e.dead * 0.2, "#fff3b0");
+      continue;
+    }
     if (e.grounded) softShadow(e.x + e.w/2, e.y + e.h, 6.5);
     drawGrump(g, e.x + e.w/2, e.y + e.h, e.frame, e.dead);
     if (e.webT > 0 && e.dead === 0) drawWaterWeb(g, e.x + e.w/2, e.y + e.h/2, e.w * 0.85, e.webT);
@@ -4626,6 +4883,8 @@ function drawWorld() {
         drawDumplingRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
       if (player.flying && CHARS[heroKey].look === "penguin")
         drawIceFloeRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
+      if (player.flying && CHARS[heroKey].look === "chunmi")
+        drawNotesRide(player.x + player.w/2, player.y + player.h, game.timer, player.facing);
       if (player.glow > 0 && CHARS[heroKey].look === "unicorn") {   // indestructible rainbow glow
         const rg = g.createRadialGradient(player.x+player.w/2, player.y+player.h/2, 2, player.x+player.w/2, player.y+player.h/2, 20);
         rg.addColorStop(0, "rgba(255,255,255,.5)"); rg.addColorStop(0.6, "rgba(180,150,255,.35)"); rg.addColorStop(1, "rgba(180,150,255,0)");
@@ -4757,7 +5016,7 @@ function drawTitle() {
 
   // character cards — sized & wrapped to fit however many heroes there are
   game.titleCards = [];
-  const keysArr = ["jules", "northern", "cutie", "nora", "sparkle", "squishy", "icy", "appy", "misty", "fairy"];
+  const keysArr = ["jules", "northern", "cutie", "nora", "sparkle", "squishy", "icy", "appy", "misty", "fairy", "chunmi"];
   const n = keysArr.length;
   const perRow = n <= 4 ? n : Math.ceil(n / 2);     // 5+ heroes → wrap to two rows
   const rows = Math.ceil(n / perRow), rowGap = 10;
@@ -4768,8 +5027,8 @@ function drawTitle() {
   const thT = Math.min(W/10, 40), chipHT = Math.max(17, Math.min(W/17, 24));
   const stackH = rows*ch + (rows-1)*rowGap + 30 + thT + 12 + 14 + chipHT + 34;
   const cy0 = Math.min(H * (W > H ? 0.50 : 0.46), H - stackH);
-  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2", "#ffce3a", "#ff8ab0", "#5ec2e0", "#f0564a", "#e8b64a", "#b98ff0"];
-  const nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e", "#d39a1e", "#e0608c", "#2f8fb0", "#c8362c", "#b8862c", "#7a4fc8"];
+  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2", "#ffce3a", "#ff8ab0", "#5ec2e0", "#f0564a", "#e8b64a", "#b98ff0", "#4f6fe0"];
+  const nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e", "#d39a1e", "#e0608c", "#2f8fb0", "#c8362c", "#b8862c", "#7a4fc8", "#2c4fb0"];
   keysArr.forEach((k, i) => {
     const row = Math.floor(i / perRow);
     const inRow = (row === rows-1) ? (n - perRow*(rows-1)) : perRow;
@@ -4875,10 +5134,10 @@ function drawWinScreen() {
 
   // all the heroes celebrating
   const ks = Math.min(W, H) / 140;
-  [["jules", -4.5], ["northern", -3.5], ["cutie", -2.5], ["squishy", -1.5], ["misty", -0.5], ["fairy", 0.5], ["appy", 1.5], ["icy", 2.5], ["sparkle", 3.5], ["nora", 4.5]].forEach(([k, side]) => {
+  [["jules", -5], ["northern", -4], ["cutie", -3], ["squishy", -2], ["misty", -1], ["chunmi", 0.001], ["fairy", 1], ["appy", 2], ["icy", 3], ["sparkle", 4], ["nora", 5]].forEach(([k, side]) => {
     g.save();
     const hop = Math.abs(Math.sin(game.timer * 0.1 + (side+2))) * 14;
-    g.translate(W/2 + side * Math.min(W*0.078, 42), H*0.62 - hop);
+    g.translate(W/2 + side * Math.min(W*0.072, 40), H*0.62 - hop);
     g.scale(ks, ks);
     drawKid(g, 0, 0, CHARS[k], 0, side < 0 ? 1 : -1, true, false);
     g.restore();
@@ -4887,7 +5146,7 @@ function drawWinScreen() {
   // Peach the pug, safe at last
   g.save();
   const pugHop = Math.abs(Math.sin(game.timer * 0.12)) * 10;
-  g.translate(W/2, H*0.62 - pugHop);
+  g.translate(W/2, H*0.68 - pugHop);       // Peach hops in front of the hero crowd
   g.scale(ks * 0.9, ks * 0.9);
   drawPug(g, 0, 0);
   g.restore();
