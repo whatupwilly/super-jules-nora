@@ -171,9 +171,11 @@ const CHARS = {
     // Blue gem: hair shifts purple/blue/black + two little pink bang pieces.
     cmHair:"#1a1418", cmHairLt:"#3a3038",
     cmHairPurple:"#5a3aa8", cmHairBlue:"#2c4fb0", cmPink:"#ff8ec4",
-    cmBand:"#6a3ad0", cmSkin:"#fce0c2", cmCheek:"#e0475a", cmEye:"#2a2026",
-    cmJacket:"#1f4fc8", cmJacketDk:"#16389a", cmTop:"#fdfdfd", cmTopShade:"#e2e2ea",
-    cmSkirt:"#35b8cc", cmSkirtDk:"#2492a8", cmBoot:"#2ba8bc", cmBootDk:"#1a7a8c",
+    cmBand:"#6a3ad0", cmBandLt:"#a37fee", cmSkin:"#fce0c2", cmCheek:"#e0475a", cmEye:"#2a2026",
+    cmJacket:"#1f4fc8", cmJacketDk:"#16389a", cmJacketLt:"#4a72e8",
+    cmTop:"#fdfdfd", cmTopShade:"#e2e2ea",
+    cmSkirt:"#35b8cc", cmSkirtDk:"#2492a8", cmSkirtLt:"#66d4e4",
+    cmBoot:"#2ba8bc", cmBootDk:"#1a7a8c", cmBootLt:"#46c8dc",
     cmMouth:"#dd5f7e", cmNeck:"#c8ccd8",
     note:"#ffd166", noteDk:"#e8a33d",
   },
@@ -255,121 +257,193 @@ function drawChunMiBody(ctx, pal, frame, airborne, walking, power) {
   const t = game.timer;
   // gem hair magic: slowly cycles purple → blue → black
   const hairCol = power >= 2 ? [pal.cmHairPurple, pal.cmHairBlue, pal.cmHair][Math.floor(t / 160) % 3] : pal.cmHair;
-  const hairLt  = power >= 2 ? "rgba(255,255,255,.25)" : pal.cmHairLt;
+  const sway = Math.sin(t * 0.06) * (airborne ? 1.6 : walking ? 1 : 0.45);
 
-  // ---- long hair behind her (two soft falls with wavy ends) ----
+  // ---- long flowing hair behind her: two soft falls with layered tips ----
   ctx.fillStyle = hairCol;
   for (const s of [-1, 1]) {
+    const sw = s * sway;
     ctx.beginPath();
-    ctx.moveTo(s * 3, -36);
-    ctx.quadraticCurveTo(s * 9.5, -33, s * 8.6, -22);
-    ctx.quadraticCurveTo(s * 8.2, -16, s * 9.6, -13.5);   // wavy flick at the end
-    ctx.quadraticCurveTo(s * 6.4, -11.5, s * 5.4, -14);
-    ctx.quadraticCurveTo(s * 5.8, -20, s * 4.2, -26);
+    ctx.moveTo(s * 2.5, -37.5);
+    ctx.bezierCurveTo(s * 10.5, -35, s * 9.8, -26, s * 8.8, -19);
+    ctx.quadraticCurveTo(s * 8.6, -14.5, s * 10.2 + sw, -10.5);   // flowing flick
+    ctx.quadraticCurveTo(s * 7.2 + sw, -9.2, s * 6.2, -12);
+    ctx.quadraticCurveTo(s * 5.4, -10.6, s * 3.8 + sw * 0.6, -9.5); // second layered tip
+    ctx.quadraticCurveTo(s * 4.4, -16, s * 3.6, -24);
     ctx.closePath(); ctx.fill();
   }
+  // glossy sheen down the back hair
+  ctx.strokeStyle = "rgba(160,150,190,.35)"; ctx.lineWidth = 1.1; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-8.2, -30); ctx.quadraticCurveTo(-8.9, -22, -7.6, -15); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(8.2, -30); ctx.quadraticCurveTo(8.9, -22, 7.6, -15); ctx.stroke();
 
-  // ---- long legs + heeled boots ----
+  // ---- long legs with a graceful step ----
   const step = walking ? (frame ? 1.8 : -1.8) : 0;
-  ctx.strokeStyle = pal.cmSkin; ctx.lineWidth = 2.6; ctx.lineCap = "round";
-  ctx.beginPath(); ctx.moveTo(-2.4, -12); ctx.lineTo(-2.6 + step, -3); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(2.4, -12); ctx.lineTo(2.6 - step, -3); ctx.stroke();
-  ctx.fillStyle = pal.cmBoot;
-  for (const [bx, sd] of [[-2.6 + step, -1], [2.6 - step, 1]]) {
-    rrPath(ctx, bx - 2, -4.6, 4, 4, 1.4); ctx.fill();                 // boot
-    ctx.fillRect(bx - 2, -1, 4.6, 1.2);                               // foot
-    ctx.fillStyle = pal.cmBootDk; ctx.fillRect(bx + 1.4, -1, 1.4, 1.2); // little heel
-    ctx.fillStyle = pal.cmBoot;
+  ctx.strokeStyle = pal.cmSkin; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-2.3, -12); ctx.quadraticCurveTo(-2.8, -8, -2.6 + step, -3.4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(2.3, -12); ctx.quadraticCurveTo(2.8, -8, 2.6 - step, -3.4); ctx.stroke();
+  // shiny little heeled boots
+  for (const bx of [-2.6 + step, 2.6 - step]) {
+    const bg2 = ctx.createLinearGradient(bx, -5, bx, 0);
+    bg2.addColorStop(0, pal.cmBootLt); bg2.addColorStop(1, pal.cmBoot);
+    ctx.fillStyle = bg2;
+    rrPath(ctx, bx - 2.1, -4.8, 4.2, 4.2, 1.6); ctx.fill();
+    ctx.fillRect(bx - 2.1, -1.2, 4.8, 1.4);
+    ctx.fillStyle = pal.cmBootDk; ctx.fillRect(bx + 1.6, -1.2, 1.3, 1.4);   // little heel
+    ctx.fillStyle = "rgba(255,255,255,.55)";
+    ctx.beginPath(); ctx.arc(bx - 0.8, -3.6, 0.7, 0, Math.PI * 2); ctx.fill();
   }
 
-  // ---- teal skirt with the black marks from her sketch ----
-  const sg = ctx.createLinearGradient(0, -18, 0, -10);
-  sg.addColorStop(0, pal.cmSkirt); sg.addColorStop(1, pal.cmSkirtDk);
+  // ---- pleated teal skirt with a scalloped swishy hem ----
+  const sg = ctx.createLinearGradient(0, -18.5, 0, -10);
+  sg.addColorStop(0, pal.cmSkirtLt); sg.addColorStop(1, pal.cmSkirtDk);
   ctx.fillStyle = sg;
   ctx.beginPath();
-  ctx.moveTo(-4.2, -18); ctx.lineTo(4.2, -18);
-  ctx.lineTo(6.4, -10.5); ctx.lineTo(-6.4, -10.5);
+  ctx.moveTo(-4.4, -18.5); ctx.lineTo(4.4, -18.5);
+  ctx.quadraticCurveTo(5.8, -14, 6.8, -10.8);
+  ctx.quadraticCurveTo(3.4, -9.5, 0, -9.9);
+  ctx.quadraticCurveTo(-3.4, -9.5, -6.8, -10.8);
+  ctx.quadraticCurveTo(-5.8, -14, -4.4, -18.5);
   ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = "#16181d"; ctx.lineWidth = 1.1; ctx.lineCap = "round";
+  ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.fillRect(-4.4, -18.5, 8.8, 1.2);   // waistband
+  ctx.strokeStyle = "rgba(20,60,70,.28)"; ctx.lineWidth = 0.8;                    // pleats
   ctx.beginPath();
-  ctx.moveTo(-2.2, -15.5); ctx.lineTo(-2.6, -12);
-  ctx.moveTo(0, -15.5); ctx.lineTo(0, -12);
-  ctx.moveTo(2.2, -15.5); ctx.lineTo(2.6, -12);
+  ctx.moveTo(-3.4, -17.3); ctx.lineTo(-4.7, -10.7);
+  ctx.moveTo(3.4, -17.3); ctx.lineTo(4.7, -10.7);
+  ctx.stroke();
+  ctx.strokeStyle = "#16181d"; ctx.lineWidth = 1.1; ctx.lineCap = "round";        // her sketch's marks
+  ctx.beginPath();
+  ctx.moveTo(-2, -15.6); ctx.lineTo(-2.4, -12.2);
+  ctx.moveTo(0, -15.6); ctx.lineTo(0, -12.2);
+  ctx.moveTo(2, -15.6); ctx.lineTo(2.4, -12.2);
   ctx.stroke();
 
-  // ---- bare tummy + white crop top ----
-  ctx.fillStyle = pal.cmSkin; ctx.fillRect(-3.4, -20.5, 6.8, 2.8);
-  const tg = ctx.createLinearGradient(0, -25, 0, -20);
-  tg.addColorStop(0, pal.cmTop); tg.addColorStop(1, pal.cmTopShade);
-  ctx.fillStyle = tg; rrPath(ctx, -3.8, -25.5, 7.6, 5.4, 1.5); ctx.fill();
+  // ---- bare tummy + white crop top with a gold star ----
+  ctx.fillStyle = pal.cmSkin; ctx.fillRect(-3.2, -20.6, 6.4, 2.6);
+  const tg = ctx.createLinearGradient(0, -25.5, 0, -20);
+  tg.addColorStop(0, "#ffffff"); tg.addColorStop(1, pal.cmTopShade);
+  ctx.fillStyle = tg; rrPath(ctx, -3.7, -25.5, 7.4, 5.2, 1.6); ctx.fill();
+  drawStarShape(ctx, 0, -22.8, 1.4, 0.6, 0, pal.note);
 
-  // ---- open blue jacket: two front panels + sleeves ----
-  const jg = ctx.createLinearGradient(0, -26, 0, -13);
-  jg.addColorStop(0, pal.cmJacket); jg.addColorStop(1, pal.cmJacketDk);
+  // ---- arms in blue sleeves with light cuffs, then the open jacket ----
+  const armSwing = airborne ? -2.2 : step * 0.6;
+  ctx.strokeStyle = pal.cmJacket; ctx.lineWidth = 2.7; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-4.9, -24.5); ctx.quadraticCurveTo(-6.6, -21, -6.7, -16.6 + armSwing); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4.9, -24.5); ctx.quadraticCurveTo(6.6, -21, 6.7, -16.6 - armSwing); ctx.stroke();
+  ctx.strokeStyle = pal.cmJacketLt; ctx.lineWidth = 1.3;                          // cuffs
+  ctx.beginPath(); ctx.moveTo(-7.7, -17.3 + armSwing); ctx.lineTo(-5.8, -16.9 + armSwing); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(7.7, -17.3 - armSwing); ctx.lineTo(5.8, -16.9 - armSwing); ctx.stroke();
+  ctx.fillStyle = pal.cmSkin;                                                     // little hands
+  ctx.beginPath(); ctx.arc(-6.8, -15 + armSwing, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(6.8, -15 - armSwing, 1.5, 0, Math.PI * 2); ctx.fill();
+  const jg = ctx.createLinearGradient(0, -26.5, 0, -14);
+  jg.addColorStop(0, pal.cmJacketLt); jg.addColorStop(1, pal.cmJacketDk);
   ctx.fillStyle = jg;
-  ctx.beginPath();                                        // left panel
-  ctx.moveTo(-5.6, -26); ctx.lineTo(-3.2, -26); ctx.lineTo(-3.6, -17.5);
-  ctx.lineTo(-6.2, -18.5); ctx.closePath(); ctx.fill();
-  ctx.beginPath();                                        // right panel
-  ctx.moveTo(5.6, -26); ctx.lineTo(3.2, -26); ctx.lineTo(3.6, -17.5);
-  ctx.lineTo(6.2, -18.5); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = pal.cmJacket; ctx.lineWidth = 2.8; ctx.lineCap = "round";
-  const armSwing = airborne ? -2 : step * 0.6;
-  ctx.beginPath(); ctx.moveTo(-5, -24.5); ctx.lineTo(-6.8, -16.5 + armSwing); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(5, -24.5); ctx.lineTo(6.8, -16.5 - armSwing); ctx.stroke();
-  ctx.fillStyle = pal.cmSkin;                             // little hands
-  ctx.beginPath(); ctx.arc(-6.9, -15 + armSwing, 1.5, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(6.9, -15 - armSwing, 1.5, 0, Math.PI*2); ctx.fill();
-  // necklace
-  ctx.strokeStyle = pal.cmNeck; ctx.lineWidth = 0.7;
-  ctx.beginPath(); ctx.arc(0, -26.5, 2.2, 0.25 * Math.PI, 0.75 * Math.PI); ctx.stroke();
-  ctx.fillStyle = "#eef2f8"; ctx.beginPath(); ctx.arc(0, -24.6, 0.9, 0, Math.PI*2); ctx.fill();
+  for (const s of [-1, 1]) {                                                      // rounded lapel panels
+    ctx.beginPath();
+    ctx.moveTo(s * 5.6, -26.2);
+    ctx.lineTo(s * 3.1, -26.2);
+    ctx.quadraticCurveTo(s * 3, -21.5, s * 3.7, -17.6);
+    ctx.quadraticCurveTo(s * 5.2, -17.2, s * 6.3, -18.6);
+    ctx.quadraticCurveTo(s * 6.2, -22.5, s * 5.6, -26.2);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(255,255,255,.4)"; ctx.lineWidth = 0.8;                  // lapel shine
+  ctx.beginPath(); ctx.moveTo(-3.6, -25.6); ctx.quadraticCurveTo(-3.5, -21, -4.1, -18.2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(3.6, -25.6); ctx.quadraticCurveTo(3.5, -21, 4.1, -18.2); ctx.stroke();
 
-  // ---- head ----
+  // ---- gold chain with a little heart pendant ----
+  ctx.strokeStyle = "#e8b64a"; ctx.lineWidth = 0.7;
+  ctx.beginPath(); ctx.arc(0, -26.6, 2.3, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+  ctx.fillStyle = "#ff6b9d";
+  ctx.beginPath();
+  ctx.moveTo(0, -23.6);
+  ctx.bezierCurveTo(-1.4, -25.1, -0.6, -26.1, 0, -25.2);
+  ctx.bezierCurveTo(0.6, -26.1, 1.4, -25.1, 0, -23.6);
+  ctx.fill();
+
+  // ---- head & face ----
   ctx.fillStyle = pal.cmSkin;
-  ctx.beginPath(); ctx.arc(0, -32.5, 7, 0, Math.PI*2); ctx.fill();
-  // bangs — soft cap of hair over the top
+  ctx.beginPath(); ctx.arc(0, -32.5, 7, 0, Math.PI * 2); ctx.fill();
+  // soft brows
+  ctx.strokeStyle = "rgba(40,30,40,.5)"; ctx.lineWidth = 0.6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(-2.5, -32.4, 2, 1.2 * Math.PI, 1.72 * Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.arc(3, -32.4, 2, 1.28 * Math.PI, 1.8 * Math.PI); ctx.stroke();
+  // big sparkly anime eye
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.ellipse(-2.4, -31.3, 1.9, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+  const ig = ctx.createLinearGradient(-2.4, -33.2, -2.4, -29.4);
+  ig.addColorStop(0, "#5a4668"); ig.addColorStop(1, pal.cmEye);
+  ctx.fillStyle = ig;
+  ctx.beginPath(); ctx.arc(-2.3, -31.2, 1.35, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#16121a";
+  ctx.beginPath(); ctx.arc(-2.3, -31.1, 0.7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(-2.85, -31.9, 0.6, 0, Math.PI * 2); ctx.fill();        // big sparkle
+  ctx.beginPath(); ctx.arc(-1.75, -30.55, 0.32, 0, Math.PI * 2); ctx.fill();      // little sparkle
+  ctx.strokeStyle = "#241a24"; ctx.lineWidth = 0.7; ctx.lineCap = "round";        // lash line + lashes
+  ctx.beginPath(); ctx.arc(-2.4, -31.4, 2.1, 1.15 * Math.PI, 1.7 * Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-4.3, -32.3); ctx.lineTo(-5.05, -32.9); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-3.5, -33.2); ctx.lineTo(-4.05, -34); ctx.stroke();
+  // sweet wink with little lashes
+  ctx.strokeStyle = "#241a24"; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.arc(2.9, -31.9, 1.6, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+  ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.moveTo(4.3, -30.85); ctx.lineTo(5, -30.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(2.95, -30.35); ctx.lineTo(3.15, -29.65); ctx.stroke();
+  // soft rosy gradient cheeks (still nice and pink, like she drew them)
+  for (const cxx of [-4.6, 4.8]) {
+    const cg = ctx.createRadialGradient(cxx, -29.2, 0.2, cxx, -29.2, 1.9);
+    cg.addColorStop(0, "rgba(240,90,110,.8)"); cg.addColorStop(1, "rgba(240,90,110,0)");
+    ctx.fillStyle = cg;
+    ctx.beginPath(); ctx.arc(cxx, -29.2, 1.9, 0, Math.PI * 2); ctx.fill();
+  }
+  // sweet smile with a hint of lip
+  ctx.strokeStyle = pal.cmMouth; ctx.lineWidth = 0.8; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(0.3, -29, 1.5, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+  ctx.strokeStyle = "rgba(221,95,126,.4)"; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.arc(0.3, -28.5, 0.9, 0.25 * Math.PI, 0.75 * Math.PI); ctx.stroke();
+
+  // ---- glossy bangs, side strands, headband ----
   ctx.fillStyle = hairCol;
-  ctx.beginPath(); ctx.arc(0, -34, 7.15, Math.PI * 0.98, Math.PI * 2.02); ctx.fill();
-  ctx.beginPath();                                        // bang tips over the forehead
-  ctx.moveTo(-7.1, -33.5);
-  ctx.quadraticCurveTo(-5, -30.5, -3.4, -33);
-  ctx.quadraticCurveTo(-1.5, -30.8, 0.6, -33.2);
-  ctx.quadraticCurveTo(2.6, -31, 4.4, -33.2);
-  ctx.quadraticCurveTo(6, -31.5, 7.1, -33.5);
-  ctx.lineTo(7.1, -36); ctx.lineTo(-7.1, -36);
+  ctx.beginPath(); ctx.arc(0, -34, 7.2, Math.PI * 0.97, Math.PI * 2.03); ctx.fill();
+  ctx.beginPath();                                        // scalloped bang tips
+  ctx.moveTo(-7.15, -33.4);
+  ctx.quadraticCurveTo(-5.6, -30.2, -3.9, -33);
+  ctx.quadraticCurveTo(-2.2, -30.4, -0.2, -33.1);
+  ctx.quadraticCurveTo(1.8, -30.8, 3.6, -33.1);
+  ctx.quadraticCurveTo(5.5, -31.2, 7.15, -33.4);
+  ctx.lineTo(7.15, -36.5); ctx.lineTo(-7.15, -36.5);
   ctx.closePath(); ctx.fill();
-  ctx.fillStyle = hairLt;                                 // hair shine
-  ctx.beginPath(); ctx.arc(-2.4, -38, 2.4, Math.PI, Math.PI * 1.7); ctx.fill();
-  // purple band across the top of her bangs
-  ctx.strokeStyle = pal.cmBand; ctx.lineWidth = 1.6;
-  ctx.beginPath(); ctx.arc(0, -33.6, 6.5, Math.PI * 1.18, Math.PI * 1.82); ctx.stroke();
+  for (const s of [-1, 1]) {                              // strands framing her face
+    ctx.beginPath();
+    ctx.moveTo(s * 6.9, -34.5);
+    ctx.quadraticCurveTo(s * 8.1, -29, s * 7.1, -24.5);
+    ctx.quadraticCurveTo(s * 6.5, -22, s * 7.3, -20);
+    ctx.quadraticCurveTo(s * 5.7, -20.5, s * 5.5, -23.5);
+    ctx.quadraticCurveTo(s * 5.9, -29, s * 4.9, -33.6);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(170,160,200,.5)"; ctx.lineWidth = 1;   // bang gloss
+  ctx.beginPath(); ctx.arc(-1.4, -33.4, 5.4, 1.28 * Math.PI, 1.62 * Math.PI); ctx.stroke();
+  // the purple headband, with a shine and a tiny gold star
+  ctx.strokeStyle = pal.cmBand; ctx.lineWidth = 1.8; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(0, -33.4, 6.6, 1.16 * Math.PI, 1.84 * Math.PI); ctx.stroke();
+  ctx.strokeStyle = pal.cmBandLt; ctx.lineWidth = 0.7;
+  ctx.beginPath(); ctx.arc(0, -33.6, 6.9, 1.3 * Math.PI, 1.6 * Math.PI); ctx.stroke();
+  drawStarShape(ctx, -4.7, -38.3, 1.1, 0.5, 0.3, "#ffd166");
   // gem magic: exactly TWO little pink pieces on the upper side of her bangs
   if (power >= 2) {
-    ctx.strokeStyle = pal.cmPink; ctx.lineWidth = 1.1; ctx.lineCap = "round";
-    ctx.beginPath(); ctx.moveTo(-3.2, -38.6); ctx.quadraticCurveTo(-2.6, -36.4, -3.1, -34.6); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-0.8, -39.2); ctx.quadraticCurveTo(-0.2, -37, -0.7, -35.2); ctx.stroke();
+    ctx.strokeStyle = pal.cmPink; ctx.lineWidth = 1.15; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-3.1, -38.9); ctx.quadraticCurveTo(-2.5, -36.6, -3, -34.8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-0.7, -39.5); ctx.quadraticCurveTo(-0.1, -37.2, -0.6, -35.4); ctx.stroke();
+    if ((t & 7) < 4) drawStarShape(ctx, 5.2, -37 + Math.sin(t * 0.13) * 1.2, 1, 0.45, t * 0.1, "#fff");
   }
-  // face: one big sparkly eye, one winking eye — just like the sketch
-  ctx.fillStyle = "#fff";
-  ctx.beginPath(); ctx.arc(-2.4, -31.5, 1.9, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = pal.cmEye;
-  ctx.beginPath(); ctx.arc(-2.2, -31.4, 1.2, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#fff";
-  ctx.beginPath(); ctx.arc(-2.7, -31.9, 0.55, 0, Math.PI*2); ctx.fill();   // sparkle
-  ctx.strokeStyle = pal.cmEye; ctx.lineWidth = 0.8; ctx.lineCap = "round";
-  ctx.beginPath(); ctx.arc(2.8, -31.6, 1.5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();  // wink ~
-  // red-rosy cheeks (bold, like she drew them!)
-  ctx.fillStyle = pal.cmCheek;
-  ctx.globalAlpha = 0.8;
-  ctx.beginPath(); ctx.arc(-4.6, -29.4, 1.5, 0, Math.PI*2); ctx.arc(4.8, -29.4, 1.5, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = 1;
-  // little smile
-  ctx.strokeStyle = pal.cmMouth; ctx.lineWidth = 0.8;
-  ctx.beginPath(); ctx.arc(0.2, -28.8, 1.5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
-  // tiny music note floating by her when powered up — she's ready to SING
+  // a twinkle drifting near her — she's the stylish one
+  if ((t & 15) < 6) drawStarShape(ctx, -9.5, -25 + Math.sin(t * 0.09) * 2, 1.3, 0.55, t * 0.08, "#fff3b0");
+  // ready-to-sing note when powered up
   if (power >= 2 && (t & 15) < 9)
-    drawMusicNote(ctx, 10, -40 + Math.sin(t * 0.1) * 1.6, 0.55, pal.note);
+    drawMusicNote(ctx, 10, -41 + Math.sin(t * 0.1) * 1.6, 0.55, pal.note);
 }
 
 /* a little eighth-note ♪ used for Chun Mi's magic everywhere */
