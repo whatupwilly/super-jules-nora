@@ -296,6 +296,19 @@ const CHARS = {
     hEye:"#2a1c0e", hBlush:"#ffb9cf", hWing:"#ffffff", hWingShade:"#dfe8f5",
     crystal:"#bfe0ff", crystalDk:"#7fb0e8",
   },
+  fairy: {
+    name: "NORA", kind: "bunny", look: "fairy", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // fairy — dark hair with a blue flower, sparkly purple butterfly wings,
+    // teal skirt, flower wand in her hand; wings turn BLUE with the blue diamond
+    fHair:"#241a20", fHairLt:"#463440", fSkin:"#fce0c2", fCheek:"#f5a0b0",
+    fWing:["#8a5fd0","#b98ff0","#3f2a78"], fWingBlue:["#3f8fe0","#8fd0ff","#1f5aa8"],
+    fWingSpot:"#e8d0ff", fWingSpotBlue:"#d0ecff",
+    fTop:"#7a4fc8", fTopDk:"#5a35a0", fTeal:"#46cdc6", fTealDk:"#1f9aa0",
+    fEye:"#2a1c12", fMouth:"#dd5f7e", fHairFlower:"#4aa6f0", fHairFlowerCtr:"#ffd166",
+    wandStem:"#5aa84f", wandPetal:"#f0559c", wandCtr:"#ffd166", wandLeaf:"#5cc463",
+  },
   northern: {
     name: "NORTHERN LIGHT", kind: "bunny", look: "fox", flyMax: 1200,
     body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
@@ -363,7 +376,8 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
   ctx.translate(x, y);
   if (power > 0) ctx.scale(1.18, 1.32);
   if (facing < 0) ctx.scale(-1, 1);
-  if (pal.look === "horse") drawMistyBody(ctx, pal, frame, airborne, walking, power);
+  if (pal.look === "fairy") drawFairyBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "horse") drawMistyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "apple") drawAppyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "penguin") drawIcyBody(ctx, pal, frame, airborne, walking, power);
   else if (pal.look === "dumpling") drawSquishyBody(ctx, pal, frame, airborne, walking, power);
@@ -698,6 +712,123 @@ function drawPowerup(ctx, p) {
 /* Sparkle the unicorn: white chibi body, rainbow mane & tail, golden spiral
    horn, big sparkly eye. Glows with a rainbow shimmer when powered up.
    Feet at (0,0), facing right. */
+/* Nora the fairy: dark hair with a blue flower, sparkly purple butterfly
+   wings (they turn BLUE when she has the blue diamond), a teal skirt and a
+   flower wand in her hand. Feet at (0,0), facing right. */
+function drawFairyBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  const wingCols = power >= 2 ? pal.fWingBlue : pal.fWing;
+  const spotCol  = power >= 2 ? pal.fWingSpotBlue : pal.fWingSpot;
+  const flap = Math.sin(t * (airborne ? 0.55 : 0.12)) * (airborne ? 0.5 : 0.13);
+
+  // ---- butterfly wings (behind the body, flapping from her shoulders) ----
+  for (const side of [-1, 1]) {                     // -1 = far pair, 1 = near pair
+    ctx.save();
+    ctx.translate(-2, -21);
+    ctx.rotate(flap * side * 0.8 + side * 0.12);
+    ctx.globalAlpha = side < 0 ? 0.75 : 0.95;
+    const wg = ctx.createLinearGradient(0, -14, -16 * 1, 4);
+    wg.addColorStop(0, wingCols[1]); wg.addColorStop(1, wingCols[0]);
+    ctx.fillStyle = wg;
+    ctx.strokeStyle = wingCols[2]; ctx.lineWidth = 1;
+    // upper lobe
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(-14, -16, -22, -10, -17, 2 - side * 1.5);
+    ctx.bezierCurveTo(-12, 6, -4, 4, 0, 0);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // lower lobe
+    ctx.beginPath();
+    ctx.moveTo(-1, 2);
+    ctx.bezierCurveTo(-13, 6, -15, 15, -9, 15);
+    ctx.bezierCurveTo(-4, 15, -1, 8, -1, 2);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // sparkly spots
+    ctx.fillStyle = spotCol;
+    ctx.beginPath(); ctx.arc(-13, -6, 2.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-8, 9, 1.6, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-15, 4, 1.2, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  // wing twinkle
+  if ((t & 7) < 4) drawStarShape(ctx, -13, -26 + Math.sin(t*0.15)*2, 1.6, 0.7, t*0.1, "#fff");
+
+  // ---- legs ----
+  const step = walking ? (frame ? 1.6 : -1.6) : 0;
+  ctx.fillStyle = pal.fSkin;
+  ctx.fillRect(-4 + step, -8, 3, 7); ctx.fillRect(1.6 - step, -8, 3, 7);
+  ctx.fillStyle = pal.fTopDk;                        // little shoes
+  ctx.beginPath(); ctx.ellipse(-2.4 + step, -0.8, 2.6, 1.6, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(3.2 - step, -0.8, 2.6, 1.6, 0, 0, Math.PI*2); ctx.fill();
+
+  // ---- teal skirt + purple bodice (like her drawing) ----
+  const sg = ctx.createLinearGradient(0, -18, 0, -6);
+  sg.addColorStop(0, pal.fTeal); sg.addColorStop(1, pal.fTealDk);
+  ctx.fillStyle = sg;
+  ctx.beginPath();
+  ctx.moveTo(-4.5, -17);
+  ctx.bezierCurveTo(-9, -10, -9.5, -7, -8.5, -6);
+  ctx.lineTo(8.5, -6);
+  ctx.bezierCurveTo(9.5, -7, 9, -10, 4.5, -17);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = 0.8;   // skirt swishes
+  ctx.beginPath(); ctx.moveTo(-3, -14); ctx.lineTo(-4.6, -7); ctx.moveTo(2.5, -14); ctx.lineTo(4, -7); ctx.stroke();
+  const bg = ctx.createLinearGradient(0, -24, 0, -15);
+  bg.addColorStop(0, pal.fTop); bg.addColorStop(1, pal.fTopDk);
+  ctx.fillStyle = bg;
+  rrPath(ctx, -4.6, -24, 9.2, 8.5, 3); ctx.fill();
+  drawStarShape(ctx, 0, -20, 2, 0.9, 0, "#ffd166");                 // twinkle on her dress
+
+  // ---- arms: back arm down, front arm holds the flower wand up ----
+  ctx.strokeStyle = pal.fSkin; ctx.lineWidth = 2.4; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-3.6, -21); ctx.lineTo(-6, -14 + step); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(3.6, -21); ctx.lineTo(7.5, -18); ctx.stroke();
+  // flower wand — green stem, pink petals, sunny middle, two leaves
+  ctx.strokeStyle = pal.wandStem; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(7.5, -18); ctx.lineTo(10.5, -30); ctx.stroke();
+  ctx.fillStyle = pal.wandLeaf;
+  ctx.beginPath(); ctx.ellipse(8.2, -23, 2.4, 1, -0.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(10.6, -21, 2.4, 1, 0.4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.wandPetal;
+  for (let i = 0; i < 6; i++) {
+    const a = i * Math.PI / 3 + t * 0.02;
+    ctx.beginPath(); ctx.ellipse(10.5 + Math.cos(a)*3.4, -32 + Math.sin(a)*3.4, 2.5, 1.7, a, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = pal.wandCtr; ctx.beginPath(); ctx.arc(10.5, -32, 2.4, 0, Math.PI*2); ctx.fill();
+
+  // ---- head ----
+  ctx.fillStyle = pal.fSkin;
+  ctx.beginPath(); ctx.arc(0, -31, 7, 0, Math.PI*2); ctx.fill();
+  // dark hair — soft cap with a middle part and two little side buns
+  ctx.fillStyle = pal.fHair;
+  ctx.beginPath(); ctx.arc(0, -32.5, 7.1, Math.PI * 1.02, Math.PI * 1.98); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-7, -32); ctx.quadraticCurveTo(-7.6, -27, -5.6, -25.5);
+  ctx.quadraticCurveTo(-6.6, -29, -4.8, -32.5); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(7, -32); ctx.quadraticCurveTo(7.6, -27, 5.6, -25.5);
+  ctx.quadraticCurveTo(6.6, -29, 4.8, -32.5); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.arc(-6.4, -36.5, 2.6, 0, Math.PI*2); ctx.fill();   // buns
+  ctx.beginPath(); ctx.arc(6.4, -36.5, 2.6, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.fHairLt;                                            // shine
+  ctx.beginPath(); ctx.arc(-2, -36.5, 2.2, Math.PI, Math.PI*1.7); ctx.fill();
+  // blue flower in her hair
+  ctx.fillStyle = pal.fHairFlower;
+  for (let i = 0; i < 5; i++) {
+    const a = i * Math.PI * 2 / 5 - 0.4;
+    ctx.beginPath(); ctx.ellipse(-4.6 + Math.cos(a)*2, -38.5 + Math.sin(a)*2, 1.7, 1.1, a, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = pal.fHairFlowerCtr; ctx.beginPath(); ctx.arc(-4.6, -38.5, 1.3, 0, Math.PI*2); ctx.fill();
+  // face — happy eyes with little lashes, blush, smile
+  ctx.fillStyle = pal.fEye;
+  ctx.beginPath(); ctx.arc(-2.4, -31, 1, 0, Math.PI*2); ctx.arc(2.6, -31, 1, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.fEye; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.moveTo(-3.4, -32.4); ctx.lineTo(-4.2, -33);
+  ctx.moveTo(3.6, -32.4); ctx.lineTo(4.4, -33); ctx.stroke();
+  ctx.fillStyle = pal.fCheek;
+  ctx.beginPath(); ctx.arc(-4.2, -29, 1.4, 0, Math.PI*2); ctx.arc(4.4, -29, 1.4, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.fMouth; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.arc(0.2, -28.6, 1.6, 0.15*Math.PI, 0.85*Math.PI); ctx.stroke();
+}
+
 /* Misty the golden horse: very pretty — cream mane and tail, long lashes,
    a white star blaze. She turns into a FLYING horse (white wings) when she
    flies, gallops faster than anyone, and glitters when the moon touches her.
@@ -1626,8 +1757,60 @@ function drawBambooCarpet(cx, feetY, t, facing) {
   g.restore();
 }
 
+/* Nora's water web — a shimmering spiderweb of water wrapped around a bad
+   guy. Blinks just before it breaks so kids know he's about to wake up. */
+function drawWaterWeb(ctx, cx, cy, r, webT) {
+  if (webT < 60 && (webT & 8) < 4) return;          // blink near the end
+  const t = game.timer;
+  const wob = 1 + Math.sin(t * 0.18) * 0.06;
+  ctx.save();
+  ctx.translate(cx, cy - 1); ctx.scale(wob, 2 - wob);
+  ctx.rotate(Math.sin(t * 0.06) * 0.08);
+  ctx.strokeStyle = "rgba(150,215,255,.85)"; ctx.lineWidth = 1;
+  for (let ring = 1; ring <= 3; ring++) {           // web rings
+    ctx.beginPath(); ctx.arc(0, 0, r * ring / 3, 0, Math.PI*2); ctx.stroke();
+  }
+  ctx.beginPath();                                   // web spokes
+  for (let i = 0; i < 6; i++) {
+    const a = i * Math.PI / 3;
+    ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  ctx.stroke();
+  ctx.fillStyle = "rgba(190,235,255,.22)";           // watery shine inside
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.9)";            // dew droplets on the web
+  for (let i = 0; i < 5; i++) {
+    const a = i * 1.7 + t * 0.02, rr2 = r * (0.45 + (i % 3) * 0.25);
+    ctx.beginPath(); ctx.arc(Math.cos(a) * rr2, Math.sin(a) * rr2, 1, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawFireball(ctx, f, t) {
   const cx = f.x + 2.5, cy = f.y + 2.5;
+  if (f.kind === "bubble") {                 // Nora's wand bubbles — wobbly, rainbow-sheened
+    const wob = 1 + Math.sin(f.t * 0.35) * 0.1;
+    ctx.save();
+    ctx.translate(cx, cy); ctx.scale(wob, 2 - wob);
+    const bgr = ctx.createRadialGradient(-1.6, -1.8, 0.5, 0, 0, 5.6);
+    bgr.addColorStop(0, "rgba(255,255,255,.85)");
+    bgr.addColorStop(0.55, "rgba(190,232,255,.35)");
+    bgr.addColorStop(1, "rgba(140,200,255,.15)");
+    ctx.fillStyle = bgr;
+    ctx.beginPath(); ctx.arc(0, 0, 5.2, 0, Math.PI*2); ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(200,235,255,.9)";
+    ctx.beginPath(); ctx.arc(0, 0, 5.2, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = "rgba(255,170,220,.6)";                       // rainbow sheen
+    ctx.beginPath(); ctx.arc(0, 0, 4.6, Math.PI*0.7, Math.PI*1.2); ctx.stroke();
+    ctx.strokeStyle = "rgba(180,255,200,.6)";
+    ctx.beginPath(); ctx.arc(0, 0, 4.6, Math.PI*1.6, Math.PI*1.95); ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,.95)";                        // shine
+    ctx.beginPath(); ctx.ellipse(-1.8, -2, 1.4, 0.8, -0.6, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    if ((f.t & 7) === 0) drawStarShape(ctx, cx - f.vx*2.5, cy + 3, 1, 0.45, f.t*0.2, "#d8f2ff");
+    return;
+  }
   if (f.kind === "crystal") {                // Misty's moon crystals
     const glow = ctx.createRadialGradient(cx, cy, 0.5, cx, cy, 8);
     glow.addColorStop(0, "rgba(200,230,255,.9)"); glow.addColorStop(1, "rgba(150,200,255,0)");
@@ -2825,8 +3008,9 @@ function updatePlay() {
     else { player.runCharge = 0; player.runDir = dir; }
   } else player.runCharge = 0;
   const horse = CHARS[heroKey].look === "horse";     // Misty gallops: quick to run, and FAST
+  const fastWings = CHARS[heroKey].look === "fairy" && player.flying;   // Nora flies REALLY fast
   const running = player.runCharge > (horse ? 10 : 30);
-  const maxV = (running ? RUN_MAX : WALK_MAX) * (horse ? 1.45 : 1);
+  const maxV = (running ? RUN_MAX : WALK_MAX) * (horse ? 1.45 : 1) * (fastWings ? 1.6 : 1);
   // ice is slippery — low grip means you keep sliding. Northern Light skates best.
   const icy = game.level.icy && player.grounded;
   const grip = icy ? (CHARS[heroKey].look === "fox" ? 0.62 : 0.32) : 1;
@@ -2836,11 +3020,14 @@ function updatePlay() {
     if (player.vx * dir < 0) {
       player.vx += dir * (player.grounded ? DEC_SKID * (icy ? grip : 1) : ACC_RUN);   // skid turn
     } else if (Math.abs(player.vx) < maxV) {
-      player.vx += dir * (running ? ACC_RUN : ACC_WALK) * (horse ? 1.5 : 1);
+      player.vx += dir * (running ? ACC_RUN : ACC_WALK) * (horse ? 1.5 : 1) * (fastWings ? 1.6 : 1);
       if (Math.abs(player.vx) > maxV) player.vx = dir * maxV;
       if (horse && player.grounded && Math.abs(player.vx) > 2.4 && (game.timer & 7) === 0)
         game.particles.push({ x: player.x + player.w/2 - dir*8, y: player.y + player.h - 1,
           vx: -dir*0.6, vy: -0.5 - Math.random()*0.7, t: 0, c: "rgba(230,220,200,.7)" });   // gallop dust
+      if (fastWings && Math.abs(player.vx) > 2.2 && (game.timer & 3) === 0)
+        game.particles.push({ x: player.x + player.w/2 - dir*10, y: player.y + player.h*0.5 + (Math.random()*10-5),
+          vx: -dir*1.2, vy: (Math.random()-0.5)*0.6, t: 0, c: ["#e8d0ff","#bfe8ff","#fff"][game.timer % 3] });   // fairy speed-sparkles
     } else if (player.grounded && Math.abs(player.vx) > maxV) {
       player.vx -= Math.sign(player.vx) * DEC_REL;                 // ease back to walk speed
     }
@@ -2921,7 +3108,7 @@ function updatePlay() {
     const look = CHARS[heroKey].look;
     const fan = look === "dumpling" && player.dumpSparkle > 0;   // blue-gem mode: throw every color at once
     if (player.shootCool === 0 && game.fireballs.length < (fan ? 9 : 3)) {
-      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : look === "unicorn" ? "sparkle" : look === "dumpling" ? "dumpling" : look === "penguin" ? "fish" : look === "apple" ? "apple" : look === "horse" ? "crystal" : "bolt";
+      const kind = look === "fox" ? "snowflake" : look === "panda" ? "bamboo" : look === "butterfly" ? "rainbow" : look === "unicorn" ? "sparkle" : look === "dumpling" ? "dumpling" : look === "penguin" ? "fish" : look === "apple" ? "apple" : look === "horse" ? "crystal" : look === "fairy" ? "bubble" : "bolt";
       const sx = player.x + (player.facing > 0 ? player.w : -6), sy = player.y + player.h * 0.35;
       const spd = (cloudKind ? 3.6 : 3.2) * player.facing;
       if (fan) {
@@ -2939,6 +3126,7 @@ function updatePlay() {
   for (const f of game.fireballs) {
     f.t++;
     if (f.kind === "pinkfire" || f.kind === "snowflake" || f.kind === "rainbow") f.vy = Math.min(f.vy + 0.12, 4);  // arc & fall
+    if (f.kind === "bubble") f.vy = Math.max(f.vy - 0.035, -0.9);   // Nora's bubbles drift gently upward
     f.hitWall = false;
     moveEntity(f);
     if (f.igloo && (f.grounded || f.hitWall)) { buildIgloo(f); f.gone = true; }
@@ -2978,6 +3166,18 @@ function updatePlay() {
     if (player.animT > 7) { player.animT = 0; player.frame = 1 - player.frame; }
   } else player.frame = 0;
 
+  // Nora the fairy can WALK ON WATER — every pit has magic water at the
+  // bottom, and her fairy feet skim right across it with little splashes
+  if (CHARS[heroKey].look === "fairy" && !player.flying &&
+      player.vy >= 0 && player.y + player.h >= LEVEL_H - 2) {
+    if (!player.grounded) SFX.swim();
+    player.y = LEVEL_H - 2 - player.h; player.vy = 0;
+    player.grounded = true; player.coyote = 6;
+    if ((game.timer & 3) === 0)
+      game.particles.push({ x: player.x + player.w/2 + (Math.random()*10 - 5),
+        y: LEVEL_H - 2, vx: -player.vx * 0.25, vy: -0.8 - Math.random()*1.2, t: 0, c: "#9be0ff" });
+  }
+
   // fell in a pit
   if (player.y > LEVEL_H + 40) {
     // Icy can breathe underwater — she dives into the icy water and bursts back out
@@ -2997,18 +3197,30 @@ function updatePlay() {
       else continue;
     }
     if (e.dead > 0) { e.dead++; continue; }
-    e.vy = Math.min(e.vy + 0.4375, MAX_FALL);
-    e.hitWall = false;
-    moveEntity(e);
-    if (e.hitWall) e.vx = -e.vx;
-    e.frame = (Math.floor(game.timer / 14)) % 2;
+    if (e.webT > 0) {
+      e.webT--;                       // wrapped in Nora's water web — stuck (and harmless)!
+      e.frame = 0;
+    } else {
+      e.vy = Math.min(e.vy + 0.4375, MAX_FALL);
+      e.hitWall = false;
+      moveEntity(e);
+      if (e.hitWall) e.vx = -e.vx;
+      e.frame = (Math.floor(game.timer / 14)) % 2;
+    }
     if (e.y > LEVEL_H + 60) { e.dead = 999; continue; }
 
     // fireball hits
     for (const f of game.fireballs) {
       if (!f.gone && f.x < e.x + e.w && f.x + f.w > e.x &&
           f.y < e.y + e.h && f.y + f.h > e.y) {
-        e.dead = 1; f.gone = true; game.score += 200; SFX.stomp();
+        if (f.kind === "bubble" && !(e.webT > 0)) {
+          // Nora's water web wraps the bad guy up; a second bubble pops him
+          e.webT = 300; f.gone = true; game.score += 100; SFX.swim();
+          for (let i = 0; i < 8; i++) game.particles.push({ x: e.x + e.w/2 + (i-4)*2.2,
+            y: e.y + e.h/2, vx: (i-4)*0.5, vy: -1 - Math.random()*1.4, t: 0, c: "#9be0ff" });
+        } else {
+          e.dead = 1; f.gone = true; game.score += 200; SFX.stomp();
+        }
       }
     }
     if (e.dead > 0) continue;
@@ -3021,6 +3233,8 @@ function updatePlay() {
         e.dead = 1; game.score += 200; SFX.stomp();
         const t = jumpTier(player.vx);
         player.vy = t.v; player.jg = t;     // SMB-style bounce; hold jump to ride it higher
+      } else if (e.webT > 0) {
+        // wrapped in a water web — can't hurt anyone; walk right past
       } else if (!trySplit(e)) {
         applyDamage();
         if (game.state !== "play") return;
@@ -4330,6 +4544,7 @@ function drawWorld() {
     if (!e.active || e.dead > 25) continue;
     if (e.grounded) softShadow(e.x + e.w/2, e.y + e.h, 6.5);
     drawGrump(g, e.x + e.w/2, e.y + e.h, e.frame, e.dead);
+    if (e.webT > 0 && e.dead === 0) drawWaterWeb(g, e.x + e.w/2, e.y + e.h/2, e.w * 0.85, e.webT);
   }
 
   for (const pg of game.pigeons) drawPigeon(g, pg);
@@ -4542,7 +4757,7 @@ function drawTitle() {
 
   // character cards — sized & wrapped to fit however many heroes there are
   game.titleCards = [];
-  const keysArr = ["jules", "northern", "cutie", "nora", "sparkle", "squishy", "icy", "appy", "misty"];
+  const keysArr = ["jules", "northern", "cutie", "nora", "sparkle", "squishy", "icy", "appy", "misty", "fairy"];
   const n = keysArr.length;
   const perRow = n <= 4 ? n : Math.ceil(n / 2);     // 5+ heroes → wrap to two rows
   const rows = Math.ceil(n / perRow), rowGap = 10;
@@ -4553,8 +4768,8 @@ function drawTitle() {
   const thT = Math.min(W/10, 40), chipHT = Math.max(17, Math.min(W/17, 24));
   const stackH = rows*ch + (rows-1)*rowGap + 30 + thT + 12 + 14 + chipHT + 34;
   const cy0 = Math.min(H * (W > H ? 0.50 : 0.46), H - stackH);
-  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2", "#ffce3a", "#ff8ab0", "#5ec2e0", "#f0564a", "#e8b64a"];
-  const nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e", "#d39a1e", "#e0608c", "#2f8fb0", "#c8362c", "#b8862c"];
+  const edge = ["#f59cc4", "#7fb6ff", "#b07fe0", "#4fbfa2", "#ffce3a", "#ff8ab0", "#5ec2e0", "#f0564a", "#e8b64a", "#b98ff0"];
+  const nameCol = ["#e074a8", "#3f7fd0", "#8a5fd0", "#2f9e7e", "#d39a1e", "#e0608c", "#2f8fb0", "#c8362c", "#b8862c", "#7a4fc8"];
   keysArr.forEach((k, i) => {
     const row = Math.floor(i / perRow);
     const inRow = (row === rows-1) ? (n - perRow*(rows-1)) : perRow;
@@ -4660,7 +4875,7 @@ function drawWinScreen() {
 
   // all the heroes celebrating
   const ks = Math.min(W, H) / 140;
-  [["jules", -4], ["northern", -3], ["cutie", -2], ["squishy", -1], ["misty", 0], ["appy", 1], ["icy", 2], ["sparkle", 3], ["nora", 4]].forEach(([k, side]) => {
+  [["jules", -4.5], ["northern", -3.5], ["cutie", -2.5], ["squishy", -1.5], ["misty", -0.5], ["fairy", 0.5], ["appy", 1.5], ["icy", 2.5], ["sparkle", 3.5], ["nora", 4.5]].forEach(([k, side]) => {
     g.save();
     const hop = Math.abs(Math.sin(game.timer * 0.1 + (side+2))) * 14;
     g.translate(W/2 + side * Math.min(W*0.078, 42), H*0.62 - hop);
