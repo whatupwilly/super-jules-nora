@@ -1061,110 +1061,209 @@ function drawRosalinaBody(ctx, pal, frame, airborne, walking) {
   const t = game.timer;
   const sway = Math.sin(t * 0.08) * 0.6;
 
-  // long hair lock flowing down her left shoulder (viewer's right)
-  ctx.fillStyle = pal.hairDk;
-  ctx.beginPath();
-  ctx.moveTo(3.4, -18.5);
-  ctx.bezierCurveTo(8.8, -15.5, 8.2, -7, 5.4 + sway, -3.2);
-  ctx.bezierCurveTo(7, -8, 6, -14, 2.6, -16.5);
+  // ---- long platinum hair flowing down BOTH shoulders (back layer) ----
+  const bhg = ctx.createLinearGradient(0, -22, 0, -2);
+  bhg.addColorStop(0, pal.hair); bhg.addColorStop(1, pal.hairDk);
+  ctx.fillStyle = bhg;
+  ctx.beginPath();                                    // big lock, viewer's right
+  ctx.moveTo(2.8, -21);
+  ctx.bezierCurveTo(8.6, -17.5, 8.4, -8, 5.6 + sway, -2.6);
+  ctx.quadraticCurveTo(7.2 + sway, -4.6, 6.4, -8);
+  ctx.bezierCurveTo(7.2, -14, 5.6, -18.5, 2.2, -19.5);
   ctx.closePath(); ctx.fill();
+  ctx.beginPath();                                    // softer lock, viewer's left
+  ctx.moveTo(-3, -21);
+  ctx.bezierCurveTo(-7.2, -18, -6.6, -10.5, -5.8 - sway * 0.6, -6.2);
+  ctx.quadraticCurveTo(-5, -8.8, -5.2, -11.5);
+  ctx.bezierCurveTo(-5.6, -15.5, -4.4, -19, -2.4, -20);
+  ctx.closePath(); ctx.fill();
+  // shine down the big lock
+  ctx.strokeStyle = "rgba(255,250,220,.55)"; ctx.lineWidth = 0.55; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(4.4, -18); ctx.bezierCurveTo(7, -14.5, 6.8, -8, 5.8 + sway, -4); ctx.stroke();
 
-  // little shoes peeking from the hem
+  // ---- little heeled slippers peeking from the hem ----
   const po = (walking && frame) ? 1.1 : 0;
-  ctx.fillStyle = "#6a4a86";
-  ctx.beginPath(); ctx.ellipse(-2.4 - po, -1, 1.7, 1.1, 0, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(2 + po, -1, 1.7, 1.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#8ea8c8";
+  ctx.beginPath(); ctx.ellipse(-2.4 - po, -1, 1.7, 1.1, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2 + po, -1, 1.7, 1.1, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.6)";
+  ctx.beginPath(); ctx.arc(-2.7 - po, -1.4, 0.4, 0, Math.PI * 2); ctx.arc(1.7 + po, -1.4, 0.4, 0, Math.PI * 2); ctx.fill();
 
-  // flowing gown
-  const gg = ctx.createLinearGradient(0, -13, 0, -1);
-  gg.addColorStop(0, pal.gown); gg.addColorStop(1, pal.gownDark);
+  // ---- the ballgown: shimmering, layered, with a frilled hem ----
+  const gg = ctx.createLinearGradient(0, -13, 0, -0.5);
+  gg.addColorStop(0, pal.gownLight); gg.addColorStop(0.45, pal.gown); gg.addColorStop(1, pal.gownDark);
   ctx.fillStyle = gg;
   ctx.beginPath();
-  ctx.moveTo(-3.4, -12.5);
-  ctx.lineTo(3.4, -12.5);
-  ctx.bezierCurveTo(5.5, -8, 7 + sway, -3, 7.6 + sway, -0.6);
-  ctx.quadraticCurveTo(0, -2.4, -7.6 + sway, -0.6);
-  ctx.bezierCurveTo(-7, -3, -5.5, -8, -3.4, -12.5);
+  ctx.moveTo(-3.2, -12.8);
+  ctx.lineTo(3.2, -12.8);
+  ctx.bezierCurveTo(5.8, -8.5, 7.4 + sway, -3.5, 8.2 + sway, -0.8);
+  // scalloped, frilly hem
+  ctx.quadraticCurveTo(6.2 + sway, -1.9, 4.2 + sway * 0.8, -0.7);
+  ctx.quadraticCurveTo(2.1, -1.9, 0, -0.6);
+  ctx.quadraticCurveTo(-2.1, -1.9, -4.2 + sway * 0.8, -0.7);
+  ctx.quadraticCurveTo(-6.2 + sway, -1.9, -8.2 + sway, -0.8);
+  ctx.bezierCurveTo(-7.4, -3.5, -5.8, -8.5, -3.2, -12.8);
   ctx.closePath(); ctx.fill();
-  // soft center panel
-  ctx.fillStyle = pal.gownLight; ctx.globalAlpha = 0.5;
+  // white frill peeking under the hem
+  ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = 0.7;
   ctx.beginPath();
-  ctx.moveTo(-1.7, -12);
-  ctx.lineTo(1.7, -12);
-  ctx.quadraticCurveTo(2.7, -6, 2.5 + sway*0.6, -1.4);
-  ctx.quadraticCurveTo(0, -2.2, -2.5 + sway*0.6, -1.4);
-  ctx.quadraticCurveTo(-2.7, -6, -1.7, -12);
+  ctx.moveTo(-7.6 + sway, -0.9);
+  ctx.quadraticCurveTo(-4.2, 0.4, 0, -0.2);
+  ctx.quadraticCurveTo(4.2, 0.4, 7.6 + sway, -0.9);
+  ctx.stroke();
+  // pale petticoat panel down the middle
+  ctx.fillStyle = pal.gownLight; ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  ctx.moveTo(-1.6, -12.2);
+  ctx.lineTo(1.6, -12.2);
+  ctx.quadraticCurveTo(2.9, -6, 2.7 + sway * 0.6, -1.2);
+  ctx.quadraticCurveTo(0, -0.4, -2.7 + sway * 0.6, -1.2);
+  ctx.quadraticCurveTo(-2.9, -6, -1.6, -12.2);
   ctx.closePath(); ctx.fill();
   ctx.globalAlpha = 1;
-
-  // bodice + brooch
-  ctx.fillStyle = pal.gownDark;
-  rrPath(ctx, -3, -14.4, 6, 3.4, 1.4); ctx.fill();
-  ctx.fillStyle = pal.gem;
-  ctx.beginPath(); ctx.arc(0, -12.6, 1, 0, Math.PI*2); ctx.fill();
-
-  // arms: right hand rests on gown, left raised with the wand
-  ctx.strokeStyle = pal.skin; ctx.lineWidth = 1.8; ctx.lineCap = "round";
-  ctx.beginPath(); ctx.moveTo(2.8, -13.6); ctx.quadraticCurveTo(4.8, -11, 4.2, -8.4); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-2.8, -13.6); ctx.quadraticCurveTo(-5.6, -13, -6.4, -15.4); ctx.stroke();
-
-  // wand with a spinning star + sparkles
-  ctx.strokeStyle = "#cfd9e2"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(-6.4, -15.4); ctx.lineTo(-8.4, -20.4); ctx.stroke();
-  drawStarShape(ctx, -8.7, -21, 2.2, 1, t * 0.05, pal.gem, "#3a9fd0");
-  for (let i = 0; i < 2; i++) {
-    const a = t * 0.09 + i * 2.6;
-    ctx.fillStyle = "rgba(150,230,255," + (0.5 + Math.sin(a) * 0.3).toFixed(2) + ")";
-    ctx.beginPath(); ctx.arc(-9 + Math.cos(a) * 2.4, -20 + Math.sin(a * 1.3) * 2.6, 0.7, 0, Math.PI*2); ctx.fill();
+  // soft fabric folds
+  ctx.strokeStyle = "rgba(20,90,100,.28)"; ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(-3.6, -11); ctx.quadraticCurveTo(-5.2, -6, -6.2 + sway, -1.6);
+  ctx.moveTo(3.6, -11); ctx.quadraticCurveTo(5.2, -6, 6.2 + sway, -1.6);
+  ctx.stroke();
+  // stardust shimmer on the skirt
+  for (let i = 0; i < 3; i++) {
+    const tw = (Math.sin(t * 0.1 + i * 2.1) + 1) / 2;
+    const sx = [-3.6, 1.2, 4.4][i] + sway * 0.5, sy = [-4.5, -2.8, -5.6][i];
+    drawStarShape(ctx, sx, sy, 0.75, 0.32, t * 0.03 + i, "rgba(255,255,255," + (0.3 + tw * 0.5).toFixed(2) + ")");
   }
 
-  // head
+  // ---- fitted bodice with silver trim + her gold star brooch ----
+  const bg = ctx.createLinearGradient(0, -15.4, 0, -12);
+  bg.addColorStop(0, pal.gown); bg.addColorStop(1, pal.gownDark);
+  ctx.fillStyle = bg;
+  rrPath(ctx, -2.9, -15.4, 5.8, 4.2, 1.4); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(-2.8, -12.9); ctx.quadraticCurveTo(0, -12.1, 2.8, -12.9); ctx.stroke();
+  drawStarShape(ctx, 0, -13.7, 1.2, 0.55, 0, "#ffd166", "#d8a020");    // star brooch
+
+  // ---- a graceful neck (before the head, over the bodice) ----
   ctx.fillStyle = pal.skin;
-  ctx.beginPath(); ctx.ellipse(0, -16.4, 5, 5.2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-1.1, -17.5);
+  ctx.lineTo(1.1, -17.5);
+  ctx.lineTo(1.35, -14.9);
+  ctx.quadraticCurveTo(0, -14.3, -1.35, -14.9);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(220,170,140,.3)";             // soft shadow where the chin sits
+  ctx.beginPath(); ctx.ellipse(0, -17.2, 1.05, 0.5, 0, 0, Math.PI * 2); ctx.fill();
+  // delicate silver necklace at her collar
+  ctx.strokeStyle = "#dfe8f2"; ctx.lineWidth = 0.45;
+  ctx.beginPath(); ctx.arc(0, -15.6, 1.5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
 
-  // one visible eye (viewer's left); the other is hidden by the bang
-  ctx.save(); ctx.translate(-1.8, -16.4);
-  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(0, 0, 1.25, 1.7, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = pal.eye; ctx.beginPath(); ctx.ellipse(0.1, 0.2, 0.85, 1.15, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#1a1426"; ctx.beginPath(); ctx.arc(0.1, 0.3, 0.5, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.beginPath(); ctx.arc(-0.2, -0.2, 0.32, 0, Math.PI*2); ctx.fill();
+  // ---- arms: puffed shoulders, one hand resting, one raising the wand ----
+  ctx.fillStyle = pal.gown;                            // little sleeve puffs
+  ctx.beginPath(); ctx.ellipse(-3, -14.6, 1.3, 1.1, -0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(3, -14.6, 1.3, 1.1, 0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = pal.skin; ctx.lineWidth = 1.8; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(3, -14.2); ctx.quadraticCurveTo(4.9, -11.4, 4.3, -8.8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-3, -14.2); ctx.quadraticCurveTo(-5.8, -14, -6.7, -16.4); ctx.stroke();
+  ctx.fillStyle = pal.skin;                            // graceful hands
+  ctx.beginPath(); ctx.arc(4.3, -8.6, 0.95, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-6.7, -16.4, 0.95, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.65)"; ctx.lineWidth = 0.5;      // silver cuffs
+  ctx.beginPath(); ctx.arc(4.25, -9.6, 0.9, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.arc(-6.3, -15.6, 0.9, 1.1 * Math.PI, 1.9 * Math.PI); ctx.stroke();
+
+  // ---- the star wand: gold-tipped, glowing, trailed by stardust ----
+  const wg2 = ctx.createLinearGradient(-6.7, -16.4, -8.9, -21.6);
+  wg2.addColorStop(0, "#cfd9e2"); wg2.addColorStop(1, "#f6e08c");
+  ctx.strokeStyle = wg2; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-6.7, -16.6); ctx.lineTo(-8.7, -21.4); ctx.stroke();
+  const glow = ctx.createRadialGradient(-9, -22, 0.5, -9, -22, 5);
+  glow.addColorStop(0, "rgba(160,235,255,.65)"); glow.addColorStop(1, "rgba(160,235,255,0)");
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(-9, -22, 5, 0, Math.PI * 2); ctx.fill();
+  drawStarShape(ctx, -9, -22, 2.3, 1.05, t * 0.05, pal.gem, "#3a9fd0");
+  drawStarShape(ctx, -9, -22, 1, 0.45, -t * 0.07, "#ffffff");
+  for (let i = 0; i < 3; i++) {
+    const a = t * 0.09 + i * 2.1;
+    ctx.fillStyle = "rgba(150,230,255," + (0.45 + Math.sin(a) * 0.3).toFixed(2) + ")";
+    ctx.beginPath(); ctx.arc(-9.3 + Math.cos(a) * 2.8, -21 + Math.sin(a * 1.3) * 3, 0.6, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // ---- head: a smaller, higher oval face on her new neck ----
+  ctx.fillStyle = pal.skin;
+  ctx.beginPath(); ctx.ellipse(0, -20.6, 4.3, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  // gentle chin shading for depth
+  ctx.fillStyle = "rgba(220,170,140,.2)";
+  ctx.beginPath(); ctx.ellipse(0.3, -17.4, 2.4, 1, 0, 0, Math.PI * 2); ctx.fill();
+
+  // ---- one visible eye — realistic, lashed, sparkling ----
+  ctx.save(); ctx.translate(-1.6, -20.7);
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(0, 0, 1.15, 1.55, 0, 0, Math.PI * 2); ctx.fill();
+  const ir = ctx.createRadialGradient(0.1, -0.2, 0.15, 0.1, 0.2, 1.1);
+  ir.addColorStop(0, "#7fb8e8"); ir.addColorStop(0.7, pal.eye); ir.addColorStop(1, "#1e4f86");
+  ctx.fillStyle = ir; ctx.beginPath(); ctx.ellipse(0.1, 0.2, 0.8, 1.05, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#101426"; ctx.beginPath(); ctx.arc(0.1, 0.3, 0.42, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.95)"; ctx.beginPath(); ctx.arc(-0.22, -0.22, 0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.beginPath(); ctx.arc(0.4, 0.58, 0.16, 0, Math.PI * 2); ctx.fill();
+  // upper lash line hugging the eye + three little lashes
+  ctx.strokeStyle = pal.lash; ctx.lineWidth = 0.42; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(0, 0.25, 1.55, 1.25 * Math.PI, 1.78 * Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-1.05, -0.95); ctx.lineTo(-1.4, -1.3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-0.5, -1.25); ctx.lineTo(-0.7, -1.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0.2, -1.3); ctx.lineTo(0.25, -1.8); ctx.stroke();
   ctx.restore();
-  // lash + brow
-  ctx.strokeStyle = pal.lash; ctx.lineWidth = 0.6;
-  ctx.beginPath(); ctx.moveTo(-3.2, -17.5); ctx.quadraticCurveTo(-1.8, -18.3, -0.5, -17.7); ctx.stroke();
-  // lips
+  // soft brow
+  ctx.strokeStyle = "rgba(200,170,110,.8)"; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(-2.9, -22.6); ctx.quadraticCurveTo(-1.6, -23.2, -0.4, -22.8); ctx.stroke();
+  // tiny nose hint
+  ctx.strokeStyle = "rgba(210,160,130,.5)"; ctx.lineWidth = 0.4;
+  ctx.beginPath(); ctx.moveTo(-0.5, -19.2); ctx.quadraticCurveTo(-0.2, -18.8, -0.6, -18.6); ctx.stroke();
+  // soft rosy lips with a highlight
   ctx.fillStyle = pal.lip;
-  ctx.beginPath(); ctx.ellipse(-1, -13.1, 1.1, 0.6, 0, 0, Math.PI*2); ctx.fill();
-  // cheek
-  ctx.fillStyle = "rgba(245,150,170,.45)";
-  ctx.beginPath(); ctx.ellipse(-3.2, -14.5, 1, 0.7, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-0.7, -17.95, 0.7, 0.36, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.5)";
+  ctx.beginPath(); ctx.ellipse(-0.92, -18.1, 0.24, 0.11, 0, 0, Math.PI * 2); ctx.fill();
+  // soft gradient blush
+  const ch = ctx.createRadialGradient(-2.8, -18.9, 0.1, -2.8, -18.9, 1.15);
+  ch.addColorStop(0, "rgba(245,140,165,.5)"); ch.addColorStop(1, "rgba(245,140,165,0)");
+  ctx.fillStyle = ch; ctx.beginPath(); ctx.arc(-2.8, -18.9, 1.15, 0, Math.PI * 2); ctx.fill();
+  // star earring below her visible ear
+  drawStarShape(ctx, -4.2, -19.4, 0.55, 0.26, t * 0.02, "#ffd166");
 
-  // front hair: forehead fringe with a big side-swept bang over her right eye
-  const hg = ctx.createLinearGradient(0, -22, 0, -12);
-  hg.addColorStop(0, pal.hairLt); hg.addColorStop(1, pal.hair);
+  // ---- front hair: realistic side-swept platinum with layered strands ----
+  const hg = ctx.createLinearGradient(-2, -26, 3, -16);
+  hg.addColorStop(0, pal.hairLt); hg.addColorStop(0.55, pal.hair); hg.addColorStop(1, pal.hairDk);
   ctx.fillStyle = hg;
   ctx.beginPath();
-  ctx.moveTo(-5, -16.8);
-  ctx.quadraticCurveTo(-5.8, -21.6, -1, -22.5);
-  ctx.quadraticCurveTo(4.3, -22.2, 5.7, -17.4);
-  ctx.quadraticCurveTo(5.9, -13.4, 3.3, -12.3);
-  ctx.quadraticCurveTo(4.6, -16, 2.1, -17.6);
-  ctx.quadraticCurveTo(-0.5, -18.9, -2.4, -17.4);
-  ctx.quadraticCurveTo(-3.8, -16.6, -5, -16.8);
+  ctx.moveTo(-4.4, -20.8);
+  ctx.quadraticCurveTo(-5.2, -25.2, -0.9, -25.9);
+  ctx.quadraticCurveTo(3.9, -25.6, 5.1, -21.2);
+  ctx.quadraticCurveTo(5.4, -17.6, 2.9, -16.4);       // the sweep covering her right eye
+  ctx.quadraticCurveTo(4.2, -19.8, 1.9, -21.5);
+  ctx.quadraticCurveTo(-0.5, -22.7, -2.2, -21.4);
+  ctx.quadraticCurveTo(-3.4, -20.6, -4.4, -20.8);
   ctx.closePath(); ctx.fill();
-  // hair highlight strand
-  ctx.strokeStyle = pal.hairLt; ctx.lineWidth = 0.6;
-  ctx.beginPath(); ctx.moveTo(-1, -21); ctx.bezierCurveTo(2, -20.4, 3.8, -18, 3.4, -15); ctx.stroke();
+  // layered shine strands
+  ctx.strokeStyle = "rgba(255,250,220,.8)"; ctx.lineWidth = 0.5; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-1.1, -24.9); ctx.bezierCurveTo(1.8, -24.4, 3.5, -22, 3.2, -18.9); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-2.3, -24.3); ctx.bezierCurveTo(0.3, -24, 2.1, -22.4, 2.1, -20.2); ctx.stroke();
+  ctx.strokeStyle = "rgba(200,170,110,.4)"; ctx.lineWidth = 0.4;
+  ctx.beginPath(); ctx.moveTo(0.5, -25.5); ctx.bezierCurveTo(2.8, -24.7, 4, -22.6, 3.9, -19.6); ctx.stroke();
 
-  // silver crown with a little green star
-  ctx.fillStyle = pal.crown;
+  // ---- silver crown with jewels, sitting on her hair ----
+  const cg = ctx.createLinearGradient(-2.7, -27.6, 2.7, -24.4);
+  cg.addColorStop(0, "#f4f8fc"); cg.addColorStop(0.5, pal.crown); cg.addColorStop(1, pal.crownDk);
+  ctx.fillStyle = cg;
   ctx.beginPath();
-  ctx.moveTo(-3, -20.8);
-  ctx.lineTo(-3.2, -23.2); ctx.lineTo(-1.4, -21.9); ctx.lineTo(0, -23.9); ctx.lineTo(1.4, -21.9);
-  ctx.lineTo(3.2, -23.2); ctx.lineTo(3, -20.8);
+  ctx.moveTo(-2.7, -24.6);
+  ctx.lineTo(-3, -26.9); ctx.lineTo(-1.35, -25.6); ctx.lineTo(0, -27.7); ctx.lineTo(1.35, -25.6);
+  ctx.lineTo(3, -26.9); ctx.lineTo(2.7, -24.6);
   ctx.closePath(); ctx.fill();
   ctx.strokeStyle = pal.crownDk; ctx.lineWidth = 0.4; ctx.stroke();
-  drawStarShape(ctx, 0, -23, 1.1, 0.5, 0, pal.pstar, "#5fae3a");
+  ctx.fillStyle = "#e86a9e";                          // little jewels on the points
+  ctx.beginPath(); ctx.arc(-3, -27, 0.38, 0, Math.PI * 2); ctx.arc(3, -27, 0.38, 0, Math.PI * 2); ctx.fill();
+  drawStarShape(ctx, 0, -26.8, 1.05, 0.48, 0, pal.pstar, "#5fae3a");
+
+  // ---- a twinkle of stardust floating near her ----
+  if ((t & 15) < 7) drawStarShape(ctx, 6.8, -22 + Math.sin(t * 0.09) * 1.8, 1.1, 0.5, t * 0.06, "#d8f0ff");
 }
 
 function drawSparkleBody(ctx, pal, frame, airborne, walking, power) {
