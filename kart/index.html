@@ -1,0 +1,2205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Magic Kart — by Jules &amp; Nora</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#4d9e3c;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; touch-action:none; }
+  canvas { display:block; width:100vw; height:100vh; touch-action:none; }
+  .btn {
+    position:fixed; z-index:12; width:76px; height:76px; border-radius:50%;
+    background:rgba(255,255,255,.22); border:2.5px solid rgba(255,255,255,.55);
+    color:#fff; font-size:30px; display:flex; align-items:center; justify-content:center;
+    bottom:calc(max(18px, env(safe-area-inset-bottom)) + 6px);
+    -webkit-user-select:none; user-select:none; touch-action:none;
+  }
+  .btn.pressed { background:rgba(255,255,255,.45); }
+  #btnL { left:max(16px, env(safe-area-inset-left)); }
+  #btnR { left:calc(max(16px, env(safe-area-inset-left)) + 92px); }
+  #btnB { right:max(16px, env(safe-area-inset-right)); font-size:34px;
+    background:rgba(255,120,60,.35); border-color:rgba(255,190,140,.8); display:none; }
+  #btnB.pressed { background:rgba(255,120,60,.7); }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="btn" id="btnL">◀</div>
+<div class="btn" id="btnR">▶</div>
+<div class="btn" id="btnB">🍄</div>
+<div id="verlink">
+  <button id="gamesBtn" type="button">🎮 Games</button>
+  <nav id="gamesMenu" hidden>
+    <b>Super Young Sisters</b>
+    <a href="../">🕹 Classic</a><a href="../hd/">✨ HD</a><a href="../fortnite/">⚡ Battle</a><a href="../realistic/">🌿 Real</a>
+    <b>More magic</b>
+    <a href="../magic/">🌈 Magic Heroes</a><a href="../bubble/">🫧 Bubble</a><a href="../life/">🏡 Magic Life</a><a class="here" href="./">🏎 Magic Kart</a>
+  </nav>
+</div>
+<style>
+  #verlink { position:fixed; right:10px; top:max(10px, env(safe-area-inset-top)); z-index:30;
+    font-family:'Avenir Next','Trebuchet MS',Arial,sans-serif; }
+  #gamesBtn { font:800 14px 'Avenir Next','Trebuchet MS',Arial,sans-serif; color:#fff;
+    background:rgba(40,50,70,.55); border:2px solid rgba(255,255,255,.55);
+    border-radius:999px; padding:7px 14px; -webkit-user-select:none; user-select:none; }
+  #gamesMenu[hidden] { display:none; }
+  #gamesMenu { position:absolute; right:0; top:calc(100% + 6px); background:#ffffff;
+    border-radius:14px; padding:8px; min-width:176px; box-shadow:0 10px 28px rgba(0,0,0,.28);
+    display:flex; flex-direction:column; gap:2px; }
+  #gamesMenu b { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#8a94a6;
+    margin:6px 8px 2px; font-weight:800; }
+  #gamesMenu a { display:block; padding:7px 10px; border-radius:9px; color:#2a3a55;
+    text-decoration:none; font-weight:700; font-size:14px; }
+  #gamesMenu a:hover, #gamesMenu a:active { background:#eef3fb; }
+  #gamesMenu a.here { background:#ffd166; color:#7a4b12; }
+</style>
+<script>
+"use strict";
+/* MAGIC KART — a Super Mario Kart-style racer starring all 11 Magic Heroes.
+   Built with love for Jules & Nora. The character art is shared verbatim
+   with Magic Heroes / Magic Life (re-extract there if heroes change). */
+
+const cv = document.getElementById("game");
+const g  = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+}
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 200));
+resize();
+
+/* ------------------------------ audio ------------------------------ */
+let AC = null;
+function audio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (AC && AC.state === "suspended") AC.resume(); }
+function tone(freq, dur, type, vol, slide) {
+  if (!AC) return;
+  const o = AC.createOscillator(), gn = AC.createGain(), t = AC.currentTime;
+  o.type = type || "square"; o.frequency.setValueAtTime(freq, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
+  gn.gain.setValueAtTime(vol || .12, t);
+  gn.gain.exponentialRampToValueAtTime(.001, t + dur);
+  o.connect(gn).connect(AC.destination); o.start(t); o.stop(t + dur + .02);
+}
+const SFX = {
+  coin:  () => { tone(1180, .07, "square", .09); setTimeout(() => tone(1560, .12, "square", .08), 55); },
+  box:   () => tone(620, .14, "triangle", .12, 340),
+  boost: () => tone(240, .35, "sawtooth", .12, 660),
+  pad:   () => tone(380, .2, "sawtooth", .1, 420),
+  bump:  () => tone(140, .08, "square", .1, -40),
+  beep:  () => tone(440, .14, "square", .12),
+  go:    () => tone(880, .4, "square", .13),
+  win:   () => [660, 880, 1100, 1320].forEach((f, i) => setTimeout(() => tone(f, .18, "triangle", .12), i * 130)),
+  select:() => tone(760, .09, "square", .1, 160),
+};
+
+/* stubs so the shared character art draws its calm, default poses */
+const game = { timer: 0 };
+const player = { shielding:false, flying:false, splitT:0, glow:0, dumpSparkle:0 };
+
+/* ===================== shared character art (from Magic Heroes) ===================== */
+const CHARS = {
+  jules: {
+    name: "BAMBOO", kind: "bunny", look: "panda", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // red panda look — rust fur, white face markings, dark legs, ringed tail
+    panFur:"#d2622e", panFurLt:"#ec8a44", panFurDk:"#a8451c",
+    panWhite:"#f7efe2", panDark:"#2c211c", panDarkLt:"#46352c",
+    panEar:"#c2551f", panStripe:"#94391a", panNose:"#1a1210", panEye:"#140f0c",
+  },
+  cutie: {
+    name: "CUTIE", kind: "bunny", look: "butterfly", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // butterfly — red body, green/blue spotted wings, smiley face, antennae
+    bfBody:"#e63b3b", bfBodyDk:"#b21f1f", bfHead:"#fdf6ee", bfFace:"#2a1c12", bfBlush:"#ffb9cf",
+    wingGreen:"#41a64b", wingGreenDk:"#2c7a36", wingBlue:"#3f8fe0", wingBlueDk:"#2c6cb4",
+    wingSpot:"#ecb73e", antenna:"#6a4ad0", antTip:"#3a2a9e", bfStar:"#5cc8f0",
+  },
+  sparkle: {
+    name: "SPARKLE", kind: "bunny", look: "unicorn", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // unicorn — white body, rainbow mane & tail, spiral horn, brown hooves
+    uBody:"#fdf8ff", uShade:"#e6d8f0", uHoof:"#8a5a32", uEye:"#2a1c3a", uBlush:"#ffb9d8",
+    horn:"#ffe07a", hornDk:"#e6b740",
+    rainbow:["#ff5e6c","#ff9f43","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"],
+  },
+  squishy: {
+    name: "SQUISHY", kind: "bunny", look: "dumpling", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // rainbow dumpling in a waffle bowl — kawaii sparkly face
+    waffle:"#e6b16a", waffleDk:"#c98f44", dEye:"#2a1c22", dBlush:"#ff9bb4", dMouth:"#e0506e",
+    rainbow:["#ff7a9c","#ff9f43","#ffe14d","#7fe07a","#5ec8f0","#b58cff"],
+  },
+  icy: {
+    name: "ICY", kind: "bunny", look: "penguin", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // penguin — black & white with a pink bow; turns blue & white behind her wing shield
+    pgDark:"#23272f", pgDarkLt:"#3a4049", pgBlue:"#3f8fe0", pgBlueLt:"#7fc4f0",
+    pgBelly:"#ffffff", pgBellyShade:"#e2e8f0", pgBeak:"#ff9f43", pgFeet:"#ffb35c",
+    pgBow:"#f0559c", pgEye:"#16181d", pgBlush:"#ffb9cf",
+  },
+  appy: {
+    name: "APPY", kind: "bunny", look: "apple", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // smiley apple with three forms — red normally, green when big, yellow with the blue star
+    apRed:["#f0564a","#c22c24"], apGreen:["#7ed058","#4a9e30"], apYellow:["#ffd94d","#e0a820"],
+    apStem:"#8a5a32", apLeaf:"#5cc463", apFace:"#241a12", apBlush:"#ffb0c0",
+  },
+  misty: {
+    name: "MISTY", kind: "bunny", look: "horse", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // golden horse — cream mane & tail, white wings when she flies, moon glitter
+    hBody:"#f2c14e", hBodyLt:"#ffe094", hBodyDk:"#cf9a2c",
+    hMane:"#fdf6e3", hManeDk:"#e8d5a8", hHoof:"#8a6a3a", hMuzzle:"#ffe8c0",
+    hEye:"#2a1c0e", hBlush:"#ffb9cf", hWing:"#ffffff", hWingShade:"#dfe8f5",
+    crystal:"#bfe0ff", crystalDk:"#7fb0e8",
+  },
+  fairy: {
+    name: "NORA", kind: "bunny", look: "fairy", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // fairy — dark hair with a blue flower, sparkly purple butterfly wings,
+    // teal skirt, flower wand in her hand; wings turn BLUE with the blue diamond
+    fHair:"#241a20", fHairLt:"#463440", fSkin:"#fce0c2", fCheek:"#f5a0b0",
+    fWing:["#8a5fd0","#b98ff0","#3f2a78"], fWingBlue:["#3f8fe0","#8fd0ff","#1f5aa8"],
+    fWingSpot:"#e8d0ff", fWingSpotBlue:"#d0ecff",
+    fTop:"#7a4fc8", fTopDk:"#5a35a0", fTeal:"#46cdc6", fTealDk:"#1f9aa0",
+    fEye:"#2a1c12", fMouth:"#dd5f7e", fHairFlower:"#4aa6f0", fHairFlowerCtr:"#ffd166",
+    wandStem:"#5aa84f", wandPetal:"#f0559c", wandCtr:"#ffd166", wandLeaf:"#5cc463",
+  },
+  chunmi: {
+    name: "CHUN MI", kind: "bunny", look: "chunmi", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // Chun Mi — a stylish HUMAN girl straight from Jules's sketch: long black
+    // hair with a purple band on her bangs, winking eye, red-rosy cheeks,
+    // necklace, white crop top, open blue jacket, teal skirt, heeled boots.
+    // Blue gem: hair shifts purple/blue/black + two little pink bang pieces.
+    cmHair:"#1a1418", cmHairLt:"#3a3038",
+    cmHairPurple:"#5a3aa8", cmHairBlue:"#2c4fb0", cmPink:"#ff8ec4",
+    cmBand:"#6a3ad0", cmBandLt:"#a37fee", cmSkin:"#fce0c2", cmCheek:"#e0475a", cmEye:"#2a2026",
+    cmJacket:"#1f4fc8", cmJacketDk:"#16389a", cmJacketLt:"#4a72e8",
+    cmTop:"#fdfdfd", cmTopShade:"#e2e2ea",
+    cmSkirt:"#35b8cc", cmSkirtDk:"#2492a8", cmSkirtLt:"#66d4e4",
+    cmBoot:"#2ba8bc", cmBootDk:"#1a7a8c", cmBootLt:"#46c8dc",
+    cmMouth:"#dd5f7e", cmNeck:"#c8ccd8",
+    note:"#ffd166", noteDk:"#e8a33d",
+  },
+  northern: {
+    name: "NORTHERN LIGHT", kind: "bunny", look: "fox", flyMax: 1200,
+    body:"#fdf3ea", earIn:"#f5c4d6", visor:"#f06a9c", visorDark:"#d14e80",
+    skirt:"#f5a8c8", skirtDark:"#e07cab", star:"#ffd166", accent:"#e074a8",
+    // arctic fox — white fur, cool shadows, big sparkly eyes, blush, fluffy tail
+    foxFur:"#fcfdff", foxShade:"#d6e0f0", foxShadeDk:"#aab9d4",
+    foxEarIn:"#46506b", foxNose:"#2b2233", foxEye:"#181320", foxBlush:"#ffbcd2",
+    foxTailTip:"#8b97b4",
+    // aurora palette (when powered up — "northern light colors with white")
+    aur1:"#8ef0c8", aur2:"#7fb6ff", aur3:"#c69bff",
+  },
+  nora: {
+    name: "PRINCESS ROSALINA", kind: "cloud", look: "princess", flyMax: 600,
+    body:"#f2f7fd", shade:"#c3d4ea", cheek:"#f5a8b8", bolt:"#e8447a",
+    accent:"#4fa3e0",
+    // princess look — flowing aqua gown, platinum-blonde sweep, silver crown
+    gown:"#46cdc6", gownDark:"#1f9aa0", gownLight:"#9ef0e6",
+    hair:"#f6e08c", hairLt:"#fff2bc", hairDk:"#e3c45f",
+    skin:"#fce0c2", crown:"#e6edf2", crownDk:"#aebccb",
+    gem:"#7fe0ff", pstar:"#aef06a", lip:"#dd5f7e", eye:"#357fd1", lash:"#2a1c12",
+  }
+};
+
+function rrPath(ctx, x, y, w, h, r) {
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawStarShape(ctx, x, y, ro, ri, rot, fill, stroke) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0);
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 ? ri : ro, a = i * Math.PI / 5 - Math.PI / 2;
+    i ? ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r) : ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  ctx.closePath();
+  ctx.fillStyle = fill || "#ffd166"; ctx.fill();
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 0.6; ctx.stroke(); }
+  ctx.restore();
+}
+
+function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
+  ctx.save();
+  ctx.translate(x, y);
+  if (power > 0) ctx.scale(1.18, 1.32);
+  if (facing < 0) ctx.scale(-1, 1);
+  if (pal.look === "chunmi") drawChunMiBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "fairy") drawFairyBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "horse") drawMistyBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "apple") drawAppyBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "penguin") drawIcyBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "dumpling") drawSquishyBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "unicorn") drawSparkleBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "butterfly") drawCutieBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "fox") drawNorthernBody(ctx, pal, frame, airborne, walking, power);
+  else if (pal.look === "panda") drawBambooBody(ctx, pal, frame, airborne, walking);
+  else if (pal.look === "slime") drawCosmoBody(ctx, pal, frame, airborne, walking);
+  else if (pal.look === "princess") drawRosalinaBody(ctx, pal, frame, airborne, walking);
+  else if (pal.kind === "cloud") drawChuckeeBody(ctx, pal);
+  else drawChunmeBody(ctx, pal, frame, airborne, walking);
+  ctx.restore();
+}
+
+/* Chun Mi: a stylish HUMAN girl from Jules's sketch — long black hair with a
+   purple band across her bangs, one big sparkly eye and one winking eye, red
+   rosy cheeks, a necklace, white crop top under an open blue jacket, teal
+   skirt and heeled boots. With the blue gem her hair shifts purple/blue/black
+   and TWO little pink pieces appear on her upper bangs. Feet at (0,0). */
+function drawChunMiBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  // gem hair magic: slowly cycles purple → blue → black
+  const hairCol = power >= 2 ? [pal.cmHairPurple, pal.cmHairBlue, pal.cmHair][Math.floor(t / 160) % 3] : pal.cmHair;
+  const sway = Math.sin(t * 0.06) * (airborne ? 1.6 : walking ? 1 : 0.45);
+
+  // ---- long flowing hair behind her: two soft falls with layered tips ----
+  ctx.fillStyle = hairCol;
+  for (const s of [-1, 1]) {
+    const sw = s * sway;
+    ctx.beginPath();
+    ctx.moveTo(s * 2.5, -37.5);
+    ctx.bezierCurveTo(s * 10.5, -35, s * 9.8, -26, s * 8.8, -19);
+    ctx.quadraticCurveTo(s * 8.6, -14.5, s * 10.2 + sw, -10.5);   // flowing flick
+    ctx.quadraticCurveTo(s * 7.2 + sw, -9.2, s * 6.2, -12);
+    ctx.quadraticCurveTo(s * 5.4, -10.6, s * 3.8 + sw * 0.6, -9.5); // second layered tip
+    ctx.quadraticCurveTo(s * 4.4, -16, s * 3.6, -24);
+    ctx.closePath(); ctx.fill();
+  }
+  // glossy sheen down the back hair
+  ctx.strokeStyle = "rgba(160,150,190,.35)"; ctx.lineWidth = 1.1; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-8.2, -30); ctx.quadraticCurveTo(-8.9, -22, -7.6, -15); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(8.2, -30); ctx.quadraticCurveTo(8.9, -22, 7.6, -15); ctx.stroke();
+
+  // ---- long legs with a graceful step ----
+  const step = walking ? (frame ? 1.8 : -1.8) : 0;
+  ctx.strokeStyle = pal.cmSkin; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-2.3, -12); ctx.quadraticCurveTo(-2.8, -8, -2.6 + step, -3.4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(2.3, -12); ctx.quadraticCurveTo(2.8, -8, 2.6 - step, -3.4); ctx.stroke();
+  // shiny little heeled boots
+  for (const bx of [-2.6 + step, 2.6 - step]) {
+    const bg2 = ctx.createLinearGradient(bx, -5, bx, 0);
+    bg2.addColorStop(0, pal.cmBootLt); bg2.addColorStop(1, pal.cmBoot);
+    ctx.fillStyle = bg2;
+    rrPath(ctx, bx - 2.1, -4.8, 4.2, 4.2, 1.6); ctx.fill();
+    ctx.fillRect(bx - 2.1, -1.2, 4.8, 1.4);
+    ctx.fillStyle = pal.cmBootDk; ctx.fillRect(bx + 1.6, -1.2, 1.3, 1.4);   // little heel
+    ctx.fillStyle = "rgba(255,255,255,.55)";
+    ctx.beginPath(); ctx.arc(bx - 0.8, -3.6, 0.7, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // ---- pleated teal skirt with a scalloped swishy hem ----
+  const sg = ctx.createLinearGradient(0, -18.5, 0, -10);
+  sg.addColorStop(0, pal.cmSkirtLt); sg.addColorStop(1, pal.cmSkirtDk);
+  ctx.fillStyle = sg;
+  ctx.beginPath();
+  ctx.moveTo(-4.4, -18.5); ctx.lineTo(4.4, -18.5);
+  ctx.quadraticCurveTo(5.8, -14, 6.8, -10.8);
+  ctx.quadraticCurveTo(3.4, -9.5, 0, -9.9);
+  ctx.quadraticCurveTo(-3.4, -9.5, -6.8, -10.8);
+  ctx.quadraticCurveTo(-5.8, -14, -4.4, -18.5);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.fillRect(-4.4, -18.5, 8.8, 1.2);   // waistband
+  ctx.strokeStyle = "rgba(20,60,70,.28)"; ctx.lineWidth = 0.8;                    // pleats
+  ctx.beginPath();
+  ctx.moveTo(-3.4, -17.3); ctx.lineTo(-4.7, -10.7);
+  ctx.moveTo(3.4, -17.3); ctx.lineTo(4.7, -10.7);
+  ctx.stroke();
+  ctx.strokeStyle = "#16181d"; ctx.lineWidth = 1.1; ctx.lineCap = "round";        // her sketch's marks
+  ctx.beginPath();
+  ctx.moveTo(-2, -15.6); ctx.lineTo(-2.4, -12.2);
+  ctx.moveTo(0, -15.6); ctx.lineTo(0, -12.2);
+  ctx.moveTo(2, -15.6); ctx.lineTo(2.4, -12.2);
+  ctx.stroke();
+
+  // ---- bare tummy + white crop top with a gold star ----
+  ctx.fillStyle = pal.cmSkin; ctx.fillRect(-3.2, -20.6, 6.4, 2.6);
+  const tg = ctx.createLinearGradient(0, -25.5, 0, -20);
+  tg.addColorStop(0, "#ffffff"); tg.addColorStop(1, pal.cmTopShade);
+  ctx.fillStyle = tg; rrPath(ctx, -3.7, -25.5, 7.4, 5.2, 1.6); ctx.fill();
+  drawStarShape(ctx, 0, -22.8, 1.4, 0.6, 0, pal.note);
+
+  // ---- arms in blue sleeves with light cuffs, then the open jacket ----
+  const armSwing = airborne ? -2.2 : step * 0.6;
+  ctx.strokeStyle = pal.cmJacket; ctx.lineWidth = 2.7; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-4.9, -24.5); ctx.quadraticCurveTo(-6.6, -21, -6.7, -16.6 + armSwing); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4.9, -24.5); ctx.quadraticCurveTo(6.6, -21, 6.7, -16.6 - armSwing); ctx.stroke();
+  ctx.strokeStyle = pal.cmJacketLt; ctx.lineWidth = 1.3;                          // cuffs
+  ctx.beginPath(); ctx.moveTo(-7.7, -17.3 + armSwing); ctx.lineTo(-5.8, -16.9 + armSwing); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(7.7, -17.3 - armSwing); ctx.lineTo(5.8, -16.9 - armSwing); ctx.stroke();
+  ctx.fillStyle = pal.cmSkin;                                                     // little hands
+  ctx.beginPath(); ctx.arc(-6.8, -15 + armSwing, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(6.8, -15 - armSwing, 1.5, 0, Math.PI * 2); ctx.fill();
+  const jg = ctx.createLinearGradient(0, -26.5, 0, -14);
+  jg.addColorStop(0, pal.cmJacketLt); jg.addColorStop(1, pal.cmJacketDk);
+  ctx.fillStyle = jg;
+  for (const s of [-1, 1]) {                                                      // rounded lapel panels
+    ctx.beginPath();
+    ctx.moveTo(s * 5.6, -26.2);
+    ctx.lineTo(s * 3.1, -26.2);
+    ctx.quadraticCurveTo(s * 3, -21.5, s * 3.7, -17.6);
+    ctx.quadraticCurveTo(s * 5.2, -17.2, s * 6.3, -18.6);
+    ctx.quadraticCurveTo(s * 6.2, -22.5, s * 5.6, -26.2);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(255,255,255,.4)"; ctx.lineWidth = 0.8;                  // lapel shine
+  ctx.beginPath(); ctx.moveTo(-3.6, -25.6); ctx.quadraticCurveTo(-3.5, -21, -4.1, -18.2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(3.6, -25.6); ctx.quadraticCurveTo(3.5, -21, 4.1, -18.2); ctx.stroke();
+
+  // ---- gold chain with a little heart pendant ----
+  ctx.strokeStyle = "#e8b64a"; ctx.lineWidth = 0.7;
+  ctx.beginPath(); ctx.arc(0, -26.6, 2.3, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+  ctx.fillStyle = "#ff6b9d";
+  ctx.beginPath();
+  ctx.moveTo(0, -23.6);
+  ctx.bezierCurveTo(-1.4, -25.1, -0.6, -26.1, 0, -25.2);
+  ctx.bezierCurveTo(0.6, -26.1, 1.4, -25.1, 0, -23.6);
+  ctx.fill();
+
+  // ---- head & face ----
+  ctx.fillStyle = pal.cmSkin;
+  ctx.beginPath(); ctx.arc(0, -32.5, 7, 0, Math.PI * 2); ctx.fill();
+  // soft brows
+  ctx.strokeStyle = "rgba(40,30,40,.5)"; ctx.lineWidth = 0.6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(-2.5, -32.4, 2, 1.2 * Math.PI, 1.72 * Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.arc(3, -32.4, 2, 1.28 * Math.PI, 1.8 * Math.PI); ctx.stroke();
+  // big sparkly anime eye
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.ellipse(-2.4, -31.3, 1.9, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+  const ig = ctx.createLinearGradient(-2.4, -33.2, -2.4, -29.4);
+  ig.addColorStop(0, "#5a4668"); ig.addColorStop(1, pal.cmEye);
+  ctx.fillStyle = ig;
+  ctx.beginPath(); ctx.arc(-2.3, -31.2, 1.35, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#16121a";
+  ctx.beginPath(); ctx.arc(-2.3, -31.1, 0.7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(-2.85, -31.9, 0.6, 0, Math.PI * 2); ctx.fill();        // big sparkle
+  ctx.beginPath(); ctx.arc(-1.75, -30.55, 0.32, 0, Math.PI * 2); ctx.fill();      // little sparkle
+  ctx.strokeStyle = "#241a24"; ctx.lineWidth = 0.7; ctx.lineCap = "round";        // lash line + lashes
+  ctx.beginPath(); ctx.arc(-2.4, -31.4, 2.1, 1.15 * Math.PI, 1.7 * Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-4.3, -32.3); ctx.lineTo(-5.05, -32.9); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-3.5, -33.2); ctx.lineTo(-4.05, -34); ctx.stroke();
+  // sweet wink with little lashes
+  ctx.strokeStyle = "#241a24"; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.arc(2.9, -31.9, 1.6, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+  ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.moveTo(4.3, -30.85); ctx.lineTo(5, -30.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(2.95, -30.35); ctx.lineTo(3.15, -29.65); ctx.stroke();
+  // soft rosy gradient cheeks (still nice and pink, like she drew them)
+  for (const cxx of [-4.6, 4.8]) {
+    const cg = ctx.createRadialGradient(cxx, -29.2, 0.2, cxx, -29.2, 1.9);
+    cg.addColorStop(0, "rgba(240,90,110,.8)"); cg.addColorStop(1, "rgba(240,90,110,0)");
+    ctx.fillStyle = cg;
+    ctx.beginPath(); ctx.arc(cxx, -29.2, 1.9, 0, Math.PI * 2); ctx.fill();
+  }
+  // sweet smile with a hint of lip
+  ctx.strokeStyle = pal.cmMouth; ctx.lineWidth = 0.8; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(0.3, -29, 1.5, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+  ctx.strokeStyle = "rgba(221,95,126,.4)"; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.arc(0.3, -28.5, 0.9, 0.25 * Math.PI, 0.75 * Math.PI); ctx.stroke();
+
+  // ---- glossy bangs, side strands, headband ----
+  ctx.fillStyle = hairCol;
+  ctx.beginPath(); ctx.arc(0, -34, 7.2, Math.PI * 0.97, Math.PI * 2.03); ctx.fill();
+  ctx.beginPath();                                        // scalloped bang tips
+  ctx.moveTo(-7.15, -33.4);
+  ctx.quadraticCurveTo(-5.6, -30.2, -3.9, -33);
+  ctx.quadraticCurveTo(-2.2, -30.4, -0.2, -33.1);
+  ctx.quadraticCurveTo(1.8, -30.8, 3.6, -33.1);
+  ctx.quadraticCurveTo(5.5, -31.2, 7.15, -33.4);
+  ctx.lineTo(7.15, -36.5); ctx.lineTo(-7.15, -36.5);
+  ctx.closePath(); ctx.fill();
+  for (const s of [-1, 1]) {                              // strands framing her face
+    ctx.beginPath();
+    ctx.moveTo(s * 6.9, -34.5);
+    ctx.quadraticCurveTo(s * 8.1, -29, s * 7.1, -24.5);
+    ctx.quadraticCurveTo(s * 6.5, -22, s * 7.3, -20);
+    ctx.quadraticCurveTo(s * 5.7, -20.5, s * 5.5, -23.5);
+    ctx.quadraticCurveTo(s * 5.9, -29, s * 4.9, -33.6);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(170,160,200,.5)"; ctx.lineWidth = 1;   // bang gloss
+  ctx.beginPath(); ctx.arc(-1.4, -33.4, 5.4, 1.28 * Math.PI, 1.62 * Math.PI); ctx.stroke();
+  // the purple headband, with a shine and a tiny gold star
+  ctx.strokeStyle = pal.cmBand; ctx.lineWidth = 1.8; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(0, -33.4, 6.6, 1.16 * Math.PI, 1.84 * Math.PI); ctx.stroke();
+  ctx.strokeStyle = pal.cmBandLt; ctx.lineWidth = 0.7;
+  ctx.beginPath(); ctx.arc(0, -33.6, 6.9, 1.3 * Math.PI, 1.6 * Math.PI); ctx.stroke();
+  drawStarShape(ctx, -4.7, -38.3, 1.1, 0.5, 0.3, "#ffd166");
+  // gem magic: exactly TWO little pink pieces on the upper side of her bangs
+  if (power >= 2) {
+    ctx.strokeStyle = pal.cmPink; ctx.lineWidth = 1.15; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-3.1, -38.9); ctx.quadraticCurveTo(-2.5, -36.6, -3, -34.8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-0.7, -39.5); ctx.quadraticCurveTo(-0.1, -37.2, -0.6, -35.4); ctx.stroke();
+    if ((t & 7) < 4) drawStarShape(ctx, 5.2, -37 + Math.sin(t * 0.13) * 1.2, 1, 0.45, t * 0.1, "#fff");
+  }
+  // a twinkle drifting near her — she's the stylish one
+  if ((t & 15) < 6) drawStarShape(ctx, -9.5, -25 + Math.sin(t * 0.09) * 2, 1.3, 0.55, t * 0.08, "#fff3b0");
+  // ready-to-sing note when powered up
+  if (power >= 2 && (t & 15) < 9)
+    drawMusicNote(ctx, 10, -41 + Math.sin(t * 0.1) * 1.6, 0.55, pal.note);
+}
+
+/* a little eighth-note ♪ used for Chun Mi's magic everywhere */
+function drawMusicNote(ctx, x, y, s, col) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.fillStyle = col || "#ffd166";
+  ctx.strokeStyle = col || "#ffd166"; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.ellipse(-2, 4.5, 3.1, 2.3, -0.35, 0, Math.PI*2); ctx.fill();  // note head
+  ctx.beginPath(); ctx.moveTo(0.9, 3.8); ctx.lineTo(0.9, -5.5); ctx.stroke();        // stem
+  ctx.beginPath();                                                                    // flag
+  ctx.moveTo(0.9, -5.5); ctx.quadraticCurveTo(4.6, -4.2, 4.2, -0.6);
+  ctx.quadraticCurveTo(3.4, -2.8, 0.9, -3.2);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* Nora the fairy: dark hair with a blue flower, sparkly purple butterfly
+   wings (they turn BLUE when she has the blue diamond), a teal skirt and a
+   flower wand in her hand. Feet at (0,0), facing right. */
+function drawFairyBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  const wingCols = power >= 2 ? pal.fWingBlue : pal.fWing;
+  const spotCol  = power >= 2 ? pal.fWingSpotBlue : pal.fWingSpot;
+  const flap = Math.sin(t * (airborne ? 0.55 : 0.12)) * (airborne ? 0.5 : 0.13);
+
+  // ---- butterfly wings (behind the body, flapping from her shoulders) ----
+  for (const side of [-1, 1]) {                     // -1 = far pair, 1 = near pair
+    ctx.save();
+    ctx.translate(-2, -21);
+    ctx.rotate(flap * side * 0.8 + side * 0.12);
+    ctx.globalAlpha = side < 0 ? 0.75 : 0.95;
+    const wg = ctx.createLinearGradient(0, -14, -16 * 1, 4);
+    wg.addColorStop(0, wingCols[1]); wg.addColorStop(1, wingCols[0]);
+    ctx.fillStyle = wg;
+    ctx.strokeStyle = wingCols[2]; ctx.lineWidth = 1;
+    // upper lobe
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(-14, -16, -22, -10, -17, 2 - side * 1.5);
+    ctx.bezierCurveTo(-12, 6, -4, 4, 0, 0);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // lower lobe
+    ctx.beginPath();
+    ctx.moveTo(-1, 2);
+    ctx.bezierCurveTo(-13, 6, -15, 15, -9, 15);
+    ctx.bezierCurveTo(-4, 15, -1, 8, -1, 2);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // sparkly spots
+    ctx.fillStyle = spotCol;
+    ctx.beginPath(); ctx.arc(-13, -6, 2.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-8, 9, 1.6, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-15, 4, 1.2, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  // wing twinkle
+  if ((t & 7) < 4) drawStarShape(ctx, -13, -26 + Math.sin(t*0.15)*2, 1.6, 0.7, t*0.1, "#fff");
+
+  // ---- legs ----
+  const step = walking ? (frame ? 1.6 : -1.6) : 0;
+  ctx.fillStyle = pal.fSkin;
+  ctx.fillRect(-4 + step, -8, 3, 7); ctx.fillRect(1.6 - step, -8, 3, 7);
+  ctx.fillStyle = pal.fTopDk;                        // little shoes
+  ctx.beginPath(); ctx.ellipse(-2.4 + step, -0.8, 2.6, 1.6, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(3.2 - step, -0.8, 2.6, 1.6, 0, 0, Math.PI*2); ctx.fill();
+
+  // ---- teal skirt + purple bodice (like her drawing) ----
+  const sg = ctx.createLinearGradient(0, -18, 0, -6);
+  sg.addColorStop(0, pal.fTeal); sg.addColorStop(1, pal.fTealDk);
+  ctx.fillStyle = sg;
+  ctx.beginPath();
+  ctx.moveTo(-4.5, -17);
+  ctx.bezierCurveTo(-9, -10, -9.5, -7, -8.5, -6);
+  ctx.lineTo(8.5, -6);
+  ctx.bezierCurveTo(9.5, -7, 9, -10, 4.5, -17);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = 0.8;   // skirt swishes
+  ctx.beginPath(); ctx.moveTo(-3, -14); ctx.lineTo(-4.6, -7); ctx.moveTo(2.5, -14); ctx.lineTo(4, -7); ctx.stroke();
+  const bg = ctx.createLinearGradient(0, -24, 0, -15);
+  bg.addColorStop(0, pal.fTop); bg.addColorStop(1, pal.fTopDk);
+  ctx.fillStyle = bg;
+  rrPath(ctx, -4.6, -24, 9.2, 8.5, 3); ctx.fill();
+  drawStarShape(ctx, 0, -20, 2, 0.9, 0, "#ffd166");                 // twinkle on her dress
+
+  // ---- arms: back arm down, front arm holds the flower wand up ----
+  ctx.strokeStyle = pal.fSkin; ctx.lineWidth = 2.4; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-3.6, -21); ctx.lineTo(-6, -14 + step); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(3.6, -21); ctx.lineTo(7.5, -18); ctx.stroke();
+  // flower wand — green stem, pink petals, sunny middle, two leaves
+  ctx.strokeStyle = pal.wandStem; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(7.5, -18); ctx.lineTo(10.5, -30); ctx.stroke();
+  ctx.fillStyle = pal.wandLeaf;
+  ctx.beginPath(); ctx.ellipse(8.2, -23, 2.4, 1, -0.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(10.6, -21, 2.4, 1, 0.4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.wandPetal;
+  for (let i = 0; i < 6; i++) {
+    const a = i * Math.PI / 3 + t * 0.02;
+    ctx.beginPath(); ctx.ellipse(10.5 + Math.cos(a)*3.4, -32 + Math.sin(a)*3.4, 2.5, 1.7, a, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = pal.wandCtr; ctx.beginPath(); ctx.arc(10.5, -32, 2.4, 0, Math.PI*2); ctx.fill();
+
+  // ---- head ----
+  ctx.fillStyle = pal.fSkin;
+  ctx.beginPath(); ctx.arc(0, -31, 7, 0, Math.PI*2); ctx.fill();
+  // dark hair — soft cap with a middle part and two little side buns
+  ctx.fillStyle = pal.fHair;
+  ctx.beginPath(); ctx.arc(0, -32.5, 7.1, Math.PI * 1.02, Math.PI * 1.98); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-7, -32); ctx.quadraticCurveTo(-7.6, -27, -5.6, -25.5);
+  ctx.quadraticCurveTo(-6.6, -29, -4.8, -32.5); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(7, -32); ctx.quadraticCurveTo(7.6, -27, 5.6, -25.5);
+  ctx.quadraticCurveTo(6.6, -29, 4.8, -32.5); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.arc(-6.4, -36.5, 2.6, 0, Math.PI*2); ctx.fill();   // buns
+  ctx.beginPath(); ctx.arc(6.4, -36.5, 2.6, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.fHairLt;                                            // shine
+  ctx.beginPath(); ctx.arc(-2, -36.5, 2.2, Math.PI, Math.PI*1.7); ctx.fill();
+  // blue flower in her hair
+  ctx.fillStyle = pal.fHairFlower;
+  for (let i = 0; i < 5; i++) {
+    const a = i * Math.PI * 2 / 5 - 0.4;
+    ctx.beginPath(); ctx.ellipse(-4.6 + Math.cos(a)*2, -38.5 + Math.sin(a)*2, 1.7, 1.1, a, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = pal.fHairFlowerCtr; ctx.beginPath(); ctx.arc(-4.6, -38.5, 1.3, 0, Math.PI*2); ctx.fill();
+  // face — happy eyes with little lashes, blush, smile
+  ctx.fillStyle = pal.fEye;
+  ctx.beginPath(); ctx.arc(-2.4, -31, 1, 0, Math.PI*2); ctx.arc(2.6, -31, 1, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.fEye; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.moveTo(-3.4, -32.4); ctx.lineTo(-4.2, -33);
+  ctx.moveTo(3.6, -32.4); ctx.lineTo(4.4, -33); ctx.stroke();
+  ctx.fillStyle = pal.fCheek;
+  ctx.beginPath(); ctx.arc(-4.2, -29, 1.4, 0, Math.PI*2); ctx.arc(4.4, -29, 1.4, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.fMouth; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.arc(0.2, -28.6, 1.6, 0.15*Math.PI, 0.85*Math.PI); ctx.stroke();
+}
+
+/* Misty the golden horse: very pretty — cream mane and tail, long lashes,
+   a white star blaze. She turns into a FLYING horse (white wings) when she
+   flies, gallops faster than anyone, and glitters when the moon touches her.
+   Feet at (0,0), facing right. */
+function drawMistyBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  const gait = walking ? (frame ? 1.4 : -1.4) : 0;
+  const moonlit = game.level && game.level.theme === "moon";
+  const sway = Math.sin(t * 0.06);
+
+  // ---- long flowing tail — layered wavy strands ----
+  ctx.save(); ctx.translate(-7, -9.5); ctx.rotate(sway * 0.08 - 0.08);
+  ctx.lineCap = "round";
+  const tailCols = [pal.hManeDk, pal.hMane, "#ffe8b0", pal.hMane, pal.hManeDk];
+  for (let i = 0; i < 5; i++) {
+    ctx.strokeStyle = tailCols[i]; ctx.lineWidth = 2.1 - i * 0.22;
+    const w1 = Math.sin(t * 0.07 + i * 0.8) * 1.4;
+    ctx.beginPath(); ctx.moveTo(0.5, -1.5 + i * 0.7);
+    ctx.bezierCurveTo(-4.5 - i * 0.5, -1 + i + w1, -6.5 - i * 0.6, 5 + i - w1, -4 - i * 0.7, 10.5 + i * 0.5 + w1);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ---- wings — she becomes a flying horse! (drawn behind her body) ----
+  if (player.flying) {
+    const flap = Math.sin(t * 0.4);
+    for (const near of [false, true]) {
+      ctx.save(); ctx.translate(near ? -1 : -3.2, -12.5);
+      ctx.rotate((near ? -0.42 : -0.72) - flap * 0.5);
+      const wg = ctx.createLinearGradient(0, 0, -17, -8);
+      wg.addColorStop(0, near ? "#ffffff" : pal.hWingShade);
+      wg.addColorStop(1, near ? pal.hWingShade : "#c8d4e8");
+      ctx.fillStyle = wg;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(-9, -11, -19, -9.5);        // leading edge
+      ctx.quadraticCurveTo(-15.5, -6, -16.5, -3);      // four feather scallops
+      ctx.quadraticCurveTo(-12.5, -4.2, -13.5, -0.8);
+      ctx.quadraticCurveTo(-9.5, -2, -10, 1);
+      ctx.quadraticCurveTo(-5, -0.4, 0, 1.8);
+      ctx.closePath(); ctx.fill();
+      if (near) {
+        ctx.strokeStyle = "rgba(212,176,90,.55)"; ctx.lineWidth = 0.7;   // golden feather lines
+        ctx.beginPath(); ctx.moveTo(-2, -1.2); ctx.quadraticCurveTo(-9, -6, -16.5, -6.8); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-2.5, 0); ctx.quadraticCurveTo(-8, -2.8, -12.5, -2.4); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  // ---- slender legs: far pair shaded, near pair bright, white socks, dark hooves ----
+  const legs = [
+    { x:-4.2, ph: 1, near:false }, { x: 3.0, ph:-1, near:false },
+    { x:-5.4, ph:-1, near:true  }, { x: 4.6, ph: 1, near:true  },
+  ];
+  for (const L of legs) {
+    const lift = walking ? Math.max(0, Math.sin((frame ? 1 : -1) * L.ph) * 1.7) : 0;
+    const lx2 = L.x + L.ph * gait * 0.45;
+    ctx.strokeStyle = L.near ? pal.hBody : pal.hBodyDk; ctx.lineWidth = 2; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(L.x, -7.5); ctx.quadraticCurveTo(L.x + L.ph*0.3, -4.5, lx2, -2.2 - lift); ctx.stroke();
+    ctx.strokeStyle = L.near ? "#fdf6e3" : "#e0d5b8"; ctx.lineWidth = 2;                 // white sock
+    ctx.beginPath(); ctx.moveTo(lx2 - L.ph*0.1, -3.4 - lift); ctx.lineTo(lx2, -2 - lift); ctx.stroke();
+    ctx.fillStyle = pal.hHoof;
+    ctx.beginPath(); ctx.ellipse(lx2, -1 - lift, 1.4, 1.05, 0, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ---- graceful body: slim barrel with a soft shine ----
+  const bg = ctx.createLinearGradient(0, -14.5, 0, -5);
+  bg.addColorStop(0, pal.hBodyLt); bg.addColorStop(0.5, pal.hBody); bg.addColorStop(1, pal.hBodyDk);
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(-7.2, -10.6);
+  ctx.bezierCurveTo(-8.2, -14.6, -3, -15.4, 0.5, -14.6);   // back line up to the withers
+  ctx.bezierCurveTo(3.6, -14, 5.6, -12.4, 5.4, -9.6);      // chest
+  ctx.bezierCurveTo(5, -6.2, 1.5, -5.4, -1.5, -5.6);       // belly
+  ctx.bezierCurveTo(-5, -5.8, -7.6, -7.4, -7.2, -10.6);    // round rump
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.34)";
+  ctx.beginPath(); ctx.ellipse(-2.6, -12.4, 3.4, 1.7, -0.25, 0, Math.PI*2); ctx.fill();  // shine
+  ctx.fillStyle = "rgba(255,240,200,.4)";
+  ctx.beginPath(); ctx.ellipse(-0.5, -6.6, 3.6, 1.1, 0.08, 0, Math.PI*2); ctx.fill();    // belly glow
+
+  // ---- elegant arched neck ----
+  ctx.fillStyle = pal.hBody;
+  ctx.beginPath();
+  ctx.moveTo(1.6, -13.8);
+  ctx.bezierCurveTo(3.2, -16.8, 4.2, -18.6, 4.6, -20.4);   // crest of the neck (arched)
+  ctx.lineTo(8.2, -19.2);
+  ctx.bezierCurveTo(7.8, -15.4, 6.8, -12.4, 5.2, -9.8);    // throat curve down to chest
+  ctx.closePath(); ctx.fill();
+  const ng = ctx.createLinearGradient(2, -18, 7, -12);
+  ng.addColorStop(0, "rgba(255,224,148,.5)"); ng.addColorStop(1, "rgba(207,154,44,0)");
+  ctx.fillStyle = ng;
+  ctx.beginPath(); ctx.moveTo(2, -14); ctx.bezierCurveTo(3.6, -17, 4.4, -19, 4.8, -20.2);
+  ctx.lineTo(6.4, -19.8); ctx.bezierCurveTo(6, -16, 5.4, -13, 4.6, -10.6); ctx.closePath(); ctx.fill();
+
+  // ---- refined head, held high ----
+  ctx.fillStyle = pal.hBody;
+  ctx.beginPath(); ctx.ellipse(6.9, -19.9, 3.7, 2.85, -0.18, 0, Math.PI*2); ctx.fill();
+  const mg = ctx.createRadialGradient(9.6, -19.4, 0.5, 10, -18.9, 2.6);
+  mg.addColorStop(0, "#fff2d8"); mg.addColorStop(1, pal.hMuzzle);
+  ctx.fillStyle = mg;
+  ctx.beginPath(); ctx.ellipse(10, -18.9, 2.1, 1.7, -0.18, 0, Math.PI*2); ctx.fill();    // soft muzzle
+  ctx.fillStyle = "rgba(150,110,60,.55)";
+  ctx.beginPath(); ctx.arc(10.8, -18.5, 0.38, 0, Math.PI*2); ctx.fill();                 // nostril
+  ctx.strokeStyle = "rgba(150,110,60,.5)"; ctx.lineWidth = 0.5; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(10, -17.9, 1, 0.25*Math.PI, 0.7*Math.PI); ctx.stroke();       // sweet smile
+
+  // ---- ears with pink inners ----
+  ctx.fillStyle = pal.hBody;
+  ctx.beginPath(); ctx.moveTo(3.9,-22.2); ctx.lineTo(4.9,-25.2); ctx.lineTo(6.1,-22.4); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(6.7,-22.3); ctx.lineTo(7.9,-25); ctx.lineTo(8.9,-21.9); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#f5c4d6";
+  ctx.beginPath(); ctx.moveTo(4.4,-22.5); ctx.lineTo(4.95,-24.3); ctx.lineTo(5.6,-22.6); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(7.2,-22.4); ctx.lineTo(7.85,-24.1); ctx.lineTo(8.4,-22.2); ctx.closePath(); ctx.fill();
+
+  // ---- white star blaze ----
+  drawStarShape(ctx, 8.2, -21, 1.35, 0.6, 0.25, "#ffffff");
+
+  // ---- big beautiful eye: almond shape, two catchlights, three lashes ----
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.ellipse(6.1, -19.5, 1.75, 1.95, -0.12, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#6a4ad0";                                                            // violet iris
+  ctx.beginPath(); ctx.ellipse(6.25, -19.3, 1.35, 1.6, -0.12, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.hEye;
+  ctx.beginPath(); ctx.ellipse(6.3, -19.2, 0.85, 1.1, -0.12, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.96)";
+  ctx.beginPath(); ctx.arc(5.7, -20, 0.55, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(6.8, -18.6, 0.3, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "#3a2a10"; ctx.lineWidth = 0.6; ctx.lineCap = "round";               // upper lid
+  ctx.beginPath(); ctx.arc(6.1, -19.4, 1.8, Math.PI*1.1, Math.PI*1.85); ctx.stroke();
+  ctx.lineWidth = 0.5;                                                                   // long lashes
+  ctx.beginPath(); ctx.moveTo(4.5,-20.7); ctx.quadraticCurveTo(3.8,-21.2, 3.3,-21.2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(5.1,-21.2); ctx.quadraticCurveTo(4.6,-21.9, 4.1,-22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(5.9,-21.4); ctx.quadraticCurveTo(5.7,-22.2, 5.3,-22.5); ctx.stroke();
+  ctx.fillStyle = pal.hBlush;
+  ctx.beginPath(); ctx.ellipse(8.4, -17.5, 1.15, 0.72, -0.15, 0, Math.PI*2); ctx.fill(); // blush
+
+  // ---- long wavy mane flowing down the neck ----
+  ctx.lineCap = "round";
+  const maneCols = [pal.hManeDk, pal.hMane, "#fffdf5", pal.hMane, "#ffe8b0"];
+  for (let i = 0; i < 5; i++) {
+    ctx.strokeStyle = maneCols[i]; ctx.lineWidth = 1.9 - i * 0.18;
+    const w2 = Math.sin(t * 0.07 + i) * 0.9;
+    ctx.beginPath(); ctx.moveTo(4.6 - i * 0.25, -21.6 + i * 0.5);
+    ctx.bezierCurveTo(2.2 - i*0.7 + w2, -19 + i*0.6, 0.6 - i*0.8 - w2, -15.5 + i*0.7, 0.4 - i*0.55 + w2, -11.8 + i*0.8);
+    ctx.stroke();
+  }
+  // forelock sweeping over her brow
+  ctx.fillStyle = pal.hMane;
+  ctx.beginPath(); ctx.moveTo(4.2, -22.6);
+  ctx.quadraticCurveTo(6.6, -23.4, 7.6, -21.9);
+  ctx.quadraticCurveTo(6, -21.6, 5.2, -20.6);
+  ctx.quadraticCurveTo(4.4, -21.4, 4.2, -22.6); ctx.closePath(); ctx.fill();
+
+  // ---- a little pink flower tucked in her mane ----
+  ctx.save(); ctx.translate(4.4, -22.9); ctx.rotate(sway * 0.1);
+  for (let p = 0; p < 5; p++) { const a = p * Math.PI * 2 / 5;
+    ctx.fillStyle = "#ff9ec4";
+    ctx.beginPath(); ctx.ellipse(Math.cos(a)*1.15, Math.sin(a)*1.15, 0.95, 0.62, a, 0, Math.PI*2); ctx.fill(); }
+  ctx.fillStyle = "#fff3a0"; ctx.beginPath(); ctx.arc(0, 0, 0.62, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // ---- she always carries a hint of sparkle... ----
+  const a0 = t * 0.06;
+  ctx.globalAlpha = 0.35 + Math.sin(t * 0.12) * 0.2;
+  drawStarShape(ctx, -6 + Math.cos(a0) * 2, -16 + Math.sin(a0 * 1.3) * 3, 1, 0.45, a0, "#fff6d8");
+  ctx.globalAlpha = 1;
+
+  // ---- ...and when the moon touches her, she GLITTERS ----
+  if (moonlit) {
+    for (let i = 0; i < 7; i++) {
+      const a = t * 0.09 + i * 0.9;
+      const gx = Math.cos(a) * (6.5 + (i % 3) * 3.5), gy = -12 + Math.sin(a * 1.3 + i) * 9;
+      ctx.globalAlpha = 0.5 + Math.sin(t * 0.15 + i * 2) * 0.4;
+      drawStarShape(ctx, gx, gy, 1.1 + (i % 2) * 0.6, 0.5, a, i % 3 === 0 ? "#ffffff" : i % 3 === 1 ? "#cfe6ff" : "#ffe8b0");
+    }
+    ctx.globalAlpha = 1;
+    const sg = ctx.createRadialGradient(0, -12, 2, 0, -12, 16);
+    sg.addColorStop(0, "rgba(225,238,255,.20)"); sg.addColorStop(1, "rgba(225,238,255,0)");
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(0, -12, 16, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function drawBambooBody(ctx, pal, frame, airborne, walking) {
+  const t = game.timer;
+
+  // ---- fluffy ringed tail, sweeping up behind ----
+  ctx.save();
+  ctx.translate(-5.5, -2.2);
+  ctx.rotate(Math.sin(t * 0.08) * 0.06 - 0.15);
+  const segs = [[0,0,3.3],[-1.3,-3,3.1],[-1,-6,2.85],[0.6,-8.6,2.55],[2.6,-10.2,2.2]];
+  for (let i = segs.length - 1; i >= 0; i--) {
+    const s = segs[i];
+    ctx.fillStyle = i === segs.length - 1 ? pal.panWhite : (i % 2 ? pal.panStripe : pal.panFur);
+    ctx.beginPath(); ctx.arc(s[0], s[1], s[2], 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+
+  // ---- legs + paws ----
+  const po = (walking && frame) ? 1.2 : 0;
+  ctx.fillStyle = pal.panDark;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -1.3, 2.1, 2.5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -1.3, 2.1, 2.5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.panDarkLt;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -0.5, 2.1, 1.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -0.5, 2.1, 1.1, 0, 0, Math.PI*2); ctx.fill();
+
+  // ---- body: rust shoulders fading to a dark belly ----
+  const bg = ctx.createLinearGradient(0, -12, 0, -1);
+  bg.addColorStop(0, pal.panFurLt); bg.addColorStop(0.45, pal.panFur); bg.addColorStop(1, pal.panDark);
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(0, -6, 6.1, 6.6, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.panDark;
+  ctx.beginPath(); ctx.ellipse(0, -3.2, 4.3, 3.7, 0, 0, Math.PI*2); ctx.fill();
+
+  // ---- arms ----
+  ctx.fillStyle = pal.panDark;
+  if (airborne) {
+    ctx.beginPath(); ctx.ellipse(-6, -9, 1.9, 3, 0.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6, -9, 1.9, 3, -0.5, 0, Math.PI*2); ctx.fill();
+  } else {
+    ctx.beginPath(); ctx.ellipse(-5.6, -6.4, 1.8, 3, 0.3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(5.6, -6.4, 1.8, 3, -0.3, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ---- ears (behind head): orange with white fluff ----
+  for (const sgn of [-1, 1]) {
+    ctx.save(); ctx.translate(sgn * 4.9, -19.6);
+    ctx.fillStyle = pal.panEar;
+    ctx.beginPath(); ctx.ellipse(0, 0, 2.9, 3.3, sgn * 0.2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = pal.panWhite;
+    ctx.beginPath(); ctx.ellipse(0, 0.5, 1.5, 2, sgn * 0.2, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---- head (rust, radial shaded) ----
+  const hg = ctx.createRadialGradient(-2, -18.5, 1, 0, -16, 8.5);
+  hg.addColorStop(0, pal.panFurLt); hg.addColorStop(1, pal.panFur);
+  ctx.fillStyle = hg;
+  ctx.beginPath(); ctx.ellipse(0, -16, 7.1, 6.5, 0, 0, Math.PI*2); ctx.fill();
+
+  // white markings: cheek fluff, muzzle, brow patches
+  ctx.fillStyle = pal.panWhite;
+  ctx.beginPath(); ctx.ellipse(-5, -13.4, 2.5, 2.7, 0.3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(5, -13.4, 2.5, 2.7, -0.3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, -13.4, 3.5, 3, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-2.7, -18, 1.9, 1.5, 0.3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.7, -18, 1.9, 1.5, -0.3, 0, Math.PI*2); ctx.fill();
+
+  // reddish tear-stripes from the eyes down the cheeks
+  ctx.strokeStyle = pal.panStripe; ctx.lineWidth = 1.3; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-2.7, -16.4); ctx.quadraticCurveTo(-3.6, -13.6, -3.1, -11.4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(2.7, -16.4); ctx.quadraticCurveTo(3.6, -13.6, 3.1, -11.4); ctx.stroke();
+
+  // eyes with a catchlight
+  for (const ex of [-2.7, 2.7]) {
+    ctx.fillStyle = pal.panEye;
+    ctx.beginPath(); ctx.arc(ex, -16.4, 1.75, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.92)";
+    ctx.beginPath(); ctx.arc(ex - 0.5, -17, 0.6, 0, Math.PI*2); ctx.fill();
+  }
+  // nose + mouth
+  ctx.fillStyle = pal.panNose;
+  ctx.beginPath(); ctx.ellipse(0, -14.2, 1.3, 1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.panNose; ctx.lineWidth = 0.6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(0, -13.2); ctx.lineTo(0, -12.4);
+  ctx.moveTo(0, -12.4); ctx.quadraticCurveTo(-1.3, -12, -1.9, -12.7);
+  ctx.moveTo(0, -12.4); ctx.quadraticCurveTo(1.3, -12, 1.9, -12.7); ctx.stroke();
+  // whiskers
+  ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 0.4;
+  for (const dy of [-0.6, 0.5]) {
+    ctx.beginPath(); ctx.moveTo(-2.6, -13 + dy); ctx.lineTo(-7.4, -13.4 + dy * 1.7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(2.6, -13 + dy); ctx.lineTo(7.4, -13.4 + dy * 1.7); ctx.stroke();
+  }
+}
+
+function drawNorthernBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  // aurora shimmer fur when powered up ("northern light colors with white")
+  const aura = power >= 2;
+  const furTop = aura ? pal.aur2 : pal.foxFur;
+  const furBot = aura ? pal.aur1 : pal.foxShade;
+  const r = (rx,ry,rw,rh,c) => { ctx.fillStyle = c; ctx.fillRect(rx,ry,rw,rh); };
+
+  // ---- huge bushy tail sweeping up behind ----
+  ctx.save();
+  ctx.translate(-5.8, -2.2);
+  ctx.rotate(Math.sin(t*0.07)*0.07 - 0.25);
+  const tg = ctx.createLinearGradient(0, 2, 0, -12);
+  tg.addColorStop(0, aura ? pal.aur3 : pal.foxShade); tg.addColorStop(1, furTop);
+  ctx.fillStyle = tg;
+  ctx.beginPath();
+  ctx.moveTo(0, 1);
+  ctx.bezierCurveTo(-6, -2, -6.5, -10, -1.5, -13.5);
+  ctx.bezierCurveTo(3, -16, 6, -12, 4.5, -8);
+  ctx.bezierCurveTo(3.4, -5, 2, -2, 0, 1);
+  ctx.closePath(); ctx.fill();
+  // fluffy white tail tip
+  ctx.fillStyle = aura ? "#ffffff" : pal.foxFur;
+  ctx.beginPath(); ctx.ellipse(1.8, -12.4, 3, 3.4, 0.3, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // ---- legs + paws ----
+  const po = (walking && frame) ? 1.2 : 0;
+  ctx.fillStyle = furBot;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -1.2, 2.1, 2.5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -1.2, 2.1, 2.5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.foxFur;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -0.5, 2.1, 1.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -0.5, 2.1, 1.1, 0, 0, Math.PI*2); ctx.fill();
+
+  // ---- fluffy body ----
+  const bg = ctx.createLinearGradient(0, -12, 0, -1);
+  bg.addColorStop(0, furTop); bg.addColorStop(0.55, pal.foxFur); bg.addColorStop(1, furBot);
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(0, -6, 6.2, 6.6, 0, 0, Math.PI*2); ctx.fill();
+  // chest fluff tufts
+  ctx.fillStyle = pal.foxFur;
+  for (const fx of [-2.4, 0.2, 2.6]) { ctx.beginPath(); ctx.moveTo(fx-1.4,-3.4); ctx.lineTo(fx+1.4,-3.4); ctx.lineTo(fx,-0.6); ctx.closePath(); ctx.fill(); }
+
+  // ---- arms ----
+  ctx.fillStyle = furBot;
+  if (airborne) {
+    ctx.beginPath(); ctx.ellipse(-6, -9, 1.9, 3, 0.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6, -9, 1.9, 3, -0.5, 0, Math.PI*2); ctx.fill();
+  } else {
+    ctx.beginPath(); ctx.ellipse(-5.6, -6.4, 1.8, 3, 0.3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(5.6, -6.4, 1.8, 3, -0.3, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ---- tall pointy ears (white outer, dark inner), tufted ----
+  for (const sgn of [-1, 1]) {
+    ctx.save(); ctx.translate(sgn*4.4, -19.4); ctx.rotate(sgn*0.12);
+    ctx.fillStyle = furTop;
+    ctx.beginPath(); ctx.moveTo(-2.6, 2.2); ctx.lineTo(0.2, -4.4); ctx.lineTo(2.6, 2.2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = pal.foxEarIn;
+    ctx.beginPath(); ctx.moveTo(-1.3, 1.4); ctx.lineTo(0.1, -2.6); ctx.lineTo(1.5, 1.4); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---- head ----
+  const hg = ctx.createRadialGradient(-2, -18.5, 1, 0, -16, 8.5);
+  hg.addColorStop(0, pal.foxFur); hg.addColorStop(1, furTop);
+  ctx.fillStyle = hg;
+  ctx.beginPath(); ctx.ellipse(0, -16, 7, 6.3, 0, 0, Math.PI*2); ctx.fill();
+  // fluffy cheek ruffs
+  ctx.fillStyle = pal.foxFur;
+  for (const sgn of [-1, 1]) {
+    ctx.save(); ctx.translate(sgn*6, -14.5);
+    for (const a of [-0.5, 0, 0.5]) { ctx.beginPath(); ctx.moveTo(0,-1.6); ctx.lineTo(0,1.6); ctx.lineTo(sgn*(2.6+Math.cos(a)), a*2); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+  }
+  // soft cool shadow under the muzzle
+  ctx.fillStyle = pal.foxShade;
+  ctx.beginPath(); ctx.ellipse(0, -12.6, 3.4, 2.4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.foxFur;
+  ctx.beginPath(); ctx.ellipse(0, -13.2, 3.3, 2.4, 0, 0, Math.PI*2); ctx.fill();
+
+  // blush cheeks
+  ctx.fillStyle = pal.foxBlush;
+  ctx.beginPath(); ctx.ellipse(-3.7, -13.4, 1.5, 1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(3.7, -13.4, 1.5, 1, 0, 0, Math.PI*2); ctx.fill();
+
+  // big sparkly eyes
+  for (const ex of [-2.7, 2.7]) {
+    ctx.fillStyle = pal.foxEye;
+    ctx.beginPath(); ctx.ellipse(ex, -16.2, 2, 2.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.95)";
+    ctx.beginPath(); ctx.arc(ex - 0.7, -17.1, 0.85, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + 0.7, -15.3, 0.45, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(180,220,255,.6)";
+    ctx.beginPath(); ctx.arc(ex + 0.5, -16.6, 0.4, 0, Math.PI*2); ctx.fill();
+  }
+  // little dark nose + smile
+  ctx.fillStyle = pal.foxNose;
+  ctx.beginPath(); ctx.ellipse(0, -13.6, 1, 0.8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.foxNose; ctx.lineWidth = 0.55; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(0, -12.9); ctx.lineTo(0, -12.3);
+  ctx.moveTo(0, -12.3); ctx.quadraticCurveTo(-1.1, -11.9, -1.7, -12.5);
+  ctx.moveTo(0, -12.3); ctx.quadraticCurveTo(1.1, -11.9, 1.7, -12.5); ctx.stroke();
+  // whiskers
+  ctx.strokeStyle = "rgba(180,200,230,.8)"; ctx.lineWidth = 0.4;
+  for (const dy of [-0.6, 0.5]) {
+    ctx.beginPath(); ctx.moveTo(-2.4, -13 + dy); ctx.lineTo(-7.6, -13.4 + dy*1.8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(2.4, -13 + dy); ctx.lineTo(7.6, -13.4 + dy*1.8); ctx.stroke();
+  }
+
+  // aurora sparkles drifting off her when powered
+  if (aura) {
+    for (let i = 0; i < 3; i++) {
+      const a = t * 0.1 + i * 2.1;
+      ctx.fillStyle = [pal.aur1, pal.aur2, pal.aur3][i];
+      ctx.globalAlpha = 0.6 + Math.sin(a) * 0.3;
+      ctx.beginPath(); ctx.arc(Math.cos(a)*8, -16 + Math.sin(a*1.3)*9, 0.8, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawCutieBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  const big = power >= 2;
+  // wing flap: fast when airborne, a gentle bob on the ground
+  const flap = airborne ? Math.sin(t * 0.45) * 0.42 : Math.sin(t * 0.12) * 0.08 + (walking && frame ? 0.14 : 0);
+
+  // ---- wings (behind the body), mirrored ----
+  for (const sgn of [-1, 1]) {
+    ctx.save();
+    ctx.translate(sgn * 1.6, -10);
+    ctx.rotate(sgn * (0.22 + flap));
+    const dot = (dx, dy, r) => { ctx.fillStyle = pal.wingSpot; ctx.beginPath(); ctx.arc(sgn*dx, dy, r, 0, Math.PI*2); ctx.fill(); };
+    // upper wing
+    const ug = ctx.createRadialGradient(sgn*4, -4, 1, sgn*6, -3, 9);
+    ug.addColorStop(0, pal.wingGreen); ug.addColorStop(1, pal.wingGreenDk);
+    ctx.fillStyle = ug;
+    ctx.beginPath(); ctx.ellipse(sgn*5.4, -3.5, 5.6, 6.6, sgn*0.3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = pal.wingBlue;
+    ctx.beginPath(); ctx.ellipse(sgn*5.6, -3.5, 3, 4, sgn*0.3, 0, Math.PI*2); ctx.fill();
+    dot(5.6, -3.5, 1.2); dot(7.4, -6, 0.8); dot(3.6, -1, 0.8);
+    // lower wing
+    ctx.fillStyle = pal.wingGreenDk;
+    ctx.beginPath(); ctx.ellipse(sgn*4.6, 4.5, 4.2, 4.8, sgn*-0.2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = pal.wingBlue;
+    ctx.beginPath(); ctx.ellipse(sgn*4.6, 4.5, 2.2, 2.8, sgn*-0.2, 0, Math.PI*2); ctx.fill();
+    dot(4.6, 4.5, 1); dot(5.6, 6.6, 0.7);
+    // wing outline shimmer
+    ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.ellipse(sgn*5.4, -3.5, 5.6, 6.6, sgn*0.3, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ---- little legs ----
+  ctx.strokeStyle = pal.bfBodyDk; ctx.lineWidth = 0.9; ctx.lineCap = "round";
+  const po = (walking && frame) ? 0.8 : 0;
+  ctx.beginPath(); ctx.moveTo(-1.4, -2); ctx.lineTo(-2.6 - po, 0); ctx.moveTo(1.4, -2); ctx.lineTo(2.6 + po, 0); ctx.stroke();
+
+  // ---- red segmented body ----
+  const bg = ctx.createLinearGradient(-3, -14, 3, -2);
+  bg.addColorStop(0, pal.bfBody); bg.addColorStop(1, pal.bfBodyDk);
+  ctx.fillStyle = bg;
+  rrPath(ctx, -2.4, -14.5, 4.8, 13, 2.4); ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,.18)"; ctx.lineWidth = 0.5;
+  for (let sy = -12; sy < -3; sy += 2.4) { ctx.beginPath(); ctx.moveTo(-2.2, sy); ctx.lineTo(2.2, sy); ctx.stroke(); }
+  ctx.fillStyle = "rgba(255,255,255,.3)"; ctx.fillRect(-1.6, -13.5, 1, 10);
+
+  // ---- head with a happy smiley face ----
+  ctx.fillStyle = pal.bfHead;
+  ctx.beginPath(); ctx.arc(0, -17, 4.4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.bfBlush;
+  ctx.beginPath(); ctx.arc(-2.6, -16, 1, 0, Math.PI*2); ctx.arc(2.6, -16, 1, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.bfFace;
+  ctx.beginPath(); ctx.arc(-1.5, -17.8, 0.75, 0, Math.PI*2); ctx.arc(1.5, -17.8, 0.75, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.9)";
+  ctx.beginPath(); ctx.arc(-1.75, -18.1, 0.28, 0, Math.PI*2); ctx.arc(1.25, -18.1, 0.28, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.bfFace; ctx.lineWidth = 0.7; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(0, -16.6, 1.5, 0.15*Math.PI, 0.85*Math.PI); ctx.stroke();
+
+  // ---- antennae with knobs ----
+  ctx.strokeStyle = pal.antenna; ctx.lineWidth = 0.8;
+  for (const sgn of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(sgn*1.6, -20.4);
+    ctx.quadraticCurveTo(sgn*3.6, -23.5, sgn*2.4 + Math.sin(t*0.1)*0.4, -25.4); ctx.stroke();
+    ctx.fillStyle = pal.antTip;
+    ctx.beginPath(); ctx.arc(sgn*2.4 + Math.sin(t*0.1)*0.4, -25.6, 1.1, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ---- powered up: blue star + blooming flowers ----
+  if (big) {
+    drawStarShape(ctx, 0, -27.5, 2.4, 1.1, t * 0.05, pal.bfStar, "#2f9ed0");
+    for (let i = 0; i < 3; i++) {
+      const a = t * 0.09 + i * 2.1, fx = Math.cos(a) * 9, fy = -10 + Math.sin(a * 1.2) * 9;
+      ctx.fillStyle = ["#ff8ec4", "#ffd166", "#b88cff"][i];
+      for (let p = 0; p < 5; p++) { const pa = p * Math.PI * 2/5;
+        ctx.beginPath(); ctx.ellipse(fx + Math.cos(pa)*1.4, fy + Math.sin(pa)*1.4, 0.9, 0.6, pa, 0, Math.PI*2); ctx.fill(); }
+      ctx.fillStyle = "#fff6c0"; ctx.beginPath(); ctx.arc(fx, fy, 0.7, 0, Math.PI*2); ctx.fill();
+    }
+  }
+}
+
+function drawRosalinaBody(ctx, pal, frame, airborne, walking) {
+  const t = game.timer;
+  const sway = Math.sin(t * 0.08) * 0.6;
+
+  // ---- long platinum hair flowing down BOTH shoulders (back layer) ----
+  const bhg = ctx.createLinearGradient(0, -22, 0, -2);
+  bhg.addColorStop(0, pal.hair); bhg.addColorStop(1, pal.hairDk);
+  ctx.fillStyle = bhg;
+  ctx.beginPath();                                    // big lock, viewer's right
+  ctx.moveTo(2.8, -21);
+  ctx.bezierCurveTo(8.6, -17.5, 8.4, -8, 5.6 + sway, -2.6);
+  ctx.quadraticCurveTo(7.2 + sway, -4.6, 6.4, -8);
+  ctx.bezierCurveTo(7.2, -14, 5.6, -18.5, 2.2, -19.5);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();                                    // softer lock, viewer's left
+  ctx.moveTo(-3, -21);
+  ctx.bezierCurveTo(-7.2, -18, -6.6, -10.5, -5.8 - sway * 0.6, -6.2);
+  ctx.quadraticCurveTo(-5, -8.8, -5.2, -11.5);
+  ctx.bezierCurveTo(-5.6, -15.5, -4.4, -19, -2.4, -20);
+  ctx.closePath(); ctx.fill();
+  // shine down the big lock
+  ctx.strokeStyle = "rgba(255,250,220,.55)"; ctx.lineWidth = 0.55; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(4.4, -18); ctx.bezierCurveTo(7, -14.5, 6.8, -8, 5.8 + sway, -4); ctx.stroke();
+
+  // ---- little heeled slippers peeking from the hem ----
+  const po = (walking && frame) ? 1.1 : 0;
+  ctx.fillStyle = "#8ea8c8";
+  ctx.beginPath(); ctx.ellipse(-2.4 - po, -1, 1.7, 1.1, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2 + po, -1, 1.7, 1.1, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.6)";
+  ctx.beginPath(); ctx.arc(-2.7 - po, -1.4, 0.4, 0, Math.PI * 2); ctx.arc(1.7 + po, -1.4, 0.4, 0, Math.PI * 2); ctx.fill();
+
+  // ---- the ballgown: shimmering, layered, with a frilled hem ----
+  const gg = ctx.createLinearGradient(0, -13, 0, -0.5);
+  gg.addColorStop(0, pal.gownLight); gg.addColorStop(0.45, pal.gown); gg.addColorStop(1, pal.gownDark);
+  ctx.fillStyle = gg;
+  ctx.beginPath();
+  ctx.moveTo(-3.2, -12.8);
+  ctx.lineTo(3.2, -12.8);
+  ctx.bezierCurveTo(5.8, -8.5, 7.4 + sway, -3.5, 8.2 + sway, -0.8);
+  // scalloped, frilly hem
+  ctx.quadraticCurveTo(6.2 + sway, -1.9, 4.2 + sway * 0.8, -0.7);
+  ctx.quadraticCurveTo(2.1, -1.9, 0, -0.6);
+  ctx.quadraticCurveTo(-2.1, -1.9, -4.2 + sway * 0.8, -0.7);
+  ctx.quadraticCurveTo(-6.2 + sway, -1.9, -8.2 + sway, -0.8);
+  ctx.bezierCurveTo(-7.4, -3.5, -5.8, -8.5, -3.2, -12.8);
+  ctx.closePath(); ctx.fill();
+  // white frill peeking under the hem
+  ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.moveTo(-7.6 + sway, -0.9);
+  ctx.quadraticCurveTo(-4.2, 0.4, 0, -0.2);
+  ctx.quadraticCurveTo(4.2, 0.4, 7.6 + sway, -0.9);
+  ctx.stroke();
+  // pale petticoat panel down the middle
+  ctx.fillStyle = pal.gownLight; ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  ctx.moveTo(-1.6, -12.2);
+  ctx.lineTo(1.6, -12.2);
+  ctx.quadraticCurveTo(2.9, -6, 2.7 + sway * 0.6, -1.2);
+  ctx.quadraticCurveTo(0, -0.4, -2.7 + sway * 0.6, -1.2);
+  ctx.quadraticCurveTo(-2.9, -6, -1.6, -12.2);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1;
+  // soft fabric folds
+  ctx.strokeStyle = "rgba(20,90,100,.28)"; ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(-3.6, -11); ctx.quadraticCurveTo(-5.2, -6, -6.2 + sway, -1.6);
+  ctx.moveTo(3.6, -11); ctx.quadraticCurveTo(5.2, -6, 6.2 + sway, -1.6);
+  ctx.stroke();
+  // stardust shimmer on the skirt
+  for (let i = 0; i < 3; i++) {
+    const tw = (Math.sin(t * 0.1 + i * 2.1) + 1) / 2;
+    const sx = [-3.6, 1.2, 4.4][i] + sway * 0.5, sy = [-4.5, -2.8, -5.6][i];
+    drawStarShape(ctx, sx, sy, 0.75, 0.32, t * 0.03 + i, "rgba(255,255,255," + (0.3 + tw * 0.5).toFixed(2) + ")");
+  }
+
+  // ---- fitted bodice with silver trim + her gold star brooch ----
+  const bg = ctx.createLinearGradient(0, -15.4, 0, -12);
+  bg.addColorStop(0, pal.gown); bg.addColorStop(1, pal.gownDark);
+  ctx.fillStyle = bg;
+  rrPath(ctx, -2.9, -15.4, 5.8, 4.2, 1.4); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(-2.8, -12.9); ctx.quadraticCurveTo(0, -12.1, 2.8, -12.9); ctx.stroke();
+  drawStarShape(ctx, 0, -13.7, 1.2, 0.55, 0, "#ffd166", "#d8a020");    // star brooch
+
+  // ---- a graceful neck (before the head, over the bodice) ----
+  ctx.fillStyle = pal.skin;
+  ctx.beginPath();
+  ctx.moveTo(-1.1, -17.5);
+  ctx.lineTo(1.1, -17.5);
+  ctx.lineTo(1.35, -14.9);
+  ctx.quadraticCurveTo(0, -14.3, -1.35, -14.9);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(220,170,140,.3)";             // soft shadow where the chin sits
+  ctx.beginPath(); ctx.ellipse(0, -17.2, 1.05, 0.5, 0, 0, Math.PI * 2); ctx.fill();
+  // delicate silver necklace at her collar
+  ctx.strokeStyle = "#dfe8f2"; ctx.lineWidth = 0.45;
+  ctx.beginPath(); ctx.arc(0, -15.6, 1.5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+
+  // ---- arms: puffed shoulders, one hand resting, one raising the wand ----
+  ctx.fillStyle = pal.gown;                            // little sleeve puffs
+  ctx.beginPath(); ctx.ellipse(-3, -14.6, 1.3, 1.1, -0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(3, -14.6, 1.3, 1.1, 0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = pal.skin; ctx.lineWidth = 1.8; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(3, -14.2); ctx.quadraticCurveTo(4.9, -11.4, 4.3, -8.8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-3, -14.2); ctx.quadraticCurveTo(-5.8, -14, -6.7, -16.4); ctx.stroke();
+  ctx.fillStyle = pal.skin;                            // graceful hands
+  ctx.beginPath(); ctx.arc(4.3, -8.6, 0.95, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-6.7, -16.4, 0.95, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.65)"; ctx.lineWidth = 0.5;      // silver cuffs
+  ctx.beginPath(); ctx.arc(4.25, -9.6, 0.9, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.arc(-6.3, -15.6, 0.9, 1.1 * Math.PI, 1.9 * Math.PI); ctx.stroke();
+
+  // ---- the star wand: gold-tipped, glowing, trailed by stardust ----
+  const wg2 = ctx.createLinearGradient(-6.7, -16.4, -8.9, -21.6);
+  wg2.addColorStop(0, "#cfd9e2"); wg2.addColorStop(1, "#f6e08c");
+  ctx.strokeStyle = wg2; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-6.7, -16.6); ctx.lineTo(-8.7, -21.4); ctx.stroke();
+  const glow = ctx.createRadialGradient(-9, -22, 0.5, -9, -22, 5);
+  glow.addColorStop(0, "rgba(160,235,255,.65)"); glow.addColorStop(1, "rgba(160,235,255,0)");
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(-9, -22, 5, 0, Math.PI * 2); ctx.fill();
+  drawStarShape(ctx, -9, -22, 2.3, 1.05, t * 0.05, pal.gem, "#3a9fd0");
+  drawStarShape(ctx, -9, -22, 1, 0.45, -t * 0.07, "#ffffff");
+  for (let i = 0; i < 3; i++) {
+    const a = t * 0.09 + i * 2.1;
+    ctx.fillStyle = "rgba(150,230,255," + (0.45 + Math.sin(a) * 0.3).toFixed(2) + ")";
+    ctx.beginPath(); ctx.arc(-9.3 + Math.cos(a) * 2.8, -21 + Math.sin(a * 1.3) * 3, 0.6, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // ---- head: a smaller, higher oval face on her new neck ----
+  ctx.fillStyle = pal.skin;
+  ctx.beginPath(); ctx.ellipse(0, -20.6, 4.3, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  // gentle chin shading for depth
+  ctx.fillStyle = "rgba(220,170,140,.2)";
+  ctx.beginPath(); ctx.ellipse(0.3, -17.4, 2.4, 1, 0, 0, Math.PI * 2); ctx.fill();
+
+  // ---- one visible eye — realistic, lashed, sparkling ----
+  ctx.save(); ctx.translate(-1.6, -20.7);
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(0, 0, 1.15, 1.55, 0, 0, Math.PI * 2); ctx.fill();
+  const ir = ctx.createRadialGradient(0.1, -0.2, 0.15, 0.1, 0.2, 1.1);
+  ir.addColorStop(0, "#7fb8e8"); ir.addColorStop(0.7, pal.eye); ir.addColorStop(1, "#1e4f86");
+  ctx.fillStyle = ir; ctx.beginPath(); ctx.ellipse(0.1, 0.2, 0.8, 1.05, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#101426"; ctx.beginPath(); ctx.arc(0.1, 0.3, 0.42, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.95)"; ctx.beginPath(); ctx.arc(-0.22, -0.22, 0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.beginPath(); ctx.arc(0.4, 0.58, 0.16, 0, Math.PI * 2); ctx.fill();
+  // upper lash line hugging the eye + three little lashes
+  ctx.strokeStyle = pal.lash; ctx.lineWidth = 0.42; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(0, 0.25, 1.55, 1.25 * Math.PI, 1.78 * Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-1.05, -0.95); ctx.lineTo(-1.4, -1.3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-0.5, -1.25); ctx.lineTo(-0.7, -1.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0.2, -1.3); ctx.lineTo(0.25, -1.8); ctx.stroke();
+  ctx.restore();
+  // soft brow
+  ctx.strokeStyle = "rgba(200,170,110,.8)"; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(-2.9, -22.6); ctx.quadraticCurveTo(-1.6, -23.2, -0.4, -22.8); ctx.stroke();
+  // tiny nose hint
+  ctx.strokeStyle = "rgba(210,160,130,.5)"; ctx.lineWidth = 0.4;
+  ctx.beginPath(); ctx.moveTo(-0.5, -19.2); ctx.quadraticCurveTo(-0.2, -18.8, -0.6, -18.6); ctx.stroke();
+  // soft rosy lips with a highlight
+  ctx.fillStyle = pal.lip;
+  ctx.beginPath(); ctx.ellipse(-0.7, -17.95, 0.7, 0.36, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.5)";
+  ctx.beginPath(); ctx.ellipse(-0.92, -18.1, 0.24, 0.11, 0, 0, Math.PI * 2); ctx.fill();
+  // soft gradient blush
+  const ch = ctx.createRadialGradient(-2.8, -18.9, 0.1, -2.8, -18.9, 1.15);
+  ch.addColorStop(0, "rgba(245,140,165,.5)"); ch.addColorStop(1, "rgba(245,140,165,0)");
+  ctx.fillStyle = ch; ctx.beginPath(); ctx.arc(-2.8, -18.9, 1.15, 0, Math.PI * 2); ctx.fill();
+  // star earring below her visible ear
+  drawStarShape(ctx, -4.2, -19.4, 0.55, 0.26, t * 0.02, "#ffd166");
+
+  // ---- front hair: realistic side-swept platinum with layered strands ----
+  const hg = ctx.createLinearGradient(-2, -26, 3, -16);
+  hg.addColorStop(0, pal.hairLt); hg.addColorStop(0.55, pal.hair); hg.addColorStop(1, pal.hairDk);
+  ctx.fillStyle = hg;
+  ctx.beginPath();
+  ctx.moveTo(-4.4, -20.8);
+  ctx.quadraticCurveTo(-5.2, -25.2, -0.9, -25.9);
+  ctx.quadraticCurveTo(3.9, -25.6, 5.1, -21.2);
+  ctx.quadraticCurveTo(5.4, -17.6, 2.9, -16.4);       // the sweep covering her right eye
+  ctx.quadraticCurveTo(4.2, -19.8, 1.9, -21.5);
+  ctx.quadraticCurveTo(-0.5, -22.7, -2.2, -21.4);
+  ctx.quadraticCurveTo(-3.4, -20.6, -4.4, -20.8);
+  ctx.closePath(); ctx.fill();
+  // layered shine strands
+  ctx.strokeStyle = "rgba(255,250,220,.8)"; ctx.lineWidth = 0.5; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(-1.1, -24.9); ctx.bezierCurveTo(1.8, -24.4, 3.5, -22, 3.2, -18.9); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-2.3, -24.3); ctx.bezierCurveTo(0.3, -24, 2.1, -22.4, 2.1, -20.2); ctx.stroke();
+  ctx.strokeStyle = "rgba(200,170,110,.4)"; ctx.lineWidth = 0.4;
+  ctx.beginPath(); ctx.moveTo(0.5, -25.5); ctx.bezierCurveTo(2.8, -24.7, 4, -22.6, 3.9, -19.6); ctx.stroke();
+
+  // ---- silver crown with jewels, sitting on her hair ----
+  const cg = ctx.createLinearGradient(-2.7, -27.6, 2.7, -24.4);
+  cg.addColorStop(0, "#f4f8fc"); cg.addColorStop(0.5, pal.crown); cg.addColorStop(1, pal.crownDk);
+  ctx.fillStyle = cg;
+  ctx.beginPath();
+  ctx.moveTo(-2.7, -24.6);
+  ctx.lineTo(-3, -26.9); ctx.lineTo(-1.35, -25.6); ctx.lineTo(0, -27.7); ctx.lineTo(1.35, -25.6);
+  ctx.lineTo(3, -26.9); ctx.lineTo(2.7, -24.6);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = pal.crownDk; ctx.lineWidth = 0.4; ctx.stroke();
+  ctx.fillStyle = "#e86a9e";                          // little jewels on the points
+  ctx.beginPath(); ctx.arc(-3, -27, 0.38, 0, Math.PI * 2); ctx.arc(3, -27, 0.38, 0, Math.PI * 2); ctx.fill();
+  drawStarShape(ctx, 0, -26.8, 1.05, 0.48, 0, pal.pstar, "#5fae3a");
+
+  // ---- a twinkle of stardust floating near her ----
+  if ((t & 15) < 7) drawStarShape(ctx, 6.8, -22 + Math.sin(t * 0.09) * 1.8, 1.1, 0.5, t * 0.06, "#d8f0ff");
+}
+
+function drawSparkleBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer, rain = pal.rainbow;
+  const glowing = power >= 2 || (player.glow || 0) > 0;
+
+  // flowing rainbow tail (behind)
+  ctx.save();
+  ctx.translate(-5.4, -3); ctx.rotate(Math.sin(t*0.08)*0.08 - 0.18);
+  ctx.lineCap = "round"; ctx.lineWidth = 1.5;
+  for (let i = 0; i < rain.length; i++) { ctx.strokeStyle = rain[i];
+    ctx.beginPath(); ctx.moveTo(0, -2 + i*0.5);
+    ctx.quadraticCurveTo(-4 - i*0.4, -1 + i*0.6, -3 - i*0.5, 5 + i*0.7); ctx.stroke(); }
+  ctx.restore();
+
+  // hooves
+  const po = (walking && frame) ? 1.1 : 0;
+  ctx.fillStyle = pal.uHoof;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -1, 1.7, 1.4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -1, 1.7, 1.4, 0, 0, Math.PI*2); ctx.fill();
+
+  // plush body
+  const bg = ctx.createLinearGradient(0, -12, 0, -1);
+  bg.addColorStop(0, pal.uBody); bg.addColorStop(1, pal.uShade);
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(0, -6, 6, 6.4, 0, 0, Math.PI*2); ctx.fill();
+
+  // head
+  ctx.fillStyle = pal.uBody;
+  ctx.beginPath(); ctx.ellipse(0.4, -15.4, 5.4, 5, 0, 0, Math.PI*2); ctx.fill();
+  // ears
+  ctx.beginPath(); ctx.moveTo(-3.6,-19.2); ctx.lineTo(-2.2,-21.8); ctx.lineTo(-1,-19.4); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(3.6,-19.2); ctx.lineTo(4.8,-21.4); ctx.lineTo(5.4,-18.8); ctx.closePath(); ctx.fill();
+
+  // golden spiral horn
+  ctx.save(); ctx.translate(0.6, -19.8);
+  const hg = ctx.createLinearGradient(0,-6,0,0); hg.addColorStop(0,pal.horn); hg.addColorStop(1,pal.hornDk);
+  ctx.fillStyle = hg;
+  ctx.beginPath(); ctx.moveTo(-1.6, 0.6); ctx.lineTo(0, -6.6); ctx.lineTo(1.6, 0.6); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(150,105,15,.7)"; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(-1.2,-0.4); ctx.lineTo(1,-1.7); ctx.moveTo(-0.8,-2.4); ctx.lineTo(0.8,-3.6); ctx.moveTo(-0.4,-4.4); ctx.lineTo(0.5,-5.2); ctx.stroke();
+  ctx.restore();
+
+  // rainbow forelock between the ears
+  for (let i = 0; i < rain.length; i++) { ctx.fillStyle = rain[i];
+    ctx.beginPath(); ctx.ellipse(-2.4 + i*0.8, -18.4 + Math.abs(i-2.5)*0.35, 1.1, 2.2, -0.15, 0, Math.PI*2); ctx.fill(); }
+  // rainbow mane down the back
+  ctx.save(); ctx.translate(4.7, -17);
+  for (let i = 0; i < rain.length; i++) { ctx.fillStyle = rain[i];
+    ctx.beginPath(); ctx.ellipse(i*0.3, i*1.4 - 1, 1.7, 1.4, 0.3, 0, Math.PI*2); ctx.fill(); }
+  ctx.restore();
+
+  // muzzle + nostril
+  ctx.fillStyle = pal.uShade;
+  ctx.beginPath(); ctx.ellipse(-2.7, -13.4, 2.2, 1.8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(150,120,160,.5)"; ctx.beginPath(); ctx.arc(-3.5, -13.3, 0.5, 0, Math.PI*2); ctx.fill();
+
+  // blush + big sparkly eye + lashes
+  ctx.fillStyle = pal.uBlush; ctx.beginPath(); ctx.ellipse(-0.3, -13.8, 1.3, 0.9, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.uEye;
+  ctx.beginPath(); ctx.ellipse(-0.1, -15.5, 1.6, 2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.95)";
+  ctx.beginPath(); ctx.arc(-0.6, -16.2, 0.6, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0.4, -14.9, 0.34, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = pal.uEye; ctx.lineWidth = 0.5; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(1.2,-16.3); ctx.lineTo(2.1,-16.8); ctx.moveTo(1.3,-15.5); ctx.lineTo(2.2,-15.6); ctx.stroke();
+
+  // a twinkle off the horn tip
+  if ((t>>4)%2===0) drawStarShape(ctx, 0.6, -26.6, 1.2, 0.5, t*0.1, "#fff6c0");
+  // glowing power-up — rainbow sparkles orbiting
+  if (glowing) {
+    for (let i=0;i<3;i++){ const a=t*0.1+i*2.1; ctx.fillStyle = rain[(i*2 + (t>>3)) % rain.length];
+      ctx.globalAlpha = 0.6 + Math.sin(a)*0.3;
+      ctx.beginPath(); ctx.arc(Math.cos(a)*8.5, -10 + Math.sin(a*1.2)*9, 1, 0, Math.PI*2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawSquishyBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer, rc = pal.rainbow;
+  const sq = (walking && frame) ? 0.7 : 0;          // little squish-bob
+
+  // tiny feet
+  const po = (walking && frame) ? 0.8 : 0;
+  ctx.fillStyle = pal.waffleDk;
+  ctx.beginPath(); ctx.ellipse(-3 - po, -0.6, 1.8, 1.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(3 + po, -0.6, 1.8, 1.1, 0, 0, Math.PI*2); ctx.fill();
+
+  // waffle bowl
+  const wg = ctx.createLinearGradient(0, -8, 0, -1);
+  wg.addColorStop(0, pal.waffle); wg.addColorStop(1, pal.waffleDk);
+  ctx.fillStyle = wg;
+  ctx.beginPath(); ctx.moveTo(-7.5, -7); ctx.lineTo(7.5, -7);
+  ctx.lineTo(6, -1); ctx.quadraticCurveTo(0, 0.6, -6, -1); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(150,100,40,.45)"; ctx.lineWidth = 0.5;
+  for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(i*3, -6.5); ctx.lineTo(i*3-2, -1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(i*3, -6.5); ctx.lineTo(i*3+2, -1); ctx.stroke(); }
+  ctx.fillStyle = pal.waffle; ctx.beginPath(); ctx.ellipse(0, -7, 7.6, 1.7, 0, 0, Math.PI*2); ctx.fill();
+
+  // rainbow dome (clipped rainbow bands)
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(-7, -7); ctx.bezierCurveTo(-7.5, -18 - sq, 7.5, -18 - sq, 7, -7); ctx.closePath();
+  ctx.clip();
+  for (let i = 0; i < rc.length; i++) { ctx.fillStyle = rc[i]; ctx.fillRect(-7 + i*(14/rc.length), -19, 14/rc.length + 0.6, 14); }
+  ctx.fillStyle = "rgba(255,255,255,.28)"; ctx.beginPath(); ctx.ellipse(-2.5, -14.5, 3, 4.5, -0.3, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.lineWidth = 0.6;
+  ctx.beginPath(); ctx.moveTo(-7, -7); ctx.bezierCurveTo(-7.5, -18 - sq, 7.5, -18 - sq, 7, -7); ctx.stroke();
+  ctx.fillStyle = "#ffe7a0"; ctx.beginPath(); ctx.arc(0, -17 - sq, 1.4, 0, Math.PI*2); ctx.fill();   // top pinch
+
+  // sparkles on the dome
+  for (const s of [[-3.5,-13],[3,-15],[4.6,-10.5],[-0.5,-16],[1.6,-11.5]]) {
+    ctx.globalAlpha = 0.45 + 0.5*Math.abs(Math.sin(t*0.06 + s[0]));
+    drawStarShape(ctx, s[0], s[1] - sq*0.5, 0.95, 0.4, t*0.05, "#ffffff");
+  }
+  ctx.globalAlpha = 1;
+
+  // kawaii face: big sparkly eyes, blush, open smile
+  for (const ex of [-2.7, 2.7]) {
+    ctx.fillStyle = pal.dEye;
+    ctx.beginPath(); ctx.ellipse(ex, -11.6, 1.9, 2.4, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.95)";
+    ctx.beginPath(); ctx.arc(ex - 0.6, -12.5, 0.7, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + 0.5, -10.9, 0.35, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = pal.dBlush;
+  ctx.beginPath(); ctx.ellipse(-4.8, -10, 1.4, 1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(4.8, -10, 1.4, 1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = pal.dMouth;
+  ctx.beginPath(); ctx.ellipse(0, -9.4, 1.8, 1.6, 0, 0, Math.PI); ctx.fill();        // open smile
+  ctx.fillStyle = "#fff"; ctx.fillRect(-1.5, -9.6, 3, 0.6);                          // teeth
+  ctx.fillStyle = "#ff9bb4"; ctx.beginPath(); ctx.ellipse(0, -8.4, 0.9, 0.55, 0, 0, Math.PI*2); ctx.fill();  // tongue
+
+  if (power >= 2) {     // powered sparkle aura
+    for (let i = 0; i < 3; i++) { const a = t*0.1 + i*2.1; ctx.fillStyle = rc[(i*2 + (t>>3)) % rc.length];
+      ctx.globalAlpha = 0.6 + Math.sin(a)*0.3;
+      ctx.beginPath(); ctx.arc(Math.cos(a)*9, -12 + Math.sin(a*1.2)*8, 1, 0, Math.PI*2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawIcyBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  const sh = !!player.shielding;                     // powers 5+6: blue & white behind the wing
+  const dark = sh ? pal.pgBlue : pal.pgDark;
+  const darkLt = sh ? pal.pgBlueLt : pal.pgDarkLt;
+  const belly = sh ? "#f3faff" : pal.pgBelly;
+
+  // orange feet
+  const po = (walking && frame) ? 1.1 : 0;
+  ctx.fillStyle = pal.pgFeet;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -0.8, 2, 1.2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -0.8, 2, 1.2, 0, 0, Math.PI*2); ctx.fill();
+
+  // egg body — dark back/hood
+  const bg = ctx.createLinearGradient(0, -20, 0, -1);
+  bg.addColorStop(0, darkLt); bg.addColorStop(0.5, dark); bg.addColorStop(1, dark);
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(-6.4, -2);
+  ctx.bezierCurveTo(-7.4, -14, -4.5, -20.5, 0, -20.5);
+  ctx.bezierCurveTo(4.5, -20.5, 7.4, -14, 6.4, -2);
+  ctx.quadraticCurveTo(0, -0.2, -6.4, -2);
+  ctx.closePath(); ctx.fill();
+
+  // flippers (tucked wings) — or one big raised wing when shielding
+  if (!sh) {
+    const flap = airborne ? Math.sin(t * 0.4) * 0.5 : 0.15;
+    for (const sgn of [-1, 1]) {
+      ctx.save(); ctx.translate(sgn * 6, -11); ctx.rotate(sgn * (0.35 + flap));
+      ctx.fillStyle = dark;
+      ctx.beginPath(); ctx.ellipse(0, 2, 1.9, 5, 0, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // white face + belly patch
+  ctx.fillStyle = belly;
+  ctx.beginPath();
+  ctx.moveTo(-4.4, -2.4);
+  ctx.bezierCurveTo(-5.4, -12, -3.6, -16.8, 0, -16.8);
+  ctx.bezierCurveTo(3.6, -16.8, 5.4, -12, 4.4, -2.4);
+  ctx.quadraticCurveTo(0, -1, -4.4, -2.4);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = sh ? "rgba(150,200,240,.35)" : "rgba(180,195,215,.3)";   // soft belly shade
+  ctx.beginPath(); ctx.ellipse(0, -3.4, 3.8, 1.6, 0, 0, Math.PI*2); ctx.fill();
+
+  // close-together sparkly eyes (like Nora's drawing) + blush
+  for (const ex of [-1.5, 1.5]) {
+    ctx.fillStyle = pal.pgEye;
+    ctx.beginPath(); ctx.ellipse(ex, -13.6, 1.15, 1.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.95)";
+    ctx.beginPath(); ctx.arc(ex - 0.35, -14.2, 0.42, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = pal.pgBlush;
+  ctx.beginPath(); ctx.ellipse(-3.1, -12, 1.1, 0.75, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(3.1, -12, 1.1, 0.75, 0, 0, Math.PI*2); ctx.fill();
+  // little orange beak
+  ctx.fillStyle = pal.pgBeak;
+  ctx.beginPath(); ctx.moveTo(-1.1, -12.5); ctx.lineTo(1.1, -12.5); ctx.lineTo(0, -11.1); ctx.closePath(); ctx.fill();
+
+  // pink bow, up on her head
+  ctx.save(); ctx.translate(3.4, -20.6); ctx.rotate(0.15);
+  ctx.fillStyle = pal.pgBow;
+  ctx.beginPath(); ctx.ellipse(-1.7, 0, 1.6, 1.1, -0.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(1.7, 0, 1.6, 1.1, 0.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#d13c82"; ctx.beginPath(); ctx.arc(0, 0, 0.85, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // the raised wing shield, in front of everything
+  if (sh) {
+    ctx.save(); ctx.translate(4.2, -9);
+    const wgr = ctx.createLinearGradient(-2, -9, 2, 6);
+    wgr.addColorStop(0, pal.pgBlueLt); wgr.addColorStop(1, pal.pgBlue);
+    ctx.fillStyle = wgr;
+    ctx.beginPath(); ctx.ellipse(0, -1, 3.4, 9.4, 0.08, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(0, -1, 3.4, 9.4, 0.08, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.ellipse(-0.8, -3, 1.2, 4.4, 0.08, Math.PI*0.9, Math.PI*1.7); ctx.stroke();  // shine
+    ctx.restore();
+    // shimmer sparkles while protected
+    for (let i = 0; i < 2; i++) { const a = t*0.14 + i*3;
+      ctx.fillStyle = "rgba(200,235,255," + (0.5 + Math.sin(a)*0.3) + ")";
+      ctx.beginPath(); ctx.arc(Math.cos(a)*8, -11 + Math.sin(a*1.3)*8, 0.9, 0, Math.PI*2); ctx.fill(); }
+  }
+}
+
+function drawAppyBody(ctx, pal, frame, airborne, walking, power) {
+  const t = game.timer;
+  const cols = power >= 2 ? pal.apYellow : power >= 1 ? pal.apGreen : pal.apRed;
+  const splitting = (player.splitT || 0) > 0;
+  const off = splitting ? (player.splitT / 30) * 4.5 : 0;
+
+  // tiny feet
+  const po = (walking && frame) ? 1 : 0;
+  ctx.fillStyle = pal.apStem;
+  ctx.beginPath(); ctx.ellipse(-2.6 - po, -0.8, 1.7, 1.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.6 + po, -0.8, 1.7, 1.1, 0, 0, Math.PI*2); ctx.fill();
+
+  const paint = () => {                              // the whole apple (drawn once, or twice when split)
+    const ag = ctx.createRadialGradient(-2.5, -14, 1.5, 0, -10, 11);
+    ag.addColorStop(0, cols[0]); ag.addColorStop(1, cols[1]);
+    ctx.fillStyle = ag;
+    ctx.beginPath();
+    ctx.moveTo(0, -18.6);
+    ctx.bezierCurveTo(-8.6, -20.4, -8.4, -2.6, 0, -1.4);   // left lobe
+    ctx.bezierCurveTo(8.4, -2.6, 8.6, -20.4, 0, -18.6);    // right lobe
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.3)";
+    ctx.beginPath(); ctx.ellipse(-3, -14.5, 1.9, 3, -0.4, 0, Math.PI*2); ctx.fill();   // shine
+    // smiley face (like the drawing)
+    ctx.fillStyle = pal.apFace;
+    ctx.beginPath(); ctx.arc(-2.3, -11.5, 0.95, 0, Math.PI*2); ctx.arc(2.3, -11.5, 0.95, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    ctx.beginPath(); ctx.arc(-2.6, -11.9, 0.32, 0, Math.PI*2); ctx.arc(2, -11.9, 0.32, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = pal.apFace; ctx.lineWidth = 0.75; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.arc(0, -9.6, 1.9, 0.15*Math.PI, 0.85*Math.PI); ctx.stroke();
+    ctx.fillStyle = pal.apBlush;
+    ctx.beginPath(); ctx.ellipse(-4.3, -9.6, 1.2, 0.8, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(4.3, -9.6, 1.2, 0.8, 0, 0, Math.PI*2); ctx.fill();
+  };
+
+  if (splitting) {                                   // pulled apart into two halves
+    for (const side of [-1, 1]) {
+      ctx.save();
+      ctx.translate(side * off, 0); ctx.rotate(side * off * 0.03);
+      ctx.beginPath(); ctx.rect(side > 0 ? 0 : -14, -26, 14, 28); ctx.clip();
+      paint();
+      ctx.fillStyle = "#fdf3dc";                     // flat white inside of the half
+      ctx.fillRect(-0.8 + side*0.4, -18, 1.6, 16.5);
+      ctx.restore();
+    }
+  } else paint();
+
+  // stem + leaf (the leaf whirls like a propeller in flight)
+  ctx.strokeStyle = pal.apStem; ctx.lineWidth = 1.5; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(0, -18.4); ctx.quadraticCurveTo(0.6, -20.6, 1.6, -21.8); ctx.stroke();
+  if (player.flying && !splitting) {
+    ctx.save(); ctx.translate(1, -22.4);
+    for (const ph of [0, Math.PI]) {                 // two blurred blades
+      const a = t * 0.55 + ph;
+      ctx.fillStyle = "rgba(110,210,120,.75)";
+      ctx.beginPath(); ctx.ellipse(Math.cos(a)*4.5, Math.sin(a)*1.1, 4.6, 1.5, a * 0.06, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle = pal.apStem; ctx.beginPath(); ctx.arc(0, 0, 1, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  } else {
+    ctx.fillStyle = pal.apLeaf;
+    ctx.save(); ctx.translate(2.8, -21.6); ctx.rotate(-0.5 + Math.sin(t*0.06)*0.08);
+    ctx.beginPath(); ctx.ellipse(2.2, 0, 3.1, 1.4, 0, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "rgba(50,110,45,.6)"; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(-0.4, 0); ctx.lineTo(4.8, 0); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawPug(ctx, cx, feetY) {
+  ctx.save(); ctx.translate(cx, feetY);
+  const bg3 = ctx.createLinearGradient(0, -9, 0, 0);
+  bg3.addColorStop(0, "#e3c08c"); bg3.addColorStop(1, "#c3a06a");
+  ctx.fillStyle = bg3;
+  ctx.beginPath(); ctx.ellipse(0, -4.6, 6, 4.4, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "#c3a06a"; ctx.lineWidth = 1.8; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(5.4, -8, 2, 0.4, Math.PI * 1.5); ctx.stroke();
+  ctx.fillStyle = "#c3a06a";
+  for (const lx of [-4.4, -1.4, 1.6, 4]) ctx.fillRect(lx, -2, 1.8, 2);
+  ctx.fillStyle = "#e3c08c";
+  ctx.beginPath(); ctx.ellipse(-5.6, -8.4, 4.4, 4.2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#4a3828";
+  ctx.beginPath(); ctx.ellipse(-6.4, -6.6, 2.6, 2.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#241a12";
+  ctx.beginPath(); ctx.arc(-7.6, -7, 0.7, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#3a2a1c";
+  ctx.beginPath(); ctx.ellipse(-8.4, -11.6, 1.6, 2, 0.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-2.6, -11.8, 1.6, 2, -0.4, 0, Math.PI*2); ctx.fill();
+  for (const ex of [-7.8, -4.2]) {
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(ex, -9.2, 1.25, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#241a12";
+    ctx.beginPath(); ctx.arc(ex + 0.2, -9, 0.85, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    ctx.beginPath(); ctx.arc(ex - 0.2, -9.5, 0.3, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = "#e8748c";
+  rrPath(ctx, -7.2, -5.2, 1.8, 2.4, 0.9); ctx.fill();
+  ctx.fillStyle = "#ff5e7e";
+  ctx.fillRect(-8.8, -5, 6.4, 1.4);
+  ctx.restore();
+}
+
+/* ------------------------------ track ------------------------------ */
+const N_WP = 60, ROAD_W = 95;
+const TCX = 1400, TCY = 950;
+const WPS = [];
+for (let i = 0; i < N_WP; i++) {
+  const a = i / N_WP * Math.PI * 2;
+  const rx = 1000 + Math.sin(a * 3) * 80, ry = 600 + Math.sin(a * 3 + 1.2) * 60;
+  WPS.push({ x: TCX + Math.cos(a) * rx, y: TCY + Math.sin(a) * ry });
+}
+const wp = i => WPS[((i % N_WP) + N_WP) % N_WP];
+const segLen = [];
+for (let i = 0; i < N_WP; i++) segLen.push(Math.hypot(wp(i + 1).x - wp(i).x, wp(i + 1).y - wp(i).y));
+
+// nearest point on the track centerline → {d: distance, prog: fractional waypoint progress}
+function trackInfo(x, y) {
+  let best = { d: 1e9, prog: 0 };
+  for (let i = 0; i < N_WP; i++) {
+    const a = wp(i), b = wp(i + 1);
+    const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy;
+    let t = ((x - a.x) * dx + (y - a.y) * dy) / L2;
+    t = Math.max(0, Math.min(1, t));
+    const px = a.x + dx * t, py = a.y + dy * t;
+    const d = Math.hypot(x - px, y - py);
+    if (d < best.d) best = { d, prog: i + t };
+  }
+  return best;
+}
+// a point at progress p, pushed sideways by off
+function trackPoint(p, off) {
+  const i = Math.floor(p), t = p - i;
+  const a = wp(i), b = wp(i + 1);
+  const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  const nx = -(b.y - a.y) / len, ny = (b.x - a.x) / len;
+  return { x: x + nx * (off || 0), y: y + ny * (off || 0), nx, ny,
+           dirX: (b.x - a.x) / len, dirY: (b.y - a.y) / len };
+}
+
+const PAD_WPS = [7, 22, 37, 52];                       // boost pads on the racing line
+const BOX_WPS = [12, 30, 47];                          // item boxes
+const LAPS = 3;
+
+/* ------------------------------ racers ------------------------------ */
+const KEYS = ["jules","northern","cutie","nora","sparkle","squishy","icy","appy","misty","fairy","chunmi"];
+const KART_COL = {
+  jules:"#d2622e", northern:"#7fb6ff", cutie:"#41a64b", nora:"#46cdc6",
+  sparkle:"#ff8ec4", squishy:"#ffd166", icy:"#3f8fe0", appy:"#f0564a",
+  misty:"#f2c14e", fairy:"#8a5fd0", chunmi:"#1f4fc8",
+};
+const NAME_COL = {
+  jules:"#b04e1e", northern:"#3f7fd0", cutie:"#2f8a38", nora:"#1f9aa0",
+  sparkle:"#e0608c", squishy:"#d39a1e", icy:"#2c6cb4", appy:"#c8362c",
+  misty:"#b8862c", fairy:"#7a4fc8", chunmi:"#2c4fb0",
+};
+const KID_SCALE = k => k === "nora" ? 0.78 : 0.48;     // Rosalina's art is half-height — normalize
+
+const MAXV = 4.6, TURN = 0.052, ACCEL = 0.035;
+let karts = [], coins = [], boxes = [], fx = [], finishOrder = [];
+let heroKey = "jules";
+
+function buildRace() {
+  karts = []; fx = []; finishOrder = [];
+  const order = KEYS.filter(k => k !== heroKey);
+  order.push(heroKey);                                 // player starts at the back — comeback time!
+  order.forEach((k, i) => {
+    const p = trackPoint(1.0 + i * 0.62, (i % 2 ? 34 : -34));
+    karts.push({
+      key: k, isPlayer: k === heroKey,
+      x: p.x, y: p.y, angle: Math.atan2(p.dirY, p.dirX), v: 0,
+      prog: 1.0 + i * 0.62, lap: 0, total: 0, boostT: 0, item: null,
+      aiOff: (i % 2 ? 1 : -1) * (12 + (i * 13) % 30),
+      aiSpd: 0.90 + ((i * 37) % 10) / 100,             // per-hero personality
+      finished: false, place: 0, frame: 0, bumpT: 0,
+    });
+  });
+  coins = [];
+  for (let i = 0; i < 24; i++) {
+    const p = trackPoint((i * 2.5 + 4) % N_WP, Math.sin(i * 1.7) * 46);
+    coins.push({ x: p.x, y: p.y, taken: 0 });
+  }
+  boxes = BOX_WPS.map((wpi, i) => {
+    const p = trackPoint(wpi, (i % 2 ? -30 : 30));
+    return { x: p.x, y: p.y, gone: 0 };
+  });
+  game.coins = 0;
+}
+
+/* ------------------------------ input ------------------------------ */
+const input = { left: false, right: false, boostPressed: false };
+const keys = {};
+addEventListener("keydown", e => {
+  keys[e.code] = true;
+  if (!e.repeat && (e.code === "Space" || e.code === "KeyX")) input.boostPressed = true;
+  if (game.state === "title" && e.code === "Enter") pickHero(heroKey);
+  audio();
+});
+addEventListener("keyup", e => { keys[e.code] = false; });
+function syncKeys() {
+  input.left  = !!(keys["ArrowLeft"] || keys["KeyA"]) || touch.left;
+  input.right = !!(keys["ArrowRight"] || keys["KeyD"]) || touch.right;
+}
+const touch = { left: false, right: false };
+const btnL = document.getElementById("btnL"), btnR = document.getElementById("btnR"),
+      btnB = document.getElementById("btnB");
+function bindBtn(el, name, tap) {
+  const set = on => { touch[name] = on; el.classList.toggle("pressed", on); };
+  el.addEventListener("pointerdown", e => { e.preventDefault(); audio(); if (tap) tap(); else set(true); }, { passive: false });
+  el.addEventListener("pointerup",   e => { e.preventDefault(); set(false); }, { passive: false });
+  el.addEventListener("pointercancel", () => set(false));
+  el.addEventListener("pointerleave",  () => { if (!tap) set(false); });
+}
+bindBtn(btnL, "left"); bindBtn(btnR, "right");
+bindBtn(btnB, "boost", () => { input.boostPressed = true; });
+
+cv.addEventListener("pointerdown", e => {
+  e.preventDefault(); audio();
+  if (game.state === "title") {
+    for (const c of game.titleCards)
+      if (e.clientX >= c.sx && e.clientX <= c.sx + c.sw && e.clientY >= c.sy && e.clientY <= c.sy + c.sh)
+        return pickHero(c.key);
+  } else if (game.state === "done" && game.timer > 60) {
+    game.state = "title"; game.timer = 0;
+  }
+}, { passive: false });
+
+function pickHero(k) {
+  heroKey = k; SFX.select();
+  buildRace();
+  game.state = "count"; game.timer = 0;
+}
+
+/* ------------------------------ update ------------------------------ */
+game.state = "title"; game.titleCards = []; game.coins = 0;
+
+function updateRace(frozen) {
+  syncKeys();
+  const player = karts[karts.length - 1] && karts.find(k => k.isPlayer);
+
+  for (const k of karts) {
+    if (k.finished) { k.v *= 0.97; k.x += Math.cos(k.angle) * k.v; k.y += Math.sin(k.angle) * k.v; continue; }
+    const info = trackInfo(k.x, k.y);
+    const onGrass = info.d > ROAD_W - 10;
+
+    let steer = 0, top = MAXV;
+    if (k.isPlayer) {
+      steer = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+      if (input.boostPressed) {
+        input.boostPressed = false;
+        if (k.item === "boost" && !frozen) { k.item = null; k.boostT = 75; SFX.boost(); }
+      }
+    } else {
+      // AI: aim at a point a little way down its personal racing line
+      const target = trackPoint(k.prog + 2.2, k.aiOff * (0.6 + 0.4 * Math.sin(k.prog * 0.35)));
+      let want = Math.atan2(target.y - k.y, target.x - k.x);
+      let diff = want - k.angle;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      steer = Math.max(-1, Math.min(1, diff * 3));
+      top = MAXV * k.aiSpd;
+      if (player && !player.finished) {                // gentle rubber band keeps races exciting
+        const gap = player.total - k.total;
+        if (gap > 3) top *= 1.14;
+        else if (gap < -5) top *= 0.86;
+      }
+    }
+    if (onGrass) top *= 0.5;
+    if (k.boostT > 0) { k.boostT--; top = MAXV * 1.75; }
+
+    if (!frozen) {
+      k.v += (top - k.v) * (k.v > top ? 0.06 : ACCEL + (k.boostT > 0 ? 0.06 : 0));
+      k.angle += steer * TURN * (0.35 + 0.65 * Math.min(1, k.v / MAXV));
+      k.x += Math.cos(k.angle) * k.v;
+      k.y += Math.sin(k.angle) * k.v;
+      k.frame += k.v;
+    }
+    if (k.bumpT > 0) k.bumpT--;
+
+    // progress + laps
+    const newProg = info.prog;
+    let dp = newProg - k.prog;
+    if (dp < -N_WP / 2) { k.lap++; dp += N_WP; }       // crossed the finish line
+    else if (dp > N_WP / 2) { k.lap--; dp -= N_WP; }   // went backward over it
+    k.prog = newProg;
+    k.total = k.lap * N_WP + k.prog;
+
+    if (!k.finished && k.lap >= LAPS) {
+      k.finished = true; k.place = finishOrder.length + 1;
+      finishOrder.push(k);
+      if (k.isPlayer) { game.state = "done"; game.timer = 0; if (k.place <= 3) SFX.win(); else SFX.beep(); }
+    }
+
+    if (frozen) continue;
+
+    // boost pads
+    for (const wpi of PAD_WPS) {
+      const p = wp(wpi);
+      if (Math.hypot(k.x - p.x, k.y - p.y) < 46 && k.boostT < 30) {
+        k.boostT = 45; if (k.isPlayer) SFX.pad();
+      }
+    }
+    // coins (player only counts, but AI can sparkle through)
+    if (k.isPlayer) {
+      for (const c of coins) {
+        if (!c.taken && Math.hypot(k.x - c.x, k.y - c.y) < 30) {
+          c.taken = 1; game.coins++; SFX.coin();
+          for (let i = 0; i < 5; i++) fx.push({ x: c.x, y: c.y, vx: Math.cos(i * 1.26) * 1.6,
+            vy: Math.sin(i * 1.26) * 1.6 - 1, t: 0, c: "#ffd166" });
+        }
+      }
+      for (const b of boxes) {
+        if (!b.gone && Math.hypot(k.x - b.x, k.y - b.y) < 34) {
+          b.gone = 240; if (!k.item) { k.item = "boost"; SFX.box(); }
+          for (let i = 0; i < 6; i++) fx.push({ x: b.x, y: b.y, vx: Math.cos(i) * 2,
+            vy: Math.sin(i) * 2 - 1, t: 0, c: ["#ff8ec4", "#7fb6ff", "#ffd166"][i % 3] });
+        }
+      }
+    }
+    // boost trail sparkles
+    if (k.boostT > 0 && (game.timer & 1) === 0)
+      fx.push({ x: k.x - Math.cos(k.angle) * 18, y: k.y - Math.sin(k.angle) * 18,
+        vx: -Math.cos(k.angle) * 1.5, vy: -Math.sin(k.angle) * 1.5, t: 0,
+        c: ["#ffb347", "#fff3a0", "#ff8c42"][game.timer % 3] });
+  }
+
+  // soft kart-vs-kart bumps
+  for (let i = 0; i < karts.length; i++) for (let j = i + 1; j < karts.length; j++) {
+    const a = karts[i], b = karts[j];
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+    if (d > 0 && d < 30) {
+      const push = (30 - d) / 2, ux = dx / d, uy = dy / d;
+      a.x -= ux * push; a.y -= uy * push;
+      b.x += ux * push; b.y += uy * push;
+      if ((a.isPlayer || b.isPlayer) && a.bumpT === 0 && b.bumpT === 0) { SFX.bump(); a.bumpT = b.bumpT = 20; }
+    }
+  }
+
+  for (const b of boxes) if (b.gone > 0) b.gone--;
+  for (const p of fx) { p.t++; p.x += p.vx; p.y += p.vy; p.vy += 0.05; }
+  fx = fx.filter(p => p.t < 40);
+
+  btnB.style.display = (game.state === "race" && karts.find(k => k.isPlayer)?.item) ? "flex" : "none";
+}
+
+function update() {
+  game.timer++;
+  if (game.state === "count") {
+    updateRace(true);
+    if (game.timer === 1 || game.timer === 60 || game.timer === 120) SFX.beep();
+    if (game.timer >= 180) { game.state = "race"; SFX.go(); }
+  } else if (game.state === "race" || game.state === "done") {
+    updateRace(false);
+  }
+}
+
+/* ------------------------------ drawing ------------------------------ */
+function rr(x, y, w, h, r) { rrPath(g, x, y, w, h, r); }
+
+function ordinal(n) { return n + (n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"); }
+
+function rank() {
+  const sorted = [...karts].sort((a, b) =>
+    (a.finished && b.finished) ? a.place - b.place :
+    a.finished ? -1 : b.finished ? 1 : b.total - a.total);
+  return sorted;
+}
+
+function drawKart(k) {
+  const t = game.timer;
+  g.save();
+  g.translate(k.x, k.y);
+  // shadow
+  g.fillStyle = "rgba(0,0,0,.22)";
+  g.beginPath(); g.ellipse(0, 6, 20, 9, 0, 0, Math.PI * 2); g.fill();
+  // kart body, rotated with travel direction
+  g.save();
+  g.rotate(k.angle);
+  g.fillStyle = "#23262e";                                     // wheels
+  rr(-14, -14, 9, 6, 2.5); g.fill(); rr(-14, 8, 9, 6, 2.5); g.fill();
+  rr(7, -14, 9, 6, 2.5); g.fill(); rr(7, 8, 9, 6, 2.5); g.fill();
+  const bg = g.createLinearGradient(0, -10, 0, 10);
+  const col = KART_COL[k.key] || "#e074a8";
+  bg.addColorStop(0, col); bg.addColorStop(1, "#00000030");
+  g.fillStyle = col; rr(-16, -9, 34, 18, 8); g.fill();
+  g.fillStyle = "rgba(255,255,255,.35)"; rr(-13, -7, 12, 5, 3); g.fill();  // shine
+  g.fillStyle = "#2a2e38"; rr(12, -6, 7, 12, 3); g.fill();     // front bumper
+  if (k.boostT > 0) {                                          // flame when boosting
+    g.fillStyle = ["#ff8c42", "#ffd166", "#fff3a0"][t % 3];
+    g.beginPath(); g.moveTo(-16, -4); g.lineTo(-26 - (t % 3) * 3, 0); g.lineTo(-16, 4); g.closePath(); g.fill();
+  }
+  g.restore();
+  // the hero, sitting proudly upright (billboard style)
+  const facing = Math.cos(k.angle) >= 0 ? 1 : -1;
+  const ks = KID_SCALE(k.key);
+  g.save();
+  g.translate(0, -4 + Math.sin(k.frame * 0.06) * 1);
+  g.scale(ks, ks);
+  drawKid(g, 0, 0, CHARS[k.key], Math.floor(k.frame / 16) % 2, facing, false, false);
+  g.restore();
+  g.restore();
+}
+
+function drawTrack() {
+  // grass
+  const gg = g.createLinearGradient(0, TCY - 900, 0, TCY + 900);
+  gg.addColorStop(0, "#7ec850"); gg.addColorStop(1, "#4d9e3c");
+  g.fillStyle = gg; g.fillRect(TCX - 1700, TCY - 1200, 3400, 2400);
+  // flowers sprinkled on the grass
+  for (let i = 0; i < 40; i++) {
+    const fx2 = TCX - 1500 + ((i * 733) % 3000), fy2 = TCY - 1050 + ((i * 517) % 2100);
+    const d = trackInfo(fx2, fy2).d;
+    if (d < ROAD_W + 30) continue;
+    g.fillStyle = ["#ff8ec4", "#ffd166", "#b88cff", "#fff"][i % 4];
+    g.beginPath(); g.arc(fx2, fy2, 5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#fff3a0"; g.beginPath(); g.arc(fx2, fy2, 2, 0, Math.PI * 2); g.fill();
+  }
+  // the road
+  g.lineJoin = "round"; g.lineCap = "round";
+  const path = () => { g.beginPath(); g.moveTo(WPS[0].x, WPS[0].y);
+    for (let i = 1; i <= N_WP; i++) g.lineTo(wp(i).x, wp(i).y); g.closePath(); };
+  path(); g.strokeStyle = "#f2ede2"; g.lineWidth = ROAD_W * 2 + 10; g.stroke();   // white edges
+  path(); g.strokeStyle = "#4a4f5c"; g.lineWidth = ROAD_W * 2; g.stroke();        // asphalt
+  path(); g.strokeStyle = "rgba(255,209,102,.9)"; g.lineWidth = 4;
+  g.setLineDash([22, 20]); g.stroke(); g.setLineDash([]);                          // center dashes
+  // boost pads
+  for (const wpi of PAD_WPS) {
+    const p = trackPoint(wpi, 0);
+    g.save(); g.translate(p.x, p.y); g.rotate(Math.atan2(p.dirY, p.dirX));
+    g.fillStyle = (game.timer & 15) < 8 ? "#ff9f43" : "#ffb86b";
+    for (let c2 = 0; c2 < 2; c2++) {
+      g.beginPath(); g.moveTo(-14 + c2 * 18, -16); g.lineTo(4 + c2 * 18, 0); g.lineTo(-14 + c2 * 18, 16);
+      g.lineTo(-6 + c2 * 18, 0); g.closePath(); g.fill();
+    }
+    g.restore();
+  }
+  // start / finish: checkered strip + Peach the pug waving the flag
+  const s = trackPoint(0, 0);
+  g.save(); g.translate(s.x, s.y); g.rotate(Math.atan2(s.dirY, s.dirX));
+  for (let i = 0; i < 10; i++) for (let j = 0; j < 2; j++) {
+    g.fillStyle = (i + j) % 2 ? "#16181d" : "#fff";
+    g.fillRect(-10 + j * 10, -ROAD_W + i * (ROAD_W / 5), 10, ROAD_W / 5);
+  }
+  g.restore();
+  const pugSpot = trackPoint(0, -(ROAD_W + 42));
+  g.save(); g.translate(pugSpot.x, pugSpot.y); g.scale(1.15, 1.15);
+  drawPug(g, 0, 0);
+  const wave = Math.sin(game.timer * 0.15) * 0.5;
+  g.strokeStyle = "#8a5a32"; g.lineWidth = 2.5;
+  g.beginPath(); g.moveTo(14, -8); g.lineTo(20, -34); g.stroke();
+  g.save(); g.translate(20, -34); g.rotate(wave * 0.4);
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
+    g.fillStyle = (i + j) % 2 ? "#16181d" : "#fff";
+    g.fillRect(i * 7, j * 6, 7, 6);
+  }
+  g.restore(); g.restore();
+  // coins + item boxes
+  for (const c of coins) {
+    if (c.taken) continue;
+    const sq = Math.abs(Math.sin(game.timer * 0.06 + c.x));
+    g.fillStyle = "#ffd166";
+    g.beginPath(); g.ellipse(c.x, c.y, 9 * (0.3 + 0.7 * sq), 9, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "#d8a020"; g.lineWidth = 2;
+    g.beginPath(); g.ellipse(c.x, c.y, 9 * (0.3 + 0.7 * sq), 9, 0, 0, Math.PI * 2); g.stroke();
+  }
+  for (const b of boxes) {
+    if (b.gone) continue;
+    const bob = Math.sin(game.timer * 0.08 + b.x) * 3;
+    g.save(); g.translate(b.x, b.y + bob); g.rotate(Math.sin(game.timer * 0.04) * 0.3);
+    const grad = g.createLinearGradient(-13, -13, 13, 13);
+    grad.addColorStop(0, "#b88cff"); grad.addColorStop(0.5, "#7fb6ff"); grad.addColorStop(1, "#ff8ec4");
+    g.fillStyle = grad; rr(-13, -13, 26, 26, 6); g.fill();
+    g.strokeStyle = "rgba(255,255,255,.8)"; g.lineWidth = 2; rr(-13, -13, 26, 26, 6); g.stroke();
+    g.fillStyle = "#fff"; g.font = "900 17px 'Avenir Next',Arial";
+    g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("?", 0, 1);
+    g.restore();
+  }
+}
+
+function outlineText(txt, x, y, fill, size) {
+  g.lineWidth = Math.max(3, (size || 20) / 7); g.lineJoin = "round";
+  g.strokeStyle = "rgba(0,0,0,.35)";
+  g.strokeText(txt, x, y); g.fillStyle = fill; g.fillText(txt, x, y);
+}
+
+function drawHUD(player) {
+  g.textAlign = "left"; g.textBaseline = "top";
+  g.font = "900 " + Math.min(W / 16, 26) + "px 'Avenir Next',Arial";
+  outlineText("LAP " + Math.min(LAPS, player.lap + 1) + "/" + LAPS, 14, 12, "#fff");
+  g.font = "800 " + Math.min(W / 22, 18) + "px 'Avenir Next',Arial";
+  outlineText("● " + game.coins, 14, 16 + Math.min(W / 16, 26) * 1.15, "#ffd166");
+  const pos = rank().indexOf(player) + 1;
+  g.textAlign = "center";
+  g.font = "900 " + Math.min(W / 9, 44) + "px 'Avenir Next',Arial";
+  outlineText(ordinal(player.finished ? player.place : pos), W / 2, 10, pos === 1 ? "#ffd166" : "#fff");
+  // minimap
+  const mw = Math.min(W * 0.24, 150), mh = mw * 0.62;
+  const mx = W - mw - 12, my = 12 + 40;
+  g.fillStyle = "rgba(20,30,20,.4)"; rr(mx - 6, my - 6, mw + 12, mh + 12, 10); g.fill();
+  const sx = mw / 2400, sy = mh / 1500;
+  g.strokeStyle = "rgba(255,255,255,.75)"; g.lineWidth = 3; g.lineJoin = "round";
+  g.beginPath();
+  for (let i = 0; i <= N_WP; i++) {
+    const p = wp(i), px = mx + (p.x - (TCX - 1200)) * sx, py = my + (p.y - (TCY - 750)) * sy;
+    i ? g.lineTo(px, py) : g.moveTo(px, py);
+  }
+  g.closePath(); g.stroke();
+  for (const k of karts) {
+    const px = mx + (k.x - (TCX - 1200)) * sx, py = my + (k.y - (TCY - 750)) * sy;
+    g.fillStyle = k.isPlayer ? "#fff" : KART_COL[k.key];
+    g.beginPath(); g.arc(px, py, k.isPlayer ? 4 : 2.6, 0, Math.PI * 2); g.fill();
+    if (k.isPlayer) { g.strokeStyle = "#ffd166"; g.lineWidth = 1.5;
+      g.beginPath(); g.arc(px, py, 5.5, 0, Math.PI * 2); g.stroke(); }
+  }
+}
+
+function drawRace() {
+  const player = karts.find(k => k.isPlayer);
+  g.save();
+  g.scale(DPR, DPR);
+  g.save();
+  g.translate(W / 2 - player.x, H / 2 - player.y);
+  drawTrack();
+  for (const p of fx) {
+    g.globalAlpha = Math.max(0, 1 - p.t / 40);
+    g.fillStyle = p.c; g.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
+    g.globalAlpha = 1;
+  }
+  for (const k of [...karts].sort((a, b) => a.y - b.y)) drawKart(k);
+  // name pill above the player
+  g.font = "800 11px 'Avenir Next',Arial"; g.textAlign = "center"; g.textBaseline = "middle";
+  const nm = CHARS[player.key].name, tw2 = g.measureText(nm).width;
+  g.fillStyle = NAME_COL[player.key];
+  rr(player.x - tw2 / 2 - 7, player.y - 52, tw2 + 14, 16, 8); g.fill();
+  g.fillStyle = "#fff"; g.fillText(nm, player.x, player.y - 44);
+  g.restore();
+
+  drawHUD(player);
+
+  if (game.state === "count") {
+    const n = 3 - Math.floor(game.timer / 60);
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.font = "900 " + Math.min(W / 4, 130) + "px 'Avenir Next',Arial";
+    const scale = 1 + (1 - (game.timer % 60) / 60) * 0.25;
+    g.save(); g.translate(W / 2, H * 0.4); g.scale(scale, scale);
+    outlineText("" + n, 0, 0, ["#ff6b6b", "#ffd166", "#7ec850"][3 - n] || "#fff");
+    g.restore();
+  } else if (game.state === "race" && game.timer < 240) {
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.font = "900 " + Math.min(W / 5, 100) + "px 'Avenir Next',Arial";
+    g.globalAlpha = Math.max(0, 1 - (game.timer - 180) / 60);
+    outlineText("GO!", W / 2, H * 0.4, "#7ec850");
+    g.globalAlpha = 1;
+  }
+
+  if (game.state === "done") drawResults(player);
+  g.restore();
+}
+
+function drawResults(player) {
+  const a = Math.min(1, game.timer / 40);
+  g.fillStyle = "rgba(30,40,70," + (a * 0.72).toFixed(2) + ")";
+  g.fillRect(0, 0, W, H);
+  if (game.timer < 20) return;
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = "900 " + Math.min(W / 9, 52) + "px 'Avenir Next',Arial";
+  const med = player.place === 1 ? "🏆" : player.place === 2 ? "🥈" : player.place === 3 ? "🥉" : "🏁";
+  outlineText(med + " " + ordinal(player.place) + " place!", W / 2, H * 0.2, player.place === 1 ? "#ffd166" : "#fff");
+  // podium for the top three so far
+  const top3 = rank().slice(0, 3);
+  const pw = Math.min(W * 0.2, 110), baseY = H * 0.62;
+  const podX = [W / 2, W / 2 - pw - 10, W / 2 + pw + 10];
+  const podH = [86, 60, 42];
+  top3.forEach((k, i) => {
+    const x = podX[i], ph = podH[i];
+    g.fillStyle = ["#ffd166", "#c8ccd8", "#c98f5a"][i];
+    rr(x - pw / 2, baseY - ph, pw, ph, 8); g.fill();
+    g.fillStyle = "rgba(0,0,0,.35)";
+    g.font = "900 " + ph * 0.42 + "px 'Avenir Next',Arial";
+    g.fillText(i + 1, x, baseY - ph / 2);
+    const hop = Math.abs(Math.sin(game.timer * 0.1 + i)) * 8;
+    g.save(); g.translate(x, baseY - ph - 4 - hop);
+    const ks = KID_SCALE(k.key) * 1.5;
+    g.scale(ks, ks);
+    drawKid(g, 0, 0, CHARS[k.key], Math.floor(game.timer / 20) % 2, i === 2 ? -1 : 1, false, false);
+    g.restore();
+  });
+  // confetti
+  for (let i = 0; i < 26; i++) {
+    const cy2 = ((game.timer * (1.5 + (i % 5) * 0.5) + i * 97) % (H + 40)) - 20;
+    g.fillStyle = ["#ff6b9d", "#4dabf7", "#ffd43b", "#69db7c", "#b197fc"][i % 5];
+    g.save(); g.translate((i * 137) % W, cy2); g.rotate(game.timer * 0.05 + i);
+    g.fillRect(-4, -2, 8, 4); g.restore();
+  }
+  if (game.timer > 90 && Math.floor(game.timer / 30) % 2 === 0) {
+    g.font = "700 " + Math.min(W / 20, 20) + "px 'Avenir Next',Arial";
+    outlineText("tap to race again", W / 2, H * 0.82, "#aee0ff");
+  }
+}
+
+function drawTitle() {
+  g.save(); g.scale(DPR, DPR);
+  const sky = g.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, "#6fb4ec"); sky.addColorStop(0.7, "#c8ecff"); sky.addColorStop(0.72, "#7ec850"); sky.addColorStop(1, "#4d9e3c");
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  // a little road across the bottom with karts parading
+  g.fillStyle = "#4a4f5c"; g.fillRect(0, H * 0.8, W, H * 0.1);
+  g.strokeStyle = "rgba(255,209,102,.9)"; g.lineWidth = 3; g.setLineDash([16, 14]);
+  g.beginPath(); g.moveTo(0, H * 0.85); g.lineTo(W, H * 0.85); g.stroke(); g.setLineDash([]);
+  KEYS.forEach((k, i) => {
+    const x = ((game.timer * 1.3 + i * (W + 240) / KEYS.length) % (W + 240)) - 120;
+    g.save(); g.translate(x, H * 0.85);
+    g.fillStyle = "rgba(0,0,0,.2)"; g.beginPath(); g.ellipse(0, 6, 18, 8, 0, 0, Math.PI * 2); g.fill();
+    g.save(); g.fillStyle = "#23262e"; rr(-13, 0, 8, 6, 2); g.fill(); rr(6, 0, 8, 6, 2); g.fill();
+    g.fillStyle = KART_COL[k]; rr(-15, -8, 31, 15, 7); g.fill(); g.restore();
+    const ks = KID_SCALE(k) * 0.9;
+    g.save(); g.translate(0, -6); g.scale(ks, ks);
+    drawKid(g, 0, 0, CHARS[k], Math.floor(game.timer / 14) % 2, 1, false, true);
+    g.restore(); g.restore();
+  });
+
+  g.textAlign = "center"; g.textBaseline = "middle";
+  const big = Math.min(W / 8, 54);
+  g.font = "900 " + big + "px 'Avenir Next',Arial";
+  outlineText("MAGIC KART", W / 2, Math.max(H * 0.08, 46), "#ffd166", big);
+  g.font = "700 " + Math.min(W / 26, 16) + "px 'Avenir Next',Arial";
+  outlineText("✨ a racing game by Jules & Nora ✨", W / 2, Math.max(H * 0.08, 46) + big * 0.75, "#fff");
+  g.font = "800 " + Math.min(W / 22, 18) + "px 'Avenir Next',Arial";
+  outlineText("Pick your racer!", W / 2, Math.max(H * 0.08, 46) + big * 1.45, "#fff");
+
+  // hero cards
+  game.titleCards = [];
+  const n = KEYS.length, perRow = Math.ceil(n / 2), rows = 2, rowGap = 10;
+  const gap = Math.min(10, W * 0.016);
+  const cw = Math.min((W * 0.96 - (perRow - 1) * gap) / perRow, 120, H * 0.3);
+  const ch = Math.min(cw * 1.2, H * 0.24);
+  const cy0 = Math.min(H * 0.34, H * 0.78 - rows * ch - rowGap);
+  KEYS.forEach((k, i) => {
+    const row = Math.floor(i / perRow);
+    const inRow = row === rows - 1 ? n - perRow : perRow;
+    const idx = i - row * perRow;
+    const rowW = inRow * cw + (inRow - 1) * gap, startX = W / 2 - rowW / 2;
+    const sx = startX + idx * (cw + gap), sy = cy0 + row * (ch + rowGap);
+    const bounce = Math.sin(game.timer * 0.08 + i * 2) * 3;
+    g.fillStyle = "rgba(255,255,255,.92)";
+    rr(sx, sy, cw, ch, 12); g.fill();
+    g.lineWidth = 3.5; g.strokeStyle = KART_COL[k];
+    rr(sx, sy, cw, ch, 12); g.stroke();
+    g.save();
+    g.translate(sx + cw / 2, sy + ch * 0.62 + bounce);
+    const ks = (cw / 48) * (k === "nora" ? 1.5 : 1);
+    g.scale(ks, ks);
+    drawKid(g, 0, 0, CHARS[k], Math.floor(game.timer / 20) % 2, 1, false, true);
+    g.restore();
+    let nm = CHARS[k].name, fs = cw / 6.6;
+    g.font = "900 " + fs + "px 'Avenir Next',Arial";
+    while (g.measureText(nm).width > cw - 14 && fs > 6.5) { fs -= 0.5; g.font = "900 " + fs + "px 'Avenir Next',Arial"; }
+    const ntw = g.measureText(nm).width, pillH = fs + 6, pillW = Math.min(cw - 4, ntw + 12), py = sy + ch - cw / 9;
+    g.fillStyle = NAME_COL[k];
+    rr(sx + cw / 2 - pillW / 2, py - pillH / 2, pillW, pillH, pillH / 2); g.fill();
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = "#fff"; g.fillText(nm, sx + cw / 2, py + 0.5);
+    game.titleCards.push({ key: k, sx, sy, sw: cw, sh: ch });
+  });
+  g.font = "600 " + Math.min(W / 26, 15) + "px 'Avenir Next',Arial";
+  outlineText("3 laps • grab coins • ? boxes give a 🍄 boost!", W / 2, H * 0.78 + 4, "#fff");
+  g.restore();
+}
+
+/* ------------------------------ games menu ------------------------------ */
+const gBtn = document.getElementById("gamesBtn"), gMenu = document.getElementById("gamesMenu");
+gBtn.addEventListener("click", e => { e.stopPropagation(); gMenu.hidden = !gMenu.hidden; });
+document.addEventListener("pointerdown", e => {
+  if (!gMenu.hidden && !gMenu.contains(e.target) && e.target !== gBtn) gMenu.hidden = true;
+});
+
+/* ------------------------------ main loop ------------------------------ */
+function frame() {
+  update();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, cv.width, cv.height);
+  if (game.state === "title") drawTitle();
+  else drawRace();
+  const showSteer = game.state === "race" || game.state === "count";
+  btnL.style.display = btnR.style.display = showSteer ? "flex" : "none";
+  if (!showSteer) btnB.style.display = "none";
+  requestAnimationFrame(frame);
+}
+frame();
+</script>
+</body>
+</html>
