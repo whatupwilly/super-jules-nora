@@ -1742,7 +1742,7 @@ cv.addEventListener("pointerdown", e => {
   if (S.state === "title") { S.state = "mode"; S.timer = 0; SFX.select(); return; }
   if (S.state === "mode") {
     for (const ch of S.speedChips)
-      if (e.clientX >= ch.x && e.clientX <= ch.x + ch.w && e.clientY >= ch.y && e.clientY <= ch.y + ch.h) {
+      if (e.clientX >= ch.x - 8 && e.clientX <= ch.x + ch.w + 8 && e.clientY >= ch.y - 10 && e.clientY <= ch.y + ch.h + 10) {
         S[ch.which] = ch.mul; SFX.select();
         try { localStorage.setItem(ch.which === "ballSpd" ? "tennisBallSpd" : "tennisRunSpd", ch.mul); } catch (err) {}
         return;
@@ -2140,7 +2140,7 @@ function drawMode() {
   outlineText("How do you want to play?", W / 2, H * 0.16, "#ffd166");
   S.cards = [];
   const gap = Math.min(14, W * 0.02);
-  const cw = Math.min((W * 0.94 - gap * 2) / 3, 210), ch = Math.min(H * 0.32, 230);
+  const cw = Math.min((W * 0.94 - gap * 2) / 3, 210), ch = Math.min(H * 0.28, 220);
   const modes = [
     { solo: false, single: false, emoji: "👭", title: "Two Players", sub: "sisters together!", col: "#ff8ec4" },
     { solo: true,  single: false, emoji: "🤖", title: "One Player",  sub: "+ a magic buddy",   col: "#7fb6ff" },
@@ -2148,7 +2148,7 @@ function drawMode() {
   ];
   const startX = W / 2 - (cw * 3 + gap * 2) / 2;
   modes.forEach((m2, i) => {
-    const sx = startX + i * (cw + gap), sy = H * 0.34;
+    const sx = startX + i * (cw + gap), sy = H * 0.22;
     const bounce = Math.sin(S.timer * 0.08 + i * 2) * 3;
     g.fillStyle = "rgba(255,255,255,.93)";
     rr(sx, sy + bounce, cw, ch, 16); g.fill();
@@ -2169,13 +2169,15 @@ function drawMode() {
     S.cards.push({ solo: m2.solo, single: m2.single, sx, sy, sw: cw, sh: ch });
   });
   g.font = "700 " + Math.min(W / 30, 14) + "px 'Avenir Next',Arial";
-  outlineText("buddies play by themselves • one on one is all you!", W / 2, H * 0.72, "#cfe8ff");
-  // speed toggles — how fast the ball flies and everyone runs
+  outlineText("buddies play by themselves • one on one is all you!", W / 2, H * 0.22 + ch + 26, "#cfe8ff");
+  // speed toggles — how fast the ball flies and everyone runs (kept high
+  // on the screen so phone toolbars never cover them)
   S.speedChips = [];
   const rows2 = [ { which: "ballSpd", label: "🎾 ball" }, { which: "runSpd", label: "🏃 running" } ];
-  const chipW = Math.min(W * 0.11, 52), chipH = Math.min(H * 0.045, 34), chipGap = 6;
+  const chipW = Math.min(W * 0.15, 62), chipH = Math.min(H * 0.055, 44), chipGap = 8;
+  const rowsTop = H * 0.22 + ch + 48;
   rows2.forEach((row, ri) => {
-    const ry = H * (0.78 + ri * 0.075);
+    const ry = rowsTop + ri * (chipH + 22);
     g.font = "800 " + Math.min(W / 26, 15) + "px 'Avenir Next',Arial";
     g.textAlign = "right"; g.textBaseline = "middle";
     outlineText(row.label, W / 2 - chipW * 1.5 - chipGap - 12, ry + chipH / 2, "#fff");
