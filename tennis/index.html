@@ -1633,7 +1633,7 @@ const WIN_PTS = 10, ROUNDS = 3;
 /* Real game state lives here; the art stub `game` only needs .timer, which we
    drive from our own clock each frame. */
 const S = {
-  state: "title", timer: 0, stage: 0,
+  state: "title", timer: 0, stage: 0, solo: false,
   players: [ { key: null, racket: 0 }, { key: null, racket: 0 } ],
   round: 0, rivals: [], usedRivals: [],
   scoreUs: 0, scoreThem: 0, servingUs: true,
@@ -1724,7 +1724,14 @@ function scorePoint(usScored, why) {
 const pointers = {};   // pointerId → {who}
 cv.addEventListener("pointerdown", e => {
   e.preventDefault(); audio();
-  if (S.state === "title") { S.state = "pick"; S.stage = 0; S.timer = 0; SFX.select(); return; }
+  if (S.state === "title") { S.state = "mode"; S.timer = 0; SFX.select(); return; }
+  if (S.state === "mode") {
+    for (const c of S.cards)
+      if (e.clientX >= c.sx && e.clientX <= c.sx + c.sw && e.clientY >= c.sy && e.clientY <= c.sy + c.sh) {
+        S.solo = c.solo; S.state = "pick"; S.stage = 0; S.timer = 0; SFX.select(); return;
+      }
+    return;
+  }
   if (S.state === "pick") {
     for (const c of S.cards)
       if (e.clientX >= c.sx && e.clientX <= c.sx + c.sw && e.clientY >= c.sy && e.clientY <= c.sy + c.sh)
@@ -1741,7 +1748,7 @@ cv.addEventListener("pointerdown", e => {
   }
   if (S.state === "champion" && S.timer > 90) { S.state = "title"; S.timer = 0; return; }
   if (S.state === "play") {
-    const who = e.clientX < W / 2 ? 0 : 1;
+    const who = S.solo ? 0 : (e.clientX < W / 2 ? 0 : 1);   // solo: the whole screen is yours
     pointers[e.pointerId] = { who };
     steerTo(who, e.clientX, e.clientY);
   }
@@ -1784,15 +1791,22 @@ function updatePlay() {
   // sisters: follow finger (or keys), otherwise drift helpfully toward the ball
   for (const e of ents) {
     let speed = e.us ? 3.6 : aiSpeed();
-    if (e.us) {
+    if (e.us && S.solo && e.who === 1) {
+      // 🤖 the magic buddy: a proper bot teammate covering her half
+      speed = 3.3;
+      if (ball && ball.live && ball.lastSide === -1 && ball.x >= -10) {
+        e.tx = ball.x; e.ty = Math.max(60, Math.min(CY - 20, ball.y));
+      } else { e.tx = 130; e.ty = 215; }
+    } else if (e.us) {
       if (e.touchT > 0) e.touchT--;
-      const kx = e.who === 0 ? ((keys["KeyD"] ? 1 : 0) - (keys["KeyA"] ? 1 : 0))
-                             : ((keys["ArrowRight"] ? 1 : 0) - (keys["ArrowLeft"] ? 1 : 0));
-      const ky = e.who === 0 ? ((keys["KeyS"] ? 1 : 0) - (keys["KeyW"] ? 1 : 0))
-                             : ((keys["ArrowDown"] ? 1 : 0) - (keys["ArrowUp"] ? 1 : 0));
-      if (kx || ky) { e.tx = e.x + kx * 60; e.ty = e.y + ky * 60; e.touchT = 90; }
+      const useKeys1 = e.who === 0, useBoth = S.solo && e.who === 0;
+      const kx = (useKeys1 ? ((keys["KeyD"] ? 1 : 0) - (keys["KeyA"] ? 1 : 0)) : 0) +
+                 ((!useKeys1 || useBoth) ? ((keys["ArrowRight"] ? 1 : 0) - (keys["ArrowLeft"] ? 1 : 0)) : 0);
+      const ky = (useKeys1 ? ((keys["KeyS"] ? 1 : 0) - (keys["KeyW"] ? 1 : 0)) : 0) +
+                 ((!useKeys1 || useBoth) ? ((keys["ArrowDown"] ? 1 : 0) - (keys["ArrowUp"] ? 1 : 0)) : 0);
+      if (kx || ky) { e.tx = e.x + Math.sign(kx) * 60; e.ty = e.y + Math.sign(ky) * 60; e.touchT = 90; }
       if (e.touchT <= 0 && ball && ball.live && ball.lastSide === -1) {
-        // helpful auto-run when nobody is steering this sister
+        // helpful auto-run when nobody is steering this sister (each covers her half)
         const myHalf = e.who === 0 ? ball.x <= 10 : ball.x >= -10;
         if (myHalf) { e.tx = ball.x; e.ty = Math.max(60, Math.min(CY - 20, ball.y)); }
       }
@@ -2090,11 +2104,45 @@ function drawCardGrid(list, drawOne, label) {
     drawOne(item, sx, sy, cw, ch, bounce, i);
   });
 }
+function drawMode() {
+  const sky = g.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, "#1c3a5e"); sky.addColorStop(1, "#2e7d46");
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = "900 " + Math.min(W / 16, 30) + "px 'Avenir Next',Arial";
+  outlineText("How do you want to play?", W / 2, H * 0.16, "#ffd166");
+  S.cards = [];
+  const cw = Math.min(W * 0.42, 260), ch = Math.min(H * 0.34, 240);
+  const modes = [
+    { solo: false, emoji: "👭", title: "Two Players", sub: "sisters together!" },
+    { solo: true,  emoji: "🤖", title: "One Player",  sub: "+ a magic buddy" },
+  ];
+  modes.forEach((m2, i) => {
+    const sx = W / 2 + (i ? 12 : -cw - 12), sy = H * 0.32;
+    const bounce = Math.sin(S.timer * 0.08 + i * 2) * 3;
+    g.fillStyle = "rgba(255,255,255,.93)";
+    rr(sx, sy + bounce, cw, ch, 16); g.fill();
+    g.lineWidth = 4; g.strokeStyle = i ? "#7fb6ff" : "#ff8ec4";
+    rr(sx, sy + bounce, cw, ch, 16); g.stroke();
+    g.font = (ch * 0.3) + "px 'Avenir Next',Arial";
+    g.fillText(m2.emoji, sx + cw / 2, sy + bounce + ch * 0.33);
+    g.font = "900 " + Math.min(cw / 8, 24) + "px 'Avenir Next',Arial";
+    g.fillStyle = "#2a3a55";
+    g.fillText(m2.title, sx + cw / 2, sy + bounce + ch * 0.62);
+    g.font = "700 " + Math.min(cw / 12, 16) + "px 'Avenir Next',Arial";
+    g.fillStyle = "#6a7a96";
+    g.fillText(m2.sub, sx + cw / 2, sy + bounce + ch * 0.78);
+    S.cards.push({ solo: m2.solo, sx, sy, sw: cw, sh: ch });
+  });
+  g.font = "700 " + Math.min(W / 30, 14) + "px 'Avenir Next',Arial";
+  outlineText("your buddy runs and swings all by herself!", W / 2, H * 0.78, "#cfe8ff");
+}
+
 function drawPick() {
   const sky = g.createLinearGradient(0, 0, 0, H);
   sky.addColorStop(0, "#1c3a5e"); sky.addColorStop(1, "#2e7d46");
   g.fillStyle = sky; g.fillRect(0, 0, W, H);
-  const who = S.stage < 2 ? "Player 1" : "Player 2";
+  const who = S.stage < 2 ? (S.solo ? "You" : "Player 1") : (S.solo ? "Your buddy 🤖" : "Player 2");
   if (S.stage === 0 || S.stage === 2) {
     const taken = S.stage === 2 ? [S.players[0].key] : [];
     const list = KEYS.filter(k => !taken.includes(k));
@@ -2128,7 +2176,8 @@ function drawPick() {
     }, who + " — pick your stick!");
   }
   g.font = "700 " + Math.min(W / 26, 15) + "px 'Avenir Next',Arial";
-  outlineText(S.stage < 2 ? "then it's your sister's turn!" : "almost ready to play!", W / 2, H * 0.9, "#cfe8ff");
+  outlineText(S.stage < 2 ? (S.solo ? "then pick your teammate!" : "then it's your sister's turn!")
+                          : "almost ready to play!", W / 2, H * 0.9, "#cfe8ff");
 }
 
 function drawBracket() {
@@ -2252,12 +2301,19 @@ function drawPlay() {
   // touch guide, fading after the start
   if (S.timer < 240) {
     g.globalAlpha = Math.max(0, Math.min(1, (240 - S.timer) / 60));
-    g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 2; g.setLineDash([8, 8]);
-    g.beginPath(); g.moveTo(W / 2, py(10)); g.lineTo(W / 2, H); g.stroke(); g.setLineDash([]);
+    if (!S.solo) {
+      g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 2; g.setLineDash([8, 8]);
+      g.beginPath(); g.moveTo(W / 2, py(10)); g.lineTo(W / 2, H); g.stroke(); g.setLineDash([]);
+    }
     g.font = "700 " + Math.min(W / 24, 15) + "px 'Avenir Next',Arial";
     g.textAlign = "center";
-    outlineText("👆 " + CHARS[S.players[0].key].name, W * 0.25, H * 0.9, "#fff");
-    outlineText(CHARS[S.players[1].key].name + " 👆", W * 0.75, H * 0.9, "#fff");
+    if (S.solo) {
+      outlineText("👆 drag anywhere — " + CHARS[S.players[0].key].name, W / 2, H * 0.88, "#fff");
+      outlineText("🤖 " + CHARS[S.players[1].key].name + " plays by herself!", W / 2, H * 0.93, "#aee0ff");
+    } else {
+      outlineText("👆 " + CHARS[S.players[0].key].name, W * 0.25, H * 0.9, "#fff");
+      outlineText(CHARS[S.players[1].key].name + " 👆", W * 0.75, H * 0.9, "#fff");
+    }
     g.globalAlpha = 1;
   }
 }
@@ -2275,6 +2331,7 @@ function frameLoop() {
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
   g.clearRect(0, 0, W, H);
   if (S.state === "title") drawTitle();
+  else if (S.state === "mode") drawMode();
   else if (S.state === "pick") drawPick();
   else if (S.state === "bracket") drawBracket();
   else if (S.state === "champion") drawChampion();
