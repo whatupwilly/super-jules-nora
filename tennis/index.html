@@ -1645,10 +1645,13 @@ const S = {
   cards: [], speedChips: [], pointBanner: "", bannerT: 0, champT: 0,
   ballSpd: 1, runSpd: 1,        // 🐢 0.7 / 🙂 1 / ⚡ 1.3 — set on the mode screen
 };
-const SPEED_OPTS = [ { label: "🐢", mul: 0.7 }, { label: "🙂", mul: 1 }, { label: "⚡", mul: 1.3 } ];
+const SPEED_LABELS = ["🐢", "🙂", "⚡"];
+const BALL_MULS = [0.5, 1, 1.3];       // turtle ball = really slow, big floaty lobs
+const RUN_MULS  = [0.7, 1, 1.3];
 try {
   S.ballSpd = parseFloat(localStorage.getItem("tennisBallSpd")) || 1;
   S.runSpd  = parseFloat(localStorage.getItem("tennisRunSpd"))  || 1;
+  if (Math.abs(S.ballSpd - 0.7) < 0.01) S.ballSpd = 0.5;   // migrate the old slow setting
 } catch (e) {}
 let ents = [];        // the four athletes [p1, p2, r1, r2]
 let ball = null, fx = [], rallyN = 0;
@@ -2178,7 +2181,8 @@ function drawMode() {
   // speed toggles — how fast the ball flies and everyone runs (kept high
   // on the screen so phone toolbars never cover them)
   S.speedChips = [];
-  const rows2 = [ { which: "ballSpd", label: "🎾 ball" }, { which: "runSpd", label: "🏃 running" } ];
+  const rows2 = [ { which: "ballSpd", label: "🎾 ball", muls: BALL_MULS },
+                  { which: "runSpd", label: "🏃 running", muls: RUN_MULS } ];
   const chipW = Math.min(W * 0.15, 62), chipH = Math.min(H * 0.055, 44), chipGap = 8;
   const rowsTop = H * 0.22 + ch + 48;
   rows2.forEach((row, ri) => {
@@ -2187,15 +2191,16 @@ function drawMode() {
     g.textAlign = "right"; g.textBaseline = "middle";
     outlineText(row.label, W / 2 - chipW * 1.5 - chipGap - 12, ry + chipH / 2, "#fff");
     g.textAlign = "center";
-    SPEED_OPTS.forEach((opt, oi) => {
+    SPEED_LABELS.forEach((label, oi) => {
+      const mul = row.muls[oi];
       const x = W / 2 - (chipW * 1.5 + chipGap) + oi * (chipW + chipGap);
-      const sel = Math.abs(S[row.which] - opt.mul) < 0.01;
+      const sel = Math.abs(S[row.which] - mul) < 0.01;
       g.fillStyle = sel ? "#ffd166" : "rgba(255,255,255,.25)";
       rr(x, ry, chipW, chipH, chipH / 2); g.fill();
       if (sel) { g.lineWidth = 2.5; g.strokeStyle = "#fff"; rr(x, ry, chipW, chipH, chipH / 2); g.stroke(); }
       g.font = (chipH * 0.55) + "px 'Avenir Next',Arial";
-      g.fillText(opt.label, x + chipW / 2, ry + chipH / 2 + 1);
-      S.speedChips.push({ which: row.which, mul: opt.mul, x, y: ry, w: chipW, h: chipH });
+      g.fillText(label, x + chipW / 2, ry + chipH / 2 + 1);
+      S.speedChips.push({ which: row.which, mul, x, y: ry, w: chipW, h: chipH });
     });
   });
   g.textAlign = "center";
