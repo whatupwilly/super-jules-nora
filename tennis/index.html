@@ -53,9 +53,14 @@ function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 3);
   W = window.innerWidth; H = window.innerHeight;
   cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  // size the CSS box to the REAL visible viewport — iPhone Safari's 100vh is
+  // taller than the window when the toolbar shows, which stretched the canvas
+  // and made taps land one row below where they looked
+  cv.style.width = W + "px"; cv.style.height = H + "px";
 }
 window.addEventListener("resize", resize);
 window.addEventListener("orientationchange", () => setTimeout(resize, 200));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", () => setTimeout(resize, 50));
 resize();
 
 /* ------------------------------ audio ------------------------------ */
