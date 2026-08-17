@@ -145,6 +145,9 @@ const SFX = {
   boing: () => tone(300, .26, "sine", .14, 520),
   yum:   () => [523,659,784].forEach((f,i) => setTimeout(() => tone(f, .12, "triangle", .12), i*70)),
   yip:   () => { tone(880, .06, "square", .10); setTimeout(() => tone(1100, .07, "square", .08), 60); },
+  star:  () => [659,784,988,1319,988,1319].forEach((f,i) => setTimeout(() => tone(f, .10, "square", .10), i*55)),
+  oneup: () => [784,1047,1319,1568].forEach((f,i) => setTimeout(() => tone(f, .12, "square", .10), i*90)),
+  boots: () => { tone(280, .18, "sine", .12, 420); setTimeout(() => tone(420, .22, "sine", .12, 520), 130); },
 };
 
 /* ============================== INPUT ============================== */
@@ -272,6 +275,13 @@ function firePal(key) {
   return firePals[key];
 }
 
+/* Star power: the outfit flashes through the rainbow while it lasts. */
+const STAR_COLORS = ["#ff5e7e", "#ffd166", "#6ee7b7", "#7fb5ff", "#c89bff"];
+function starPal(base, t) {
+  const i = (t >> 2) % STAR_COLORS.length, a = STAR_COLORS[i], b = STAR_COLORS[(i + 2) % STAR_COLORS.length];
+  return Object.assign({}, base, { shirt:a, shirtDark:b, cap:b, capDark:a, legs:b, legsLow:a, shoe:a });
+}
+
 /* Draw a kid: feet centered at (0,0), facing right by default.
    power: 0 small, 1 super (bigger), 2 fire (bigger + fire outfit) */
 function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
@@ -325,12 +335,41 @@ function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
 function drawPowerup(ctx, p) {
   const x = p.x + p.w/2, y = p.y + p.h;
   const r = (rx,ry,rw,rh,c)=>{ctx.fillStyle=c;ctx.fillRect(x+rx,y+ry,rw,rh);};
-  if (p.type === "mushroom") {
+  if (p.type === "mushroom" || p.type === "oneup") {
+    const cap = p.type === "oneup" ? "#3fbf52" : "#e8453c";
     r(-4, -6, 8, 6, "#f7e8d2");                      // stalk
     r(-3, -3, 1.5, 2, "#241a12"); r(1.5, -3, 1.5, 2, "#241a12");
-    r(-7, -12, 14, 7, "#e8453c");                    // cap
-    r(-6, -13, 12, 1, "#e8453c");
+    r(-7, -12, 14, 7, cap);                          // cap
+    r(-6, -13, 12, 1, cap);
     r(-5, -11, 3, 3, "#fff"); r(2, -11, 3, 3, "#fff"); r(-1.5, -8, 3, 2, "#fff");
+    if (p.type === "oneup") {                        // "1" on the cap so it reads as an extra life
+      ctx.fillStyle = "#2c8f3c"; ctx.font = "bold 6px monospace";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("1", x, y - 9.5);
+    }
+  } else if (p.type === "star") {                    // spinning lucky star
+    const spin = Math.sin(game.timer * 0.09) * 0.9;
+    ctx.save(); ctx.translate(x, y - 7); ctx.rotate(spin);
+    for (const [rad, col] of [[7.5, "#ffb02a"], [6, "#ffe066"]]) {
+      ctx.fillStyle = col; ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI/2 + i * Math.PI/5, rr = i % 2 ? rad * 0.44 : rad;
+        ctx[i ? "lineTo" : "moveTo"](Math.cos(a)*rr, Math.sin(a)*rr);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = "#241a12";
+    ctx.fillRect(-2.6, -1, 1.4, 2); ctx.fillRect(1.2, -1, 1.4, 2);
+    ctx.restore();
+  } else if (p.type === "boots") {                   // bouncy boots on a spring
+    ctx.strokeStyle = "#c0c6d4"; ctx.lineWidth = 1.4;   // coil
+    ctx.beginPath();
+    for (let i = 0; i <= 3; i++) { ctx.moveTo(-4, -1.5 - i*1.6); ctx.lineTo(4, -2.3 - i*1.6); }
+    ctx.stroke();
+    r(-5, -12, 9, 6, "#39c46a");                     // boot leg
+    r(-5, -12, 9, 2, "#63e78d");
+    r(-5, -8, 12, 3, "#2a9e52");                     // toe
+    r(-5, -10, 9, 1.2, "#ffe066");                   // laces
   } else {                                           // fire flower
     r(-1, -7, 2, 7, "#3fae4e");                      // stem
     r(-5, -4, 4, 2, "#3fae4e"); r(1, -3, 4, 2, "#3fae4e");
@@ -417,7 +456,7 @@ function drawPug(ctx, cx, feetY) {
 /* ============================== LEVELS ============================== */
 function lvName(n) { return ((n >> 2) + 1) + "-" + (n % 4 + 1); }
 function makeLevel(num) {
-  const widths = [150, 170, 170, 140, 175, 160, 168, 140];
+  const widths = [150, 170, 170, 140, 175, 160, 168, 140, 184];
   const Wd = widths[num] || 150;
   const grid = Array.from({length: ROWS}, () => Array(Wd).fill(" "));
   const enemies = [];
@@ -434,6 +473,10 @@ function makeLevel(num) {
   const enemy  = (x, ty = 11) => enemies.push({ x:x*TILE, y:ty*TILE, w:12, h:12, vx:-0.5, vy:0, dead:0, active:false, frame:0 });
   const fishE  = (x, ty) => enemies.push({ x:x*TILE, y:ty*TILE, w:14, h:10, vx:-0.45, vy:0, dead:0, active:false, frame:0, fish:true, ph: x % 9 });
   const leaper = (x) => enemies.push({ x:x*TILE, homeX:x*TILE, y:LEVEL_H+30, w:14, h:11, vx:0, vy:0, dead:0, active:false, frame:0, leap:true, leapT: 30 + (x * 13) % 90 });
+  const tramp  = (x, ty = 13) => setT(x, ty, "J");   // trampoline, flush with the floor you run along
+  const star   = (x, y) => setT(x, y, "N");          // ★ block: rainbow invincibility
+  const life   = (x, y) => setT(x, y, "V");          // 1 block: an extra heart
+  const bootsB = (x, y) => setT(x, y, "K");          // ↑ block: bouncy boots
   const firebars = [];
   const fbar   = (x, y, len) => firebars.push({ cx:x*TILE+8, cy:y*TILE+8, len: len || 4, sp:0.035, ph: x * 0.7 });
 
@@ -607,7 +650,7 @@ function makeLevel(num) {
     [20, 34, 48, 64, 76, 86, 100, 110, 120, 134, 145].forEach(x => leaper(x));
     stair(154, 5, 1);
     flagX = 162;
-  } else {                                   // 2-4: Bowser's second castle — save Peach again!
+  } else if (num === 7) {                    // 2-4: Bowser's second castle — save Peach again!
     const cground = (a, b) => { for (let x=a; x<=b; x++){ stone(x,13); stone(x,14); } };
     for (let x = 0; x < 133; x++) brick(x, 1);          // castle ceiling
     cground(0, 10);
@@ -630,11 +673,54 @@ function makeLevel(num) {
     bossHp = 4;
     cageX = 126;
     for (let x = 133; x < Wd; x++) for (let y = 2; y <= 12; y++) stone(x, y);
+  } else {                                   // 3-1: bouncy sunset park — trampolines and every power-up
+    const br = (a, b) => { for (let x=a; x<=b; x++) setT(x, 10, "B"); };
+    ground(0, 26);                                      // --- warm-up: meet the springs
+    qb(5,9); mb(7,9); coins(4,5,4);
+    tramp(12); tramp(13);                               // first trampolines, coins stacked above them
+    coins(11,8,2); coins(13,5,3);
+    for (let x = 16; x <= 20; x++) stone(x, 8);         // bounce up onto the cloud ledge...
+    brick(17,5); star(18,5); brick(19,5);               // ...then jump for the ★ star
+    coins(17,6,3);
+    enemy(22); enemy(25);
+    ground(31, 56);                                     // gap 27-30
+    tramp(34);
+    stone(38,7); stone(39,7); stone(40,7); coins(38,4,3);
+    brick(44,9); bootsB(45,9); brick(46,9);             // ↑ bouncy boots
+    enemy(49); enemy(53);
+    tramp(55);                                          // launch pad for the long gap
+    stone(61,11); stone(62,11); stone(63,11); stone(64,11); stone(65,11);   // --- spring islands (gap 57-60)
+    tramp(63, 11); coins(64,6,4);
+    stone(69,10); stone(70,10); stone(71,10); stone(72,10);   // gap 66-68
+    coins(69,7,3); enemy(70, 8);
+    for (let x = 75; x <= 81; x++) stone(x, 11);        // gap 73-74 — a roomy island to land on
+    tramp(75, 11);                                      // spring on the island's near edge
+    stone(78,7); stone(79,7); stone(80,7);              // cloud ledge (clear of the drop at 82)
+    brick(78,4); life(79,4); brick(80,4);               // 1 block — an extra heart
+    ground(84, 114);                                    // gap 82-83
+    coins(86,8,5);
+    qb(90,9); mb(92,9);
+    enemy(95); enemy(99); enemy(100);
+    tramp(104); coins(103,7,3);
+    for (let x = 108; x <= 112; x++) stone(x, 8);       // second cloud ledge
+    brick(109,5); star(110,5); brick(111,5);            // ★ a second star for the bridge run
+    coins(109,6,3);
+    tramp(113); tramp(114);                             // springs at the lip — bounce up onto the bridge
+    br(119, 140);                                       // --- bridge in the clouds (gap 115-118)
+    tramp(126, 10); tramp(133, 10);
+    coins(122,7,4); coins(129,5,4); coins(136,7,4);
+    enemy(124, 8); enemy(131, 8); enemy(138, 8);
+    ground(145, Wd-1);                                  // --- finale (gap 141-144)
+    brick(149,9); bootsB(150,9); brick(151,9);          // one more pair of boots for the dash
+    enemy(154); enemy(158); enemy(159);
+    tramp(163); coins(162,6,4); coins(163,3,3);
+    stair(168, 6, 1);
+    flagX = 178;
   }
   return { grid, width: Wd, enemies, flagX, name: lvName(num), boss, cageX, firebars, bossHp,
-           theme: ["day","day","night","castle","day","water","bridge","castle"][num] || "day" };
+           theme: ["day","day","night","castle","day","water","bridge","castle","sunset"][num] || "day" };
 }
-const LEVEL_COUNT = 8;
+const LEVEL_COUNT = 9;
 
 /* ============================== PLAYGROUND ==============================
    A safe, enemy-free hangout reached by going down any pipe. Water slide,
@@ -729,7 +815,7 @@ const game = {
 };
 const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
                  coyote:0, jumpBuf:0, animT:0, frame:0,
-                 power:0, inv:0, runCharge:0, runDir:0, onPipe:false,
+                 power:0, inv:0, star:0, boots:0, runCharge:0, runDir:0, onPipe:false,
                  jg:{ hold:0.125, fall:0.4375 } };
 
 function startLevel(n) {
@@ -739,7 +825,7 @@ function startLevel(n) {
   player.h = player.power > 0 ? 24 : 16;
   player.x = 2*TILE; player.y = 13*TILE - player.h;
   player.vx = 0; player.vy = 0; player.facing = 1; player.grounded = false;
-  player.inv = 0; player.runCharge = 0; player.onPipe = false;
+  player.inv = 0; player.star = 0; player.boots = 0; player.runCharge = 0; player.onPipe = false;
   game.camX = 0; game.particles = []; game.pops = []; game.timer = 0;
   game.powerups = []; game.fireballs = []; game.bossFlames = [];
   game.rescued = false;
@@ -756,7 +842,7 @@ function startLevel(n) {
 }
 function goTitle() {
   game.state = "title"; game.score = 0; game.coins = 0; game.lives = 3; game.timer = 0;
-  player.power = 0; game.rescued = false;
+  player.power = 0; player.star = 0; player.boots = 0; game.rescued = false;
   game.inPlayground = false; game.savedLevel = null;
   unfadeButtons();
   document.getElementById("verlink").style.display = "block";
@@ -764,7 +850,7 @@ function goTitle() {
 }
 
 /* ============================== PHYSICS ============================== */
-const SOLID = "#G=?MUSPTBJ";
+const SOLID = "#G=?MUSPTBJNVK";
 function tileAt(tx, ty) {
   const L = game.level;
   if (tx < 0 || tx >= L.width) return "#";
@@ -816,6 +902,12 @@ function bumpBlock(tx, ty) {
     // mushroom when small, fire flower when already big (like SMB)
     game.powerups.push({ x:tx*TILE + 2, y:ty*TILE + 2, w:12, h:12,
       vx:0.7, vy:0, type: player.power === 0 ? "mushroom" : "flower", rise:28 });
+  } else if (c === "N" || c === "V" || c === "K") {
+    L.grid[ty][tx] = "U";
+    game.score += 100; SFX.sprout();
+    const type = c === "N" ? "star" : c === "V" ? "oneup" : "boots";
+    game.powerups.push({ x:tx*TILE + 2, y:ty*TILE + 2, w:12, h:12,
+      vx: type === "star" ? 1.1 : 0.7, vy:0, type, rise:28 });
   } else if (c === "=") {
     if (player.power > 0) {                  // only big kids break bricks
       L.grid[ty][tx] = " ";
@@ -830,7 +922,7 @@ function bumpBlock(tx, ty) {
 }
 
 function applyDamage() {
-  if (player.inv > 0) return;
+  if (player.inv > 0 || player.star > 0) return;   // star power shrugs everything off
   if (player.power > 0) {
     player.power--;
     if (player.power === 0) { player.y += 8; player.h = 16; }
@@ -867,9 +959,11 @@ const MAX_FALL = 4.0;
 /* SMB jump: initial velocity + gravity depend on takeoff speed */
 function jumpTier(speed) {
   const s = Math.abs(speed);
-  if (s < 1.0)    return { v:-4.0, hold:0.125,   fall:0.4375  };
-  if (s < 2.3125) return { v:-4.0, hold:0.1172,  fall:0.40625 };
-  return            { v:-5.0, hold:0.15625, fall:0.5625  };
+  const t = s < 1.0    ? { v:-4.0, hold:0.125,   fall:0.4375  }
+          : s < 2.3125 ? { v:-4.0, hold:0.1172,  fall:0.40625 }
+                       : { v:-5.0, hold:0.15625, fall:0.5625  };
+  // bouncy boots: springier launch and a floatier fall
+  return player.boots > 0 ? { v: t.v * 1.25, hold: t.hold * 0.95, fall: t.fall * 0.9 } : t;
 }
 
 function setPower(n) {
@@ -881,6 +975,18 @@ function setPower(n) {
 function updatePlay() {
   syncKeys();
   if (player.inv > 0) player.inv--;
+  if (player.star > 0) {
+    player.star--;
+    if (game.timer % 3 === 0)                       // a trail of sparkles while starry
+      game.particles.push({ x: player.x + Math.random()*player.w, y: player.y + Math.random()*player.h,
+        vx: -player.vx*0.3 + (Math.random()-0.5), vy: -Math.random()*0.8, t: 40,
+        c: STAR_COLORS[(game.timer >> 1) % STAR_COLORS.length] });
+    if (player.star === 0) SFX.shrink();
+  }
+  if (player.boots > 0) {
+    player.boots--;
+    if (player.boots === 0) SFX.shrink();
+  }
 
   // --- horizontal: walk/auto-run with SMB accel, release decel and skid ---
   const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
@@ -940,7 +1046,10 @@ function updatePlay() {
   if (player.grounded) {
     const bx = Math.floor((player.x + player.w/2)/TILE), by = Math.floor((player.y + player.h + 1)/TILE);
     if (tileAt(bx, by) === "J") {
-      player.vy = -8.6; player.grounded = false; player.coyote = 0; player.jumpBuf = 0;
+      player.vy = player.boots > 0 ? -9.2 : -8.6;   // boots make the springs a little springier
+      // heavier rise than a normal jump, so even a held bounce stays on screen
+      player.jg = { hold: player.boots > 0 ? 0.34 : 0.32, fall: 0.4375 };
+      player.grounded = false; player.coyote = 0; player.jumpBuf = 0;
       SFX.boing();
       for (let i=0;i<5;i++) game.particles.push({ x:(bx+0.5)*TILE + (i-2)*2.5, y:by*TILE,
         vx:(i-2)*0.5, vy:-1.4-Math.random()*1.6, t:0, c:"#ffd166" });
@@ -982,22 +1091,31 @@ function updatePlay() {
   }
   game.fireballs = game.fireballs.filter(f => !f.gone);
 
-  // --- powerups (mushrooms walk, flowers sit) ---
+  // --- powerups (mushrooms & boots walk, stars bounce along, flowers sit) ---
   for (const p of game.powerups) {
     if (p.rise > 0) { p.rise--; p.y -= 0.5; }
-    else if (p.type === "mushroom") {
+    else if (p.type !== "flower") {
       p.vy = Math.min(p.vy + 0.4375, MAX_FALL);
       p.hitWall = false;
       moveEntity(p);
       if (p.hitWall) p.vx = -p.vx;
+      if (p.grounded && p.type === "star") p.vy = -3.6;      // stars bounce off the floor
       if (p.y > LEVEL_H + 40) p.gone = true;
     }
     if (p.rise < 20 &&
         player.x < p.x + p.w && player.x + player.w > p.x &&
         player.y < p.y + p.h && player.y + player.h > p.y) {
-      p.gone = true; game.score += 1000; SFX.grow();
-      setPower(p.type === "flower" ? Math.min(2, player.power + 1) : Math.max(1, player.power));
-      game.pops.push({ x: p.x + p.w/2, y: p.y, t: 0 });
+      p.gone = true; game.score += 1000;
+      if (p.type === "star") { player.star = 640; SFX.star(); }
+      else if (p.type === "boots") { player.boots = 900; SFX.boots(); }
+      else if (p.type === "oneup") {
+        game.lives++; SFX.oneup();
+        game.pops.push({ x: p.x + p.w/2, y: p.y, t: 0, oneup: true });
+      } else {
+        SFX.grow();
+        setPower(p.type === "flower" ? Math.min(2, player.power + 1) : Math.max(1, player.power));
+      }
+      if (p.type !== "oneup") game.pops.push({ x: p.x + p.w/2, y: p.y, t: 0 });
     }
   }
   game.powerups = game.powerups.filter(p => !p.gone);
@@ -1063,7 +1181,9 @@ function updatePlay() {
     if (player.x < e.x + e.w && player.x + player.w > e.x &&
         player.y < e.y + e.h && player.y + player.h > e.y) {
       const feet = player.y + player.h;
-      if (player.vy > 0.4 && feet - e.y < 9) {
+      if (player.star > 0) {                // starry: just run straight through them
+        e.dead = 1; game.score += 200; SFX.stomp();
+      } else if (player.vy > 0.4 && feet - e.y < 9) {
         e.dead = 1; game.score += 200; SFX.stomp();
         const t = jumpTier(player.vx);
         player.vy = t.v; player.jg = t;     // SMB-style bounce; hold jump to ride it higher
@@ -1106,6 +1226,8 @@ function updatePlay() {
           const t = jumpTier(player.vx);
           player.vy = t.v; player.jg = t;       // bounce off his head
           if (B.stun === 0) bossHit();
+        } else if (player.star > 0) {
+          if (B.stun === 0) bossHit();          // starry kids bonk Bowser on contact
         } else if (B.stun < 30) {
           applyDamage();
           if (game.state !== "play") return;
@@ -1224,7 +1346,7 @@ function updatePlaygroundExtras() {
 
 function killPlayer() {
   game.state = "dead"; game.timer = 0;
-  player.vy = -6.5; player.power = 0; SFX.die();
+  player.vy = -6.5; player.power = 0; player.star = 0; player.boots = 0; SFX.die();
   showButtons(false);
 }
 
@@ -1333,6 +1455,17 @@ function drawTile(c, tx, ty) {
       g.fillStyle="#8a5a12"; g.font="bold 10px monospace"; g.textAlign="center"; g.textBaseline="middle";
       g.fillText("?", x+8, y+9);
       r(1,1,2,2,"#fff0c0"); break;
+    case "N": case "V": case "K": {          // special power-up blocks — colour-coded so kids can tell them apart
+      const skin = c === "N" ? ["#b58cf0","#d3b4ff","#4c2f80","★"]     // star
+                 : c === "V" ? ["#2f9e56","#63d98b","#1d5c33","1"]          // extra life
+                             : ["#2f8fd0","#79cdf5","#124a70","↑"];    // bouncy boots
+      const glow = (game.timer >> 3) % 2 ? 0.25 : 0;
+      r(0,0,16,16,skin[0]); r(1,1,14,14,skin[1]);
+      g.fillStyle = "rgba(255,255,255," + glow + ")"; g.fillRect(x+1, y+1, 14, 14);
+      g.fillStyle = skin[2]; g.font = "bold 10px monospace"; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(skin[3], x+8, y+9);
+      r(1,1,2,2,"#ffffff"); break;
+    }
     case "U":
       r(0,0,16,16,"#a9743a"); r(1,1,14,14,"#c08a48"); r(6,6,4,4,"#a9743a"); break;
     case "S":
@@ -1345,11 +1478,11 @@ function drawTile(c, tx, ty) {
     case "B":
       r(0,2,16,6,"#d89a52"); r(0,2,16,2,"#f0c080"); r(0,7,16,1,"#8a5a28");
       r(2,8,2,8,"#8a5a28"); r(12,8,2,8,"#8a5a28"); break;
-    case "J":   // trampoline mat
-      r(1,15,2,1,"#7a1f38"); r(13,15,2,1,"#7a1f38");        // legs
-      r(0,9,16,5,"#e0436a"); r(0,9,16,2,"#ff86a6");          // springy mat
+    case "J":   // trampoline — the mat sits at the tile's top, where you actually stand
+      r(1,5,2,11,"#7a1f38"); r(13,5,2,11,"#7a1f38");         // legs down to the floor
+      r(0,0,16,5,"#e0436a"); r(0,0,16,2,"#ff86a6");          // springy mat
       g.strokeStyle="#ffd0dd"; g.lineWidth=0.6;
-      for (let i=2;i<16;i+=3){ g.beginPath(); g.moveTo(x+i,y+10); g.lineTo(x+i,y+14); g.stroke(); }
+      for (let i=2;i<16;i+=3){ g.beginPath(); g.moveTo(x+i,y+5); g.lineTo(x+i,y+9); g.stroke(); }
       break;
     case "o": {
       const t = Math.sin(game.timer * 0.15 + tx) * 0.5 + 0.5;
@@ -1416,6 +1549,33 @@ function drawBackground(camX) {
       const bx = camX + hx2 + i * 220;
       g.beginPath(); g.arc(bx + 60, 208, 44, Math.PI, 0); g.fill();
       g.beginPath(); g.arc(bx + 170, 208, 26, Math.PI, 0); g.fill();
+    }
+    return;
+  }
+  if (theme === "sunset") {
+    const sgr = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
+    sgr.addColorStop(0, "#3f5aa8"); sgr.addColorStop(0.45, "#ff9a6b"); sgr.addColorStop(1, "#ffd6a0");
+    g.fillStyle = sgr;
+    g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
+    // low evening sun (slow parallax)
+    const sx = camX * 0.15 + VIEW_W * 0.66;
+    g.fillStyle = "rgba(255,240,180,.5)";
+    g.beginPath(); g.arc(sx, 104, 40, 0, Math.PI*2); g.fill();
+    g.fillStyle = "#fff1c2";
+    g.beginPath(); g.arc(sx, 104, 26, 0, Math.PI*2); g.fill();
+    // pink clouds drifting past — no hills: this park floats way up in the sky,
+    // so the pits stay clearly empty
+    const cx1 = -((camX * 0.3) % 240);
+    g.fillStyle = "rgba(255,214,232,.85)";
+    for (let i = -1; i < VIEW_W / 240 + 2; i++) {
+      const bx = camX + cx1 + i * 240;
+      cloud(bx + 20, 40); cloud(bx + 130, 72);
+    }
+    const cx2 = -((camX * 0.12) % 300);          // faraway cloud bank near the horizon
+    g.fillStyle = "rgba(255,236,214,.55)";
+    for (let i = -1; i < VIEW_W / 300 + 2; i++) {
+      const bx = camX + cx2 + i * 300;
+      cloud(bx + 60, 176); cloud(bx + 210, 190);
     }
     return;
   }
@@ -1641,6 +1801,10 @@ function drawWorld() {
       g.bezierCurveTo(c.x-4, yy-2, c.x-2, yy-5, c.x, yy-2);
       g.bezierCurveTo(c.x+2, yy-5, c.x+4, yy-2, c.x, yy+3);
       g.fill();
+    } else if (c.oneup) {
+      g.fillStyle = "#8ef0a0"; g.font = "bold 8px monospace";
+      g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText("1UP", c.x, yy);
     } else if (c.treat) {
       g.fillStyle = "#e8b87a"; g.beginPath();
       g.moveTo(c.x-2.4, yy-1); g.lineTo(c.x+2.4, yy-1); g.lineTo(c.x, yy+4); g.closePath(); g.fill();
@@ -1662,7 +1826,10 @@ function drawWorld() {
   }
 
   // player (flickers while invincible after taking a hit)
-  const pal = player.power === 2 ? firePal(heroKey) : CHARS[heroKey];
+  let pal = player.power === 2 ? firePal(heroKey) : CHARS[heroKey];
+  if (player.star > 0) pal = starPal(pal, game.timer);
+  if (player.boots > 0)                                   // glowing spring-shoes
+    pal = Object.assign({}, pal, { shoe: (game.timer >> 2) % 2 ? "#8ef0a0" : "#39c46a" });
   if (game.state === "dead") {
     g.save();
     g.translate(player.x + player.w/2, player.y + player.h);
@@ -1692,6 +1859,13 @@ function hud() {
   g.textAlign = "left"; g.textBaseline = "top";
   outlineText("♥".repeat(Math.max(0, game.lives)), 14, top, "#ff5e7e");
   outlineText("● " + game.coins, 14, top + 22, "#ffd166");
+  // power-up timers count down so you know how long the magic lasts
+  let py = top + 44;
+  if (player.star > 0) {
+    outlineText("★ " + Math.ceil(player.star / 60), 14, py, STAR_COLORS[(game.timer >> 2) % STAR_COLORS.length]);
+    py += 22;
+  }
+  if (player.boots > 0) outlineText("↑ " + Math.ceil(player.boots / 60), 14, py, "#8ef0a0");
   g.textAlign = "right";
   outlineText(game.level ? game.level.name : "", W - 14, top, "#fff");
   outlineText(String(game.score).padStart(6, "0"), W - 14, top + 22, "#fff");
@@ -1899,7 +2073,7 @@ function draw() {
   if (game.state === "clear") centerCard(game.rescued ? (game.levelNum + 1 < LEVEL_COUNT ? [
     ["PEACH IS SAFE! \ud83d\udc36", Math.min(W/10, 40), "#ffd166"],
     ["...oh no, Bowser grabbed her again!", Math.min(W/24, 18), "#fff"],
-    ["on to World 2!", Math.min(W/24, 18), "#aee0ff"],
+    ["on to World " + (((game.levelNum + 1) >> 2) + 1) + "!", Math.min(W/24, 18), "#aee0ff"],
   ] : [
     ["PEACH IS SAFE! \ud83d\udc36", Math.min(W/10, 40), "#ffd166"],
     ["you rescued the pug princess!", Math.min(W/24, 18), "#fff"],
