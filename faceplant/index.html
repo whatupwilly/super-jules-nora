@@ -2276,11 +2276,11 @@ function drawKDS() {
     g.textAlign = "left"; g.textBaseline = "middle";
     g.fillStyle = "#fff";
     g.fillText("#" + t.id + "  " + item.name, x + 8, y + 10);
-    // mini burger picture of exactly what they want
+    // burger picture of exactly what they want — big enough to read at a glance
     const list = buildList(t.need);
     const sh2 = stackH(list);
-    const sc2 = Math.min(0.42, (th - 34) / sh2);
-    g.save(); g.translate(x + 30, y + th - 12); g.scale(sc2, sc2);
+    const sc2 = Math.min(0.68, (th - 28) / sh2, (tw * 0.42) / 146);
+    g.save(); g.translate(x + tw * 0.21, y + th - 14); g.scale(sc2, sc2);
     const sp = S.stackPop; S.stackPop = 0;
     drawStack(list, 0, 0, 130);
     S.stackPop = sp;
@@ -2289,9 +2289,9 @@ function drawKDS() {
     g.font = "800 " + Math.min(11, tw / 13) + "px 'Avenir Next',Arial";
     t.mods.forEach((m, mi) => {
       g.fillStyle = m.t === "no" ? "#ff7a7a" : m.t === "extra" ? "#7ec850" : "#7fb6ff";
-      g.fillText((m.t === "no" ? "✖ " : "＋ ") + modLabel(m), x + 62, y + 30 + mi * 14);
+      g.fillText((m.t === "no" ? "✖ " : "＋ ") + modLabel(m), x + tw * 0.44, y + 30 + mi * 14);
     });
-    if (!t.mods.length) { g.fillStyle = "#8a94a6"; g.fillText("just the way it comes", x + 62, y + 30); }
+    if (!t.mods.length) { g.fillStyle = "#8a94a6"; g.fillText("just the way it comes", x + tw * 0.44, y + 30); }
     // patience bar
     const pr = Math.max(0, 1 - t.age / t.patience);
     g.fillStyle = "#10151b"; rr(x + 6, y + th - 10, tw - 12, 6, 3); g.fill();
