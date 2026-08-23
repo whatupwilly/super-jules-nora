@@ -1987,11 +1987,14 @@ function drawStack(list, cx, baseY, w) {
   return baseY - y;
 }
 function buildList(need) {
+  // the house build: sauce on the heel, patty & cheese, produce on top
   const list = ["heel"];
-  for (const k of ["sauce","ketchup","lettuce","tomato","onion","pickles"])
+  for (const k of ["sauce","ketchup"])
     for (let i = 0; i < (need[k] || 0); i++) list.push(k);
   const p = need.patty || 0, ch = need.cheese || 0, n = Math.max(p, ch);
   for (let i = 0; i < n; i++) { if (i < p) list.push("patty"); if (i < ch) list.push("cheese"); }
+  for (const k of ["pickles","onion","tomato","lettuce"])
+    for (let i = 0; i < (need[k] || 0); i++) list.push(k);
   list.push("crown");
   return list;
 }
