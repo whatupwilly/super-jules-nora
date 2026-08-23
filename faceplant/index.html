@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Magic Tennis — by Jules &amp; Nora</title>
+<title>Face Plant — by Jules &amp; Nora</title>
 <style>
-  html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#2e7d46;
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#f5ede3;
     -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; touch-action:none; }
   canvas { display:block; width:100vw; height:100vh; touch-action:none; }
 </style>
@@ -19,9 +19,9 @@
     <b>Super Young Sisters</b>
     <a href="../">🕹 Classic</a><a href="../hd/">✨ HD</a><a href="../fortnite/">⚡ Battle</a><a href="../realistic/">🌿 Real</a>
     <b>More magic</b>
-    <a href="../magic/">🌈 Magic Heroes</a><a href="../bubble/">🫧 Bubble</a><a href="../life/">🏡 Magic Life</a><a href="../kart/">🏎 Magic Kart</a><a class="here" href="./">🎾 Magic Tennis</a>
+    <a href="../magic/">🌈 Magic Heroes</a><a href="../bubble/">🫧 Bubble</a><a href="../life/">🏡 Magic Life</a><a href="../kart/">🏎 Magic Kart</a><a href="../tennis/">🎾 Magic Tennis</a>
     <b>Dad's work</b>
-    <a href="../faceplant/">🍔 Face Plant</a>
+    <a class="here" href="./">🍔 Face Plant</a>
   </nav>
 </div>
 <style>
@@ -43,10 +43,13 @@
 </style>
 <script>
 "use strict";
-/* MAGIC TENNIS — doubles tennis for two sisters at once, starring the Magic
-   Heroes. Nora's spec: pick your characters AND your rackets, play together
-   at the same time, beat the other teams in a tournament, first to 10 wins.
-   Character art is shared verbatim with Magic Heroes / Magic Life / Kart. */
+/* FACE PLANT — Dad's burger restaurant! Work the make line just like the real
+   kitchen: toast buns in the vertical toaster, cook patties two at a time in
+   the clamshell grills, hold them in the warmer, then build RED & YELLOWs,
+   FANCYs and DOUBLE FANCYs exactly the way the KDS tickets ask — modifiers
+   and all. Every Magic Hero can work a shift. (NUGGIES coming in a later
+   update!) Character art is shared verbatim with Magic Heroes / Life / Kart /
+   Tennis. */
 
 const cv = document.getElementById("game");
 const g  = cv.getContext("2d");
@@ -55,9 +58,6 @@ function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 3);
   W = window.innerWidth; H = window.innerHeight;
   cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
-  // size the CSS box to the REAL visible viewport — iPhone Safari's 100vh is
-  // taller than the window when the toolbar shows, which stretched the canvas
-  // and made taps land one row below where they looked
   cv.style.width = W + "px"; cv.style.height = H + "px";
 }
 window.addEventListener("resize", resize);
@@ -79,13 +79,20 @@ function tone(freq, dur, type, vol, slide) {
   o.connect(gn).connect(AC.destination); o.start(t); o.stop(t + dur + .02);
 }
 const SFX = {
-  pock:   () => tone(340, .07, "square", .13, -90),
-  bounce: () => tone(180, .06, "sine", .11, -40),
-  point:  () => { tone(880, .1, "triangle", .12); setTimeout(() => tone(1170, .16, "triangle", .11), 90); },
-  lose:   () => tone(300, .25, "sine", .1, -140),
-  cheer:  () => [660, 880, 990, 1320].forEach((f, i) => setTimeout(() => tone(f, .14, "triangle", .1), i * 80)),
+  tap:    () => tone(520, .05, "square", .07, 60),
+  chime:  () => { tone(880, .09, "triangle", .1); setTimeout(() => tone(1175, .14, "triangle", .1), 90); },
+  sizzle: () => { tone(90, .5, "sawtooth", .07, 30); setTimeout(() => tone(130, .35, "sawtooth", .05, -50), 120); },
+  ding:   () => { tone(1319, .16, "triangle", .12); setTimeout(() => tone(1319, .22, "triangle", .09), 150); },
+  pop:    () => tone(660, .09, "square", .1, 240),
+  add:    (i) => tone(540 + (i || 0) * 36, .07, "square", .08, 120),
+  undo:   () => tone(360, .09, "square", .08, -140),
+  buzz:   () => tone(150, .18, "square", .1, -40),
+  coin:   () => { tone(990, .07, "square", .09); setTimeout(() => tone(1320, .2, "square", .09), 70); },
+  fanfare:() => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, .16, "triangle", .11), i * 90)),
+  oops:   () => tone(300, .3, "sine", .1, -160),
+  bell:   () => { tone(1568, .12, "triangle", .12); setTimeout(() => tone(2093, .3, "triangle", .1), 100); },
+  star:   () => [659, 784, 988, 1319].forEach((f, i) => setTimeout(() => tone(f, .12, "square", .08), i * 70)),
   select: () => tone(760, .09, "square", .1, 160),
-  fanfare:() => [523, 659, 784, 1046, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, .22, "triangle", .12), i * 150)),
 };
 
 /* stubs so the shared character art draws its calm, default poses */
@@ -1603,826 +1610,975 @@ function drawPug(ctx, cx, feetY) {
   ctx.restore();
 }
 
-/* ------------------------------ court ------------------------------ */
-/* Court coordinates: x ∈ [-260, 260], y ∈ [-330 (far baseline) .. +330 (near)],
-   net at y = 0. The sisters play the near side. z = height above the court. */
-const CX = 260, CY = 330;
-function persp(y) { return 0.64 + (y + CY) / (CY * 2) * 0.52; }
-function courtTop() { return Math.max(64, H * 0.10); }
-function courtH() { return H * 0.62; }
-function K() { return Math.min(W / 640, 1.15); }
-function px(x, y) { return W / 2 + x * K() * persp(y); }
-function py(y) { return courtTop() + (y + CY) / (CY * 2) * courtH(); }
-function unproject(sx, sy) {
-  const y = (sy - courtTop()) / courtH() * CY * 2 - CY;
-  const x = (sx - W / 2) / (K() * persp(y));
-  return { x, y };
-}
+</script>
+<script>
+"use strict";
+/* Real game state lives here; the art stub `game` only needs .timer, which we
+   drive from our own clock each frame. */
 
-/* ------------------------------ teams & gear ------------------------------ */
+/* ------------------------------ roster ------------------------------ */
 const KEYS = ["jules","northern","cutie","nora","sparkle","squishy","icy","appy","misty","fairy","chunmi"];
 const NAME_COL = {
   jules:"#b04e1e", northern:"#3f7fd0", cutie:"#2f8a38", nora:"#1f9aa0",
   sparkle:"#e0608c", squishy:"#d39a1e", icy:"#2c6cb4", appy:"#c8362c",
   misty:"#b8862c", fairy:"#7a4fc8", chunmi:"#2c4fb0",
 };
-const KID_SCALE = k => k === "nora" ? 0.95 : 0.59;
-const RACKETS = [
-  { name: "Classic",  head:"#c98f5a", grip:"#8a5a32", strings:"#f2ede2", pow:1.0,  reach:1.0 },
-  { name: "Sparkle",  head:"#ff8ec4", grip:"#e0608c", strings:"#ffffff", pow:1.0,  reach:1.15, sparkle:true },
-  { name: "Power",    head:"#3f8fe0", grip:"#16389a", strings:"#d8ecff", pow:1.22, reach:0.95 },
-  { name: "Rainbow",  head:"rainbow", grip:"#7a4fc8", strings:"#ffffff", pow:1.1,  reach:1.05, sparkle:true },
-];
-const WIN_PTS = 10, ROUNDS = 3;
-</script>
-<script>
-"use strict";
-/* Real game state lives here; the art stub `game` only needs .timer, which we
-   drive from our own clock each frame. */
-const S = {
-  state: "title", timer: 0, stage: 0, solo: false, single: false,
-  players: [ { key: null, racket: 0 }, { key: null, racket: 0 } ],
-  round: 0, rivals: [], usedRivals: [],
-  scoreUs: 0, scoreThem: 0, servingUs: true,
-  cards: [], speedChips: [], pointBanner: "", bannerT: 0, champT: 0,
-  ballSpd: 1, runSpd: 1,        // 🐢 0.7 / 🙂 1 / ⚡ 1.3 — set on the mode screen
-};
-const SPEED_LABELS = ["🐢", "🙂", "⚡"];
-const BALL_MULS = [0.5, 1, 1.3];       // turtle ball = the same tennis, played in slow motion
-const RUN_MULS  = [0.7, 1, 1.3];
-try {
-  S.ballSpd = parseFloat(localStorage.getItem("tennisBallSpd")) || 1;
-  S.runSpd  = parseFloat(localStorage.getItem("tennisRunSpd"))  || 1;
-  if (Math.abs(S.ballSpd - 0.7) < 0.01) S.ballSpd = 0.5;   // migrate the old slow setting
-} catch (e) {}
-let ents = [];        // the four athletes [p1, p2, r1, r2]
-let ball = null, fx = [], rallyN = 0;
+const heroScale = k => k === "nora" ? 1.55 : 1;
 
-function heroesLeft() { return KEYS.filter(k => k !== S.players[0].key && k !== S.players[1].key && !S.usedRivals.includes(k)); }
-
-function startTournament() {
-  S.round = 0; S.usedRivals = [];
-  nextRound();
-}
-function nextRound() {
-  const pool = heroesLeft();
-  const a = pool[(Math.random() * pool.length) | 0];
-  const pool2 = pool.filter(k => k !== a);
-  const b = pool2[(Math.random() * pool2.length) | 0];
-  S.rivals = S.single ? [a] : [a, b];
-  S.usedRivals.push(...S.rivals);
-  S.scoreUs = 0; S.scoreThem = 0; S.servingUs = true;
-  buildMatch();
-  S.state = "bracket"; S.timer = 0;
-}
-function buildMatch() {
-  const [p1, p2] = S.players;
-  if (S.single) {
-    ents = [
-      { key: p1.key, racket: p1.racket, x: 0, y: 230, tx: 0, ty: 230, us: true,  who: 0, swingT: 0, face: 1 },
-      { key: S.rivals[0], racket: 3, x: 0, y: -230, tx: 0, ty: -230, us: false, who: 2, swingT: 0, face: 1 },
-    ];
-  } else {
-    ents = [
-      { key: p1.key, racket: p1.racket, x: -120, y: 230, tx: -120, ty: 230, us: true,  who: 0, swingT: 0, face: 1 },
-      { key: p2.key, racket: p2.racket, x: 120,  y: 230, tx: 120,  ty: 230, us: true,  who: 1, swingT: 0, face: 1 },
-      { key: S.rivals[0], racket: 0, x: -120, y: -230, tx: -120, ty: -230, us: false, who: 2, swingT: 0, face: 1 },
-      { key: S.rivals[1], racket: 3, x: 120,  y: -230, tx: 120,  ty: -230, us: false, who: 3, swingT: 0, face: 1 },
-    ];
-  }
-  fx = [];
-  serve();
-}
-function rivalEnts() { return ents.filter(e => !e.us); }
-/* Gravity rides along with the 🐢/⚡ ball toggle. Flight time scales as 1/ballSpd,
-   so gravity has to scale as ballSpd² for the arc to keep its shape — otherwise the
-   slow setting turns every shot into a moon-ball that sails over everyone's head. */
-function ballGravity() { return 0.20 * S.ballSpd * S.ballSpd; }
-function serve() {
-  rallyN = 0;
-  const server = S.servingUs ? ents[0] : rivalEnts()[0];
-  ball = { x: server.x, y: server.y * 0.92, z: 26, vx: 0, vy: 0, vz: 0, g: ballGravity(),
-           live: false, waitT: 50, lastSide: S.servingUs ? 1 : -1, bounces: 0, bounceSide: 0 };
-}
-function hitBall(e, powMul) {
-  const r = RACKETS[e.racket];
-  const towardUs = !e.us;                     // ball goes to the other side
-  const ty = (towardUs ? 1 : -1) * (120 + Math.random() * 170);
-  let tx;
-  if (e.us) {                                  // sisters aim away from the nearest rival
-    const rx = rivalEnts().sort((a, b) => Math.abs(a.x - (-e.x)) - Math.abs(b.x - (-e.x)));
-    tx = -Math.sign(rx[0].x || 1) * (60 + Math.random() * 150);
-  } else {
-    // rivals aim at open space — but the further behind they are, the more they miss
-    const wide = Math.max(0, S.scoreThem - S.scoreUs) * 6 + aiErr();
-    tx = (Math.random() < 0.5 ? -1 : 1) * (40 + Math.random() * 160) + (Math.random() - 0.5) * wide;
-    if (Math.random() < aiOutChance()) tx = Math.sign(tx) * (CX + 20 + Math.random() * 40);   // whoops, wide!
-  }
-  const T = (52 - S.round * 3 + Math.random() * 10) / S.ballSpd;   // 🐢/⚡ ball toggle stretches or shrinks flight time
-  ball.g = ballGravity();
-  ball.vx = (tx - ball.x) / T;
-  ball.vy = (ty - ball.y) / T * (r.pow * (powMul || 1));
-  ball.vz = (ball.g * T) / 2 - ball.z / T;    // arc that lands right about at T
-  ball.live = true; ball.lastSide = e.us ? 1 : -1;
-  ball.bounces = 0;
-  e.swingT = 14;
-  rallyN++;
-  SFX.pock();
-  fx.push({ type: "pow", x: ball.x, y: ball.y, z: ball.z, t: 0 });
-  if (RACKETS[e.racket].sparkle) for (let i = 0; i < 5; i++)
-    fx.push({ type: "spark", x: ball.x + (Math.random() - 0.5) * 30, y: ball.y, z: ball.z + Math.random() * 20, t: 0 });
-}
-function aiErr() { return [10, 6, 2][S.round] || 2; }
-function aiOutChance() {
-  const base = [0.16, 0.11, 0.07][S.round] || 0.07;
-  const mercy = S.scoreThem > S.scoreUs + 2 ? 0.1 : 0;   // rubber band, kid-side
-  return base + mercy;
-}
-function aiSpeed() { return [2.8, 3.3, 3.8][S.round] || 3.8; }
-
-function scorePoint(usScored, why) {
-  if (usScored) { S.scoreUs++; SFX.point(); } else { S.scoreThem++; SFX.lose(); }
-  S.servingUs = usScored;
-  S.pointBanner = why; S.bannerT = 80;
-  if (S.scoreUs >= WIN_PTS || S.scoreThem >= WIN_PTS) {
-    S.state = "matchend"; S.timer = 0;
-    if (S.scoreUs >= WIN_PTS) SFX.cheer(); else SFX.lose();
-  } else serve();
-}
-
-/* ------------------------------ input ------------------------------ */
-const pointers = {};   // pointerId → {who}
-cv.addEventListener("pointerdown", e => {
-  e.preventDefault(); audio();
-  if (S.state === "title") { S.state = "mode"; S.timer = 0; SFX.select(); return; }
-  if (S.state === "mode") {
-    for (const ch of S.speedChips)
-      if (e.clientX >= ch.x - 8 && e.clientX <= ch.x + ch.w + 8 && e.clientY >= ch.y - 10 && e.clientY <= ch.y + ch.h + 10) {
-        S[ch.which] = ch.mul; SFX.select();
-        try { localStorage.setItem(ch.which === "ballSpd" ? "tennisBallSpd" : "tennisRunSpd", ch.mul); } catch (err) {}
-        return;
-      }
-    for (const c of S.cards)
-      if (e.clientX >= c.sx && e.clientX <= c.sx + c.sw && e.clientY >= c.sy && e.clientY <= c.sy + c.sh) {
-        S.solo = c.solo; S.single = !!c.single;
-        S.state = "pick"; S.stage = 0; S.timer = 0; SFX.select(); return;
-      }
-    return;
-  }
-  if (S.state === "pick") {
-    for (const c of S.cards)
-      if (e.clientX >= c.sx && e.clientX <= c.sx + c.sw && e.clientY >= c.sy && e.clientY <= c.sy + c.sh)
-        return pickCard(c);
-    return;
-  }
-  if (S.state === "bracket" && S.timer > 30) { S.state = "play"; S.timer = 0; return; }
-  if (S.state === "matchend" && S.timer > 60) {
-    if (S.scoreUs >= WIN_PTS) {
-      if (S.round + 1 >= ROUNDS) { S.state = "champion"; S.timer = 0; SFX.fanfare(); }
-      else { S.round++; nextRound(); }
-    } else { S.scoreUs = 0; S.scoreThem = 0; buildMatch(); S.state = "bracket"; S.timer = 0; }  // try again!
-    return;
-  }
-  if (S.state === "champion" && S.timer > 90) { S.state = "title"; S.timer = 0; return; }
-  if (S.state === "play") {
-    const who = (S.solo || S.single) ? 0 : (e.clientX < W / 2 ? 0 : 1);   // solo/1-on-1: the whole screen is yours
-    pointers[e.pointerId] = { who };
-    steerTo(who, e.clientX, e.clientY);
-  }
-}, { passive: false });
-cv.addEventListener("pointermove", e => {
-  const p = pointers[e.pointerId];
-  if (p && S.state === "play") steerTo(p.who, e.clientX, e.clientY);
-});
-const clearPtr = e => { delete pointers[e.pointerId]; };
-cv.addEventListener("pointerup", clearPtr);
-cv.addEventListener("pointercancel", clearPtr);
-
-function steerTo(who, sx, sy) {
-  const c = unproject(sx, sy);
-  const e2 = ents[who];
-  if (!e2) return;
-  e2.tx = Math.max(-CX, Math.min(CX, c.x));
-  e2.ty = Math.max(30, Math.min(CY - 6, c.y));
-  e2.touchT = 90;
-}
-const keys = {};
-addEventListener("keydown", e => { keys[e.code] = true; audio();
-  if ((S.state === "title" || S.state === "bracket" || S.state === "matchend" || S.state === "champion") &&
-      (e.code === "Space" || e.code === "Enter"))
-    cv.dispatchEvent(new PointerEvent("pointerdown", { clientX: W / 2, clientY: H / 2, bubbles: true }));
-});
-addEventListener("keyup", e => { keys[e.code] = false; });
-
-function pickCard(c) {
-  SFX.select();
-  if (S.stage === 0) { S.players[0].key = c.key; S.stage = 1; }
-  else if (S.stage === 1) {
-    S.players[0].racket = c.idx;
-    if (S.single) { S.players[1].key = null; startTournament(); } else S.stage = 2;
-  }
-  else if (S.stage === 2) { S.players[1].key = c.key; S.stage = 3; }
-  else { S.players[1].racket = c.idx; startTournament(); }
-  S.timer = 0;
-}
-
-/* ------------------------------ update ------------------------------ */
-function updatePlay() {
-  // sisters: follow finger (or keys), otherwise drift helpfully toward the ball
-  for (const e of ents) {
-    let speed = e.us ? (S.single ? 4.8 : 4.3) : aiSpeed();
-    if (e.us && S.solo && e.who === 1) {
-      // 🤖 the magic buddy: a proper bot teammate covering her half
-      speed = 3.9;
-      if (ball && ball.live && ball.lastSide === -1 && ball.x >= -10) {
-        e.tx = ball.x; e.ty = Math.max(60, Math.min(CY - 20, ball.y));
-      } else { e.tx = 130; e.ty = 215; }
-    } else if (e.us) {
-      if (e.touchT > 0) e.touchT--;
-      const useKeys1 = e.who === 0, useBoth = (S.solo || S.single) && e.who === 0;
-      const kx = (useKeys1 ? ((keys["KeyD"] ? 1 : 0) - (keys["KeyA"] ? 1 : 0)) : 0) +
-                 ((!useKeys1 || useBoth) ? ((keys["ArrowRight"] ? 1 : 0) - (keys["ArrowLeft"] ? 1 : 0)) : 0);
-      const ky = (useKeys1 ? ((keys["KeyS"] ? 1 : 0) - (keys["KeyW"] ? 1 : 0)) : 0) +
-                 ((!useKeys1 || useBoth) ? ((keys["ArrowDown"] ? 1 : 0) - (keys["ArrowUp"] ? 1 : 0)) : 0);
-      if (kx || ky) { e.tx = e.x + Math.sign(kx) * 60; e.ty = e.y + Math.sign(ky) * 60; e.touchT = 90; }
-      if (e.touchT <= 0 && ball && ball.live && ball.lastSide === -1) {
-        // helpful auto-run when nobody is steering (1-on-1: it's all your court)
-        const myHalf = S.single ? true : (e.who === 0 ? ball.x <= 10 : ball.x >= -10);
-        if (myHalf) { e.tx = ball.x; e.ty = Math.max(60, Math.min(CY - 20, ball.y)); }
-      }
-    } else if (ball) {
-      // rivals chase the ball on their side (a lone 1-on-1 rival covers it all)
-      if (S.single) speed = aiSpeed() + 0.2;
-      const myHalf = S.single ? true : (e.who === 2 ? ball.x <= 30 : ball.x >= -30);
-      if (ball.live && ball.lastSide === 1 && myHalf) {
-        // line up on the ball's x straight away, but only chase its depth once it's
-        // actually over the net — charging in early left them stranded at the net
-        // while anything deep dropped behind them
-        e.tx = ball.x;
-        e.ty = ball.y < 0 ? Math.min(-30, Math.max(-CY + 10, ball.y)) : -180;
-      }
-      else { e.tx = S.single ? 0 : (e.who === 2 ? -120 : 120); e.ty = -220; }
-    }
-    const dx = e.tx - e.x, dy = e.ty - e.y, d = Math.hypot(dx, dy);
-    const sp = speed * S.runSpd;                                    // 🐢/⚡ running toggle
-    if (d > 2) { e.x += dx / d * Math.min(sp, d); e.y += dy / d * Math.min(sp, d); }
-    if (Math.abs(dx) > 2) e.face = Math.sign(dx);
-    if (e.us) { e.y = Math.max(26, Math.min(CY - 4, e.y)); } else { e.y = Math.min(-26, Math.max(-CY + 4, e.y)); }
-    e.x = Math.max(-CX, Math.min(CX, e.x));
-    if (e.swingT > 0) e.swingT--;
-  }
-
-  if (!ball) return;
-  if (!ball.live) {
-    ball.waitT--;
-    const server = S.servingUs ? ents[0] : rivalEnts()[0];
-    ball.x = server.x + 14 * server.face; ball.y = server.y * 0.94;
-    if (ball.waitT <= 0) hitBall(server, 0.9);
-    return;
-  }
-  // flight
-  ball.trail = ball.trail || [];
-  ball.trail.push({ x: ball.x, y: ball.y, z: ball.z });
-  if (ball.trail.length > 6) ball.trail.shift();
-  ball.x += ball.vx; ball.y += ball.vy;
-  ball.z += ball.vz; ball.vz -= ball.g;
-  if (ball.z <= 0) {
-    ball.z = 0; ball.vz = Math.abs(ball.vz) * 0.62;
-    const inX = Math.abs(ball.x) <= CX + 6, inY = Math.abs(ball.y) <= CY + 6;
-    const side = ball.y > 0 ? 1 : -1;
-    SFX.bounce();
-    fx.push({ type: "dust", x: ball.x, y: ball.y, z: 0, t: 0 });
-    if (!(inX && inY)) {
-      // landed out: the team that hit it loses the point
-      scorePoint(ball.lastSide === -1, ball.lastSide === -1 ? "OUT! ✨ point for the sisters!" : "Out… their point");
-      return;
-    }
-    if (ball.bounceSide === side) ball.bounces++;
-    else { ball.bounceSide = side; ball.bounces = 1; }
-    if (ball.bounces >= 2) {
-      // double bounce: whoever let it drop loses
-      scorePoint(side === -1, side === -1 ? "Double bounce! Sisters score!" : "Oh no, it bounced twice…");
-      return;
-    }
-  }
-  // sailed past a baseline without landing? point for the other team
-  if (ball.y > CY + 90) { scorePoint(false, "It got past…"); return; }
-  if (ball.y < -CY - 90) { scorePoint(true, "ACE! It flew right past them!"); return; }
-
-  // swings: anyone close enough (and the ball heading their way) returns it
-  for (const e of ents) {
-    if (e.swingT > 0) continue;
-    const sameSide = e.us ? ball.y > 0 : ball.y < 0;
-    const heading = e.us ? ball.vy > 0 : ball.vy < 0;
-    const reach = 42 * RACKETS[e.racket].reach;
-    if (sameSide && heading && ball.z < 70 &&
-        Math.abs(ball.x - e.x) < reach && Math.abs(ball.y - e.y) < reach * 0.9) {
-      hitBall(e, 1);
-      break;
-    }
-  }
-  for (const p of fx) p.t++;
-  fx = fx.filter(p => p.t < 30);
-}
-
-function update() {
-  S.timer++;
-  game.timer = S.timer;               // drive the shared art's clock
-  if (S.bannerT > 0) S.bannerT--;
-  if (S.state === "play") updatePlay();
-}
-
-/* ------------------------------ drawing ------------------------------ */
 function rr(x, y, w, h, r) { rrPath(g, x, y, w, h, r); }
 function outlineText(txt, x, y, fill, size) {
   g.lineWidth = Math.max(3, (size || 20) / 7); g.lineJoin = "round";
   g.strokeStyle = "rgba(0,0,0,.35)";
   g.strokeText(txt, x, y); g.fillStyle = fill; g.fillText(txt, x, y);
 }
+const fmt$ = n => "$" + n.toFixed(2);
 
-function drawRacket(e, scale) {
-  const r = RACKETS[e.racket];
-  const swing = e.swingT > 0 ? (e.swingT / 14) : 0;
-  g.save();
-  g.translate(12 * e.face * scale, -26 * scale);
-  g.rotate(e.face * (-0.5 + swing * -1.6));
-  g.scale(scale, scale);
-  g.strokeStyle = r.grip; g.lineWidth = 3.6; g.lineCap = "round";
-  g.beginPath(); g.moveTo(0, 10); g.lineTo(0, -2); g.stroke();
-  if (r.head === "rainbow") {
-    const cols = ["#ff5e6c","#ff9f43","#ffd23e","#5ecb6a","#4aa6f0","#9b6cff"];
-    for (let i = 0; i < 6; i++) {
-      g.strokeStyle = cols[i]; g.lineWidth = 3;
-      g.beginPath(); g.ellipse(0, -12, 9 - i * 0.7, 12 - i * 0.7, 0, 0, Math.PI * 2); g.stroke();
+/* ------------------------------ the menu ------------------------------ */
+const INGS = {
+  patty:   { name:"PATTY",   col:"#6b3f28", h:15 },
+  cheese:  { name:"CHEESE",  col:"#ffc93c", h:8  },
+  sauce:   { name:"SAUCE",   col:"#f0a05a", h:6  },
+  ketchup: { name:"KETCHUP", col:"#e63b3b", h:6  },
+  lettuce: { name:"LETTUCE", col:"#7ec850", h:10 },
+  tomato:  { name:"TOMATO",  col:"#ef4d3d", h:8  },
+  onion:   { name:"ONION",   col:"#e9def0", h:6  },
+  pickles: { name:"PICKLES", col:"#4f9e3f", h:8  },
+};
+const BIN_ORDER = ["sauce","ketchup","lettuce","tomato","onion","pickles","cheese"];
+/* Recipes straight from the Face Plant menu board.
+   NUGGIE (crispy nugget sandwich, $8.99) is coming in a later update! */
+const ITEMS = {
+  ry:     { name:"RED & YELLOW", price:4.49, col:"#e8a020",
+            recipe:{ ketchup:1, pickles:1, cheese:1, patty:1 } },
+  fancy:  { name:"FANCY",        price:7.49, col:"#e0508c",
+            recipe:{ sauce:1, lettuce:1, tomato:1, onion:1, pickles:1, cheese:1, patty:1 } },
+  dfancy: { name:"DOUBLE FANCY", price:8.99, col:"#9b6cff",
+            recipe:{ sauce:1, lettuce:1, tomato:1, onion:1, pickles:1, cheese:1, patty:2 } },
+};
+
+/* ------------------------------ scene layout ------------------------------ */
+const SW = 960, SH = 560;
+let SC = 1, OX = 0, OY = 0, KDS_H = 110;
+const HUD_H = 40;   // strip under the scene reserved for the coin/day pills
+function layout() {
+  KDS_H = Math.max(86, Math.min(H * 0.24, 148));
+  SC = Math.min(W / SW, (H - KDS_H - HUD_H) / SH);
+  OX = (W - SW * SC) / 2;
+  OY = KDS_H + ((H - KDS_H - HUD_H) - SH * SC) / 2;
+}
+const toScene = (sx, sy) => ({ x: (sx - OX) / SC, y: (sy - OY) / SC });
+
+const BINS = BIN_ORDER.map((ing, i) => ({ ing, x: 262 + i * 96, y: 424, w: 88, h: 84 }));
+const STATIONS = [
+  { id:"toaster", x: 56,  y: 100, w: 112, h: 180 },
+  { id:"chute",   x: 170, y: 200, w: 90,  h: 80  },
+  { id:"grill0",  x: 266, y: 128, w: 158, h: 152 },
+  { id:"grill1",  x: 428, y: 128, w: 158, h: 152 },
+  { id:"warmer",  x: 590, y: 128, w: 122, h: 152 },
+  { id:"pass",    x: 716, y: 108, w: 228, h: 172 },
+  { id:"tray",    x: 58,  y: 400, w: 200, h: 158 },
+];
+
+const TOAST_T = 140, GRILL_T = 300, WARM_MAX = 8, BUN_MAX = 3;
+
+/* ------------------------------ state ------------------------------ */
+const S = {
+  state: "title", timer: 0, heroKey: null,
+  day: 1, coins: 0, best: 0,
+  ordersLeft: 0, orderSeq: 0, tickets: [], spawnT: 0, endT: 0,
+  toast: { active: false, t: 0 }, buns: 0,
+  grills: [ { state:"empty", t:0, lid:0 }, { state:"empty", t:0, lid:0 } ],
+  warm: 0,
+  stack: null, stackPop: 0,
+  served: 0, perfect: 0, dayCoins: 0, stars: 0,
+  banner: null, hint: null, fx: [], cards: [], serveFx: 0,
+};
+try { S.best = parseFloat(localStorage.getItem("fpBestDay")) || 0; } catch (e) {}
+const hero = { x: 480, tx: 480, facing: 1, walkT: 0 };
+let queue = [];    // [{ id, tx }] — stations we'll walk to, in tap order
+
+/* ------------------------------ tickets ------------------------------ */
+function dayItems(d) { return d === 1 ? ["ry"] : d === 2 ? ["ry","fancy"] : ["ry","fancy","dfancy"]; }
+function dayOrders(d) { return Math.min(12, [0,5,7,9,10,11][d] || 12); }
+function patienceF(d) { return Math.max(32, 50 - d * 2) * 60; }
+
+function genTicket() {
+  const pool = dayItems(S.day);
+  const itemKey = pool[Math.floor(Math.random() * pool.length)];
+  const item = ITEMS[itemKey];
+  const need = Object.assign({}, item.recipe);
+  const mods = [];
+  const maxMods = S.day === 1 ? 0 : S.day === 2 ? 1 : 2;
+  let nMods = 0;
+  for (let m = 0; m < maxMods; m++) if (Math.random() < (S.day >= 4 ? 0.6 : 0.45)) nMods++;
+  const used = new Set();
+  for (let m = 0; m < nMods; m++) {
+    const kind = ["no","extra","add"][Math.floor(Math.random() * 3)];
+    if (kind === "no") {
+      const opts = Object.keys(need).filter(k => need[k] >= 1 && k !== "patty" && !used.has(k));
+      if (!opts.length) continue;
+      const ing = opts[Math.floor(Math.random() * opts.length)];
+      used.add(ing); need[ing] = 0; mods.push({ t:"no", ing });
+    } else if (kind === "extra") {
+      const opts = Object.keys(need).filter(k => need[k] >= 1 && !used.has(k));
+      if (!opts.length) continue;
+      const ing = opts[Math.floor(Math.random() * opts.length)];
+      used.add(ing); need[ing]++; mods.push({ t:"extra", ing });
+    } else {
+      const opts = BIN_ORDER.filter(k => !(need[k] >= 1) && !used.has(k));
+      if (!opts.length) continue;
+      const ing = opts[Math.floor(Math.random() * opts.length)];
+      used.add(ing); need[ing] = 1; mods.push({ t:"add", ing });
     }
+  }
+  for (const k of Object.keys(need)) if (!need[k]) delete need[k];
+  S.orderSeq++;
+  return { id: S.orderSeq, itemKey, need, mods, age: 0, patience: patienceF(S.day), ax: 1 };
+}
+function modLabel(m) {
+  const n = INGS[m.ing].name;
+  return m.t === "no" ? "NO " + n : m.t === "extra" ? "EXTRA " + n : "ADD " + n;
+}
+
+/* ------------------------------ day flow ------------------------------ */
+function startDay(d) {
+  S.day = d;
+  S.ordersLeft = dayOrders(d);
+  S.tickets = []; S.spawnT = 0; S.endT = 0;
+  S.toast = { active:false, t:0 }; S.buns = 0;
+  S.grills = [ { state:"empty", t:0, lid:0 }, { state:"empty", t:0, lid:0 } ];
+  S.warm = 0; S.stack = null;
+  S.served = 0; S.perfect = 0; S.dayCoins = 0;
+  S.banner = null; S.hint = null; S.fx = []; S.serveFx = 0;
+  hero.x = hero.tx = 480; queue = [];
+  S.state = "dayIntro";
+}
+function beginShift() {
+  S.state = "play";
+  spawnTicket();
+  SFX.select();
+}
+function spawnTicket() {
+  if (!S.ordersLeft || S.tickets.length >= 3) return;
+  S.ordersLeft--;
+  S.tickets.push(genTicket());
+  S.spawnT = Math.max(150, 300 + Math.random() * 240 - S.day * 25);
+  SFX.chime();
+}
+function endDay() {
+  S.stars = S.perfect >= S.served ? 3 : S.perfect >= Math.ceil(S.served * 0.6) ? 2 : 1;
+  if (S.dayCoins > S.best) {
+    S.best = S.dayCoins;
+    try { localStorage.setItem("fpBestDay", String(S.best)); } catch (e) {}
+  }
+  S.state = "dayEnd";
+  if (S.stars === 3) SFX.fanfare(); else SFX.star();
+}
+
+/* ------------------------------ actions ------------------------------ */
+function hint(text) { S.hint = { text, t: 120 }; }
+
+function doAction(id) {
+  if (id === "toaster") {
+    if (S.toast.active) hint("Toasting…");
+    else if (S.buns >= BUN_MAX) { hint("Bun basket is full!"); SFX.buzz(); }
+    else { S.toast = { active:true, t:0 }; SFX.pop(); }
+  } else if (id === "chute") {
+    if (S.stack) { hint("Burger already started — build it!"); SFX.buzz(); }
+    else if (S.buns > 0) { S.buns--; S.stack = ["heel"]; S.stackPop = 12; SFX.add(0); }
+    else { hint("Toast a bun first!"); SFX.buzz(); }
+  } else if (id === "grill0" || id === "grill1") {
+    const gr = S.grills[id === "grill0" ? 0 : 1];
+    if (gr.state === "empty") { gr.state = "cook"; gr.t = 0; SFX.sizzle(); }
+    else if (gr.state === "cook") hint("Patties are still cooking…");
+    else {
+      if (S.warm >= WARM_MAX) { hint("Warmer is full!"); SFX.buzz(); }
+      else { S.warm = Math.min(WARM_MAX, S.warm + 2); gr.state = "empty"; gr.t = 0; SFX.add(3); }
+    }
+  } else if (id === "warmer") {
+    if (!S.stack) { hint("Start with a toasted bun!"); SFX.buzz(); }
+    else if (S.warm > 0) { S.warm--; S.stack.push("patty"); S.stackPop = 12; SFX.add(5); }
+    else { hint("Grill some patties!"); SFX.buzz(); }
+  } else if (id.startsWith("bin:")) {
+    const ing = id.slice(4);
+    if (!S.stack) { hint("Start with a toasted bun!"); SFX.buzz(); }
+    else { S.stack.push(ing); S.stackPop = 12; SFX.add(BIN_ORDER.indexOf(ing)); }
+  } else if (id === "tray") {
+    if (!S.stack) hint("Tap the bun basket to start a burger!");
+    else if (S.stack.length > 1) { const top = S.stack.pop(); if (top === "patty") S.warm = Math.min(WARM_MAX, S.warm + 1); S.stackPop = 8; SFX.undo(); }
+    else { S.stack = null; SFX.undo(); hint("Burger cancelled"); }
+  } else if (id === "pass") {
+    serveBurger();
+  }
+}
+
+function stackCounts() {
+  const c = {};
+  for (const l of S.stack) if (INGS[l]) c[l] = (c[l] || 0) + 1;
+  return c;
+}
+function serveBurger() {
+  if (!S.stack) { hint("Nothing to serve — build a burger!"); SFX.buzz(); return; }
+  if (!S.tickets.length) { hint("No orders on the screen yet!"); SFX.buzz(); return; }
+  const have = stackCounts();
+  let best = null, bestErr = 1e9;
+  for (const t of S.tickets) {
+    let err = 0;
+    const ks = new Set([...Object.keys(have), ...Object.keys(t.need)]);
+    for (const k of ks) err += Math.abs((have[k] || 0) - (t.need[k] || 0));
+    if (err < bestErr) { bestErr = err; best = t; }
+  }
+  const item = ITEMS[best.itemKey];
+  const fast = best.age < best.patience * 0.5, late = best.age > best.patience;
+  let pay, emoji, text;
+  if (bestErr === 0) {
+    pay = item.price + (fast ? 1.0 : 0);
+    emoji = "😍"; text = "PERFECT " + item.name + "!";
+    S.perfect++; SFX.fanfare();
+    for (let i = 0; i < 24; i++)
+      S.fx.push({ x: 826, y: 200, vx: (Math.random() - .5) * 7, vy: -2 - Math.random() * 5,
+                  c: ["#ffd166","#ff8ec4","#7ec850","#7fb6ff","#e8262c"][i % 5], t: 0 });
+  } else if (bestErr <= 2) {
+    pay = Math.max(1, item.price - 1.5 * bestErr);
+    emoji = "🙂"; text = "Close! " + bestErr + " thing" + (bestErr > 1 ? "s" : "") + " off";
+    SFX.coin();
   } else {
-    g.strokeStyle = r.head; g.lineWidth = 3.4;
-    g.beginPath(); g.ellipse(0, -12, 9, 12, 0, 0, Math.PI * 2); g.stroke();
+    pay = 1;
+    emoji = "😖"; text = "Oops — check the ticket!";
+    SFX.oops();
   }
-  g.strokeStyle = r.strings; g.lineWidth = 0.7;
-  for (let i = -2; i <= 2; i++) {
-    g.beginPath(); g.moveTo(i * 3, -22); g.lineTo(i * 3, -2); g.stroke();
-    g.beginPath(); g.moveTo(-8, -12 + i * 3.4); g.lineTo(8, -12 + i * 3.4); g.stroke();
+  if (late) { pay = Math.max(0.5, pay / 2); text += " (so slow!)"; }
+  else if (fast && bestErr === 0) text += " +$1 tip!";
+  S.coins += pay; S.dayCoins += pay; S.served++;
+  S.tickets = S.tickets.filter(t => t !== best);
+  S.banner = { emoji, text, pay, t: 130 };
+  S.stack = null; S.serveFx = 50;
+  SFX.bell();
+}
+
+/* ------------------------------ update ------------------------------ */
+function update() {
+  S.timer++; game.timer = S.timer;
+  layout();
+  if (S.state !== "play") return;
+
+  // walk the hero through the tapped stations, in order
+  if (queue.length) hero.tx = queue[0].tx;
+  const d = hero.tx - hero.x;
+  if (Math.abs(d) > 5) {
+    hero.x += Math.sign(d) * Math.min(Math.abs(d), 8);
+    hero.facing = Math.sign(d) || hero.facing;
+    hero.walkT++;
+  } else if (queue.length) doAction(queue.shift().id);
+
+  // toaster
+  if (S.toast.active && ++S.toast.t >= TOAST_T) {
+    S.toast.active = false;
+    S.buns = Math.min(BUN_MAX, S.buns + 1);
+    SFX.pop();
   }
+  // grills
+  for (const gr of S.grills) {
+    gr.lid += ((gr.state === "cook" ? 1 : 0) - gr.lid) * 0.15;
+    if (gr.state === "cook" && ++gr.t >= GRILL_T) { gr.state = "done"; SFX.ding(); }
+  }
+  // tickets
+  for (const t of S.tickets) { t.age++; t.ax *= 0.88; }
+  if (S.spawnT > 0) S.spawnT--;
+  if (S.spawnT <= 0 && S.tickets.length < 3 && S.ordersLeft > 0) spawnTicket();
+
+  if (S.banner && --S.banner.t <= 0) S.banner = null;
+  if (S.hint && --S.hint.t <= 0) S.hint = null;
+  if (S.stackPop > 0) S.stackPop--;
+  if (S.serveFx > 0) S.serveFx--;
+  S.fx = S.fx.filter(p => (p.t += 1, p.x += p.vx, p.y += p.vy, p.vy += 0.25, p.t < 60));
+
+  // day over?
+  if (!S.ordersLeft && !S.tickets.length) {
+    if (++S.endT > 70) endDay();
+  } else S.endT = 0;
+}
+
+/* ------------------------------ burger drawing ------------------------------ */
+function drawLayerAt(cx, yb, w, ing) {
+  const c = INGS[ing] ? INGS[ing].col : "#f2b25c";
+  if (ing === "heel") {
+    const gr = g.createLinearGradient(0, yb - 16, 0, yb);
+    gr.addColorStop(0, "#f2b25c"); gr.addColorStop(1, "#d08a3a");
+    g.fillStyle = gr; rr(cx - w/2, yb - 16, w, 16, 7); g.fill();
+    return 16;
+  }
+  if (ing === "crown") {
+    const gr = g.createLinearGradient(0, yb - 30, 0, yb);
+    gr.addColorStop(0, "#f6c273"); gr.addColorStop(1, "#d08a3a");
+    g.fillStyle = gr;
+    g.beginPath();
+    g.moveTo(cx - w/2, yb);
+    g.quadraticCurveTo(cx - w/2, yb - 26, cx, yb - 27);
+    g.quadraticCurveTo(cx + w/2, yb - 26, cx + w/2, yb);
+    g.closePath(); g.fill();
+    g.strokeStyle = "rgba(255,255,255,.45)"; g.lineWidth = 3; g.lineCap = "round";
+    g.beginPath(); g.arc(cx - w * 0.12, yb - 14, w * 0.26, Math.PI * 1.15, Math.PI * 1.6); g.stroke();
+    return 27;
+  }
+  if (ing === "patty") {
+    g.fillStyle = c; rr(cx - w/2 - 3, yb - 15, w + 6, 15, 7); g.fill();
+    g.fillStyle = "#59331f";
+    for (let i = -2; i <= 2; i++) g.fillRect(cx + i * w * 0.16 - 2, yb - 11, 4, 7);
+    return 15;
+  }
+  if (ing === "cheese") {
+    g.fillStyle = c;
+    rr(cx - w/2 - 6, yb - 8, w + 12, 6, 3); g.fill();
+    rr(cx - w/2 - 6, yb - 5, 9, 5, 2); g.fill();      // droopy corners
+    rr(cx + w/2 - 3, yb - 5, 9, 5, 2); g.fill();
+    return 8;
+  }
+  if (ing === "lettuce") {
+    g.fillStyle = c;
+    const n = 6, rw = (w + 10) / n;
+    for (let i = 0; i < n; i++) {
+      g.beginPath();
+      g.arc(cx - (w + 10)/2 + rw * (i + 0.5), yb - 4, rw * 0.62, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.fillStyle = "#95d96a"; rr(cx - w/2, yb - 10, w, 5, 2); g.fill();
+    return 10;
+  }
+  if (ing === "tomato") {
+    g.fillStyle = c; rr(cx - w/2 + 5, yb - 8, w - 10, 8, 4); g.fill();
+    g.fillStyle = "#ff7a64"; rr(cx - w/2 + 10, yb - 6, w - 20, 3, 1.5); g.fill();
+    return 8;
+  }
+  if (ing === "onion") {
+    g.strokeStyle = "#f4ecf8"; g.lineWidth = 3;
+    for (let i = -1; i <= 1; i++) {
+      g.beginPath(); g.ellipse(cx + i * w * 0.28, yb - 3, w * 0.14, 4.5, 0, 0, Math.PI * 2); g.stroke();
+    }
+    return 6;
+  }
+  if (ing === "pickles") {
+    g.fillStyle = c;
+    for (let i = -1; i <= 1; i++) {
+      g.beginPath(); g.ellipse(cx + i * w * 0.27, yb - 4, w * 0.13, 5.5, 0, 0, Math.PI * 2); g.fill();
+    }
+    g.fillStyle = "#3a7a2c";
+    for (let i = -1; i <= 1; i++) {
+      g.beginPath(); g.arc(cx + i * w * 0.27 - 3, yb - 5, 1.4, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(cx + i * w * 0.27 + 4, yb - 3, 1.4, 0, Math.PI * 2); g.fill();
+    }
+    return 8;
+  }
+  // sauce / ketchup drizzle with drips
+  g.fillStyle = c; rr(cx - w/2 + 2, yb - 6, w - 4, 5, 2.5); g.fill();
+  for (let i = -1; i <= 1; i++) { rr(cx + i * w * 0.26 - 2.5, yb - 3, 5, 6, 2.5); g.fill(); }
+  return 6;
+}
+function drawStack(list, cx, baseY, w) {
+  let y = baseY;
+  for (let i = 0; i < list.length; i++) {
+    const pop = i === list.length - 1 && S.stackPop > 0 ? 1 + S.stackPop * 0.008 : 1;
+    g.save();
+    if (pop !== 1) { g.translate(cx, y); g.scale(pop, pop); g.translate(-cx, -y); }
+    y -= drawLayerAt(cx, y, w, list[i]);
+    g.restore();
+    if (pop !== 1) y -= 0;
+  }
+  return baseY - y;
+}
+function buildList(need) {
+  const list = ["heel"];
+  for (const k of ["sauce","ketchup","lettuce","tomato","onion","pickles"])
+    for (let i = 0; i < (need[k] || 0); i++) list.push(k);
+  const p = need.patty || 0, ch = need.cheese || 0, n = Math.max(p, ch);
+  for (let i = 0; i < n; i++) { if (i < p) list.push("patty"); if (i < ch) list.push("cheese"); }
+  list.push("crown");
+  return list;
+}
+function stackH(list) { let h = 0; for (const l of list) h += l === "heel" ? 16 : l === "crown" ? 27 : INGS[l].h; return h; }
+
+/* the round Face Plant bun logo from the cups */
+function drawLogo(cx, cy, s, col) {
+  g.fillStyle = col || "#e8262c";
+  g.save(); g.translate(cx, cy); g.scale(s, s);
+  g.beginPath(); g.arc(-5.5, -3.5, 4.6, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(5.5, -3.5, 4.6, 0, Math.PI * 2); g.fill();
+  rrPath(g, -10, -4, 20, 12, 5); g.fill();
+  g.fillStyle = "#f5ede3";
+  g.beginPath(); g.arc(-3.6, 2, 1.6, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(3.6, 2, 1.6, 0, Math.PI * 2); g.fill();
   g.restore();
 }
 
-function drawAthlete(e) {
-  const p = persp(e.y), sx = px(e.x, e.y), sy = py(e.y);
-  const sc = KID_SCALE(e.key) * p * 1.35;
-  g.save();
-  g.translate(sx, sy);
-  g.fillStyle = "rgba(0,0,0,.25)";
-  g.beginPath(); g.ellipse(0, 2, 20 * p, 6 * p, 0, 0, Math.PI * 2); g.fill();
-  g.save(); g.scale(sc, sc);
-  drawKid(g, 0, 0, CHARS[e.key], Math.floor((S.timer + e.who * 7) / 14) % 2, e.face, false,
-    Math.hypot(e.tx - e.x, e.ty - e.y) > 4);
-  g.restore();
-  drawRacket(e, p * 0.85);
-  g.restore();
+/* ------------------------------ kitchen drawing ------------------------------ */
+function drawBunIcon(x, y, s, toasted) {
+  const top = toasted ? "#e09a44" : "#f0cf9a", bot = toasted ? "#c9822f" : "#e0b878";
+  g.fillStyle = top;
+  g.beginPath(); g.moveTo(x - 11 * s, y);
+  g.quadraticCurveTo(x - 11 * s, y - 10 * s, x, y - 10 * s);
+  g.quadraticCurveTo(x + 11 * s, y - 10 * s, x + 11 * s, y);
+  g.closePath(); g.fill();
+  g.fillStyle = bot; rrPath(g, x - 11 * s, y + 1 * s, 22 * s, 5 * s, 2.5 * s); g.fill();
 }
 
-function drawCourt() {
-  // REALLY realistic: an evening stadium under floodlights
-  const sky = g.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, "#101c36"); sky.addColorStop(0.3, "#23406a"); sky.addColorStop(0.42, "#1e5c38"); sky.addColorStop(1, "#2e7d46");
-  g.fillStyle = sky; g.fillRect(0, 0, W, H);
-  // stars
-  for (let i = 0; i < 20; i++) {
-    const tw = (Math.sin(S.timer * 0.05 + i * 1.7) + 1) / 2;
-    g.fillStyle = "rgba(255,255,240," + (0.2 + tw * 0.5).toFixed(2) + ")";
-    g.fillRect((i * 173) % W, (i * 67) % (courtTop() * 0.5), 2, 2);
+function drawToaster() {
+  const gr = g.createLinearGradient(62, 0, 162, 0);
+  gr.addColorStop(0, "#e4e8ec"); gr.addColorStop(0.5, "#c2c9d1"); gr.addColorStop(1, "#9ba4af");
+  g.fillStyle = gr; rr(62, 108, 100, 164, 10); g.fill();
+  g.strokeStyle = "#77808c"; g.lineWidth = 2; rr(62, 108, 100, 164, 10); g.stroke();
+  g.fillStyle = "#2a2f36"; rr(76, 118, 72, 15, 6); g.fill();          // in-slot
+  g.fillStyle = "#2a2f36"; rr(76, 240, 72, 16, 6); g.fill();          // out-slot
+  // glass strip — watch the bun ride down
+  g.fillStyle = "#414a55"; rr(92, 140, 40, 96, 6); g.fill();
+  if (S.toast.active) {
+    const p = S.toast.t / TOAST_T;
+    g.fillStyle = "rgba(255,150,60," + (0.25 + 0.15 * Math.sin(S.timer * 0.3)) + ")";
+    rr(92, 140, 40, 96, 6); g.fill();
+    drawBunIcon(112, 158 + p * 72, 1, p > 0.6);
   }
-  // floodlight towers with glowing lamp banks
-  for (const fx2 of [W * 0.12, W * 0.88]) {
-    g.strokeStyle = "#2a3346"; g.lineWidth = 5;
-    g.beginPath(); g.moveTo(fx2, courtTop() - 8); g.lineTo(fx2, courtTop() - 70); g.stroke();
-    const glow = g.createRadialGradient(fx2, courtTop() - 76, 4, fx2, courtTop() - 76, 60);
-    glow.addColorStop(0, "rgba(255,250,220,.75)"); glow.addColorStop(1, "rgba(255,250,220,0)");
-    g.fillStyle = glow; g.beginPath(); g.arc(fx2, courtTop() - 76, 60, 0, Math.PI * 2); g.fill();
-    g.fillStyle = "#e8eef6";
-    for (let i = 0; i < 6; i++) g.fillRect(fx2 - 17 + (i % 3) * 12, courtTop() - 84 + Math.floor(i / 3) * 9, 9, 7);
-  }
-  // tiered stands packed with a dot crowd that does the wave
-  const standT = courtTop() * 0.42, standB = courtTop() - 6;
-  const rows = 3;
-  for (let r2 = 0; r2 < rows; r2++) {
-    const ry = standT + (standB - standT) * r2 / rows;
-    g.fillStyle = r2 % 2 ? "#26374f" : "#2d4159";
-    g.fillRect(0, ry, W, (standB - standT) / rows + 1);
-    for (let i = 0; i < W / 14; i++) {
-      const wave = Math.sin(S.timer * 0.09 - i * 0.4 + r2) > 0.85 ? -3 : 0;
-      g.fillStyle = ["#e8b87a", "#c98f8f", "#8fa8c9", "#c9b98f", "#a88fc9"][(i + r2 * 3) % 5];
-      g.beginPath(); g.arc(7 + i * 14, ry + 7 + wave, 3.4, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#e8262c"; g.beginPath(); g.arc(80, 148, 4, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#fff"; g.font = "800 11px 'Avenir Next',Arial";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#5b6470"; g.fillText("TOASTER", 112, 265);
+  g.fillStyle = "#fff"; g.font = "800 10px 'Avenir Next',Arial";
+  g.fillText("BUNS ▼", 112, 126);
+}
+
+function drawChute() {
+  g.fillStyle = "#8d97a3"; rr(172, 246, 86, 26, 5); g.fill();          // basket base
+  g.strokeStyle = "#6d7784"; g.lineWidth = 2;
+  for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(178 + i * 24, 222); g.lineTo(178 + i * 24, 248); g.stroke(); }
+  g.beginPath(); g.moveTo(172, 222); g.lineTo(258, 222); g.stroke();
+  for (let i = 0; i < S.buns; i++) drawBunIcon(190 + i * 26, 242, 1.1, true);
+  g.font = "800 11px 'Avenir Next',Arial"; g.textAlign = "center";
+  g.fillStyle = "#5b6470"; g.fillText("BUN BASKET", 215, 265);
+}
+
+function drawGrill(gi, x) {
+  const gr = S.grills[gi];
+  // base
+  const bg = g.createLinearGradient(0, 214, 0, 272);
+  bg.addColorStop(0, "#454c56"); bg.addColorStop(1, "#2b3037");
+  g.fillStyle = bg; rr(x, 214, 146, 58, 8); g.fill();
+  g.fillStyle = "#1d2126"; rr(x + 8, 206, 130, 12, 4); g.fill();       // platen
+  // patties on the platen
+  if (gr.state !== "empty") {
+    const done = gr.state === "done";
+    const p = Math.min(1, gr.t / GRILL_T);
+    const pc = done ? "#6b3f28" : `rgb(${176 - 70 * p|0},${106 - 43 * p|0},${82 - 42 * p|0})`;
+    for (const off of [26, 82]) {
+      g.fillStyle = pc; rr(x + off, 196, 40, 11, 5); g.fill();
+      g.fillStyle = "rgba(0,0,0,.3)";
+      g.fillRect(x + off + 7, 199, 4, 5); g.fillRect(x + off + 19, 199, 4, 5); g.fillRect(x + off + 30, 199, 4, 5);
     }
   }
-  // the heroes who aren't playing get front-row seats
-  const bench = KEYS.filter(k => !ents.some(e2 => e2.key === k));
-  bench.forEach((k, i) => {
-    const bx = W * (0.12 + 0.76 * i / Math.max(1, bench.length - 1));
-    const hop = Math.abs(Math.sin(S.timer * 0.08 + i * 1.7)) * 4;
-    g.save(); g.translate(bx, courtTop() - 8 - hop);
-    g.scale(0.30, 0.30);
-    drawKid(g, 0, 0, CHARS[k], Math.floor(S.timer / 18) % 2, i % 2 ? -1 : 1, false, false);
+  // clamshell lid — rides down over the patties while cooking
+  const p = gr.lid;
+  g.fillStyle = "#2b3037";                                          // hinge posts
+  g.fillRect(x + 12, 152 + p * 46, 9, 62 - p * 40);
+  g.fillRect(x + 125, 152 + p * 46, 9, 62 - p * 40);
+  const lg = g.createLinearGradient(0, 130, 0, 210);
+  lg.addColorStop(0, "#5a626d"); lg.addColorStop(1, "#3a4048");
+  g.fillStyle = lg;
+  rr(x + 4, 138 + p * 50, 138, 62 - p * 34, 9); g.fill();
+  g.fillStyle = "#242930"; rr(x + 54, 128 + p * 50, 38, 12, 6); g.fill();  // handle
+  // steam while cooking
+  if (gr.state === "cook") {
+    g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 3; g.lineCap = "round";
+    for (let i = 0; i < 3; i++) {
+      const ph = (S.timer * 0.05 + i * 2.1) % 3;
+      g.globalAlpha = Math.max(0, 0.7 - ph * 0.25);
+      g.beginPath();
+      const sx = x + 30 + i * 44, sy = 190 - ph * 26;
+      g.moveTo(sx, sy); g.quadraticCurveTo(sx + 6, sy - 8, sx, sy - 16);
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+    // progress bar
+    g.fillStyle = "#1d2126"; rr(x + 18, 234, 110, 10, 5); g.fill();
+    g.fillStyle = "#ffb02a"; rr(x + 18, 234, 110 * Math.min(1, gr.t / GRILL_T), 10, 5); g.fill();
+  }
+  // status lamp + DING
+  g.beginPath(); g.arc(x + 132, 226, 5, 0, Math.PI * 2);
+  g.fillStyle = gr.state === "done" ? "#4ade80" : gr.state === "cook" ? "#ff5e5e" : "#6b7280"; g.fill();
+  if (gr.state === "done") {
+    const b = Math.sin(S.timer * 0.15) * 5;
+    g.font = "900 15px 'Avenir Next',Arial"; g.textAlign = "center";
+    outlineText("DING! TAP ME", x + 73, 116 + b, "#ffd166", 15);
+  }
+  g.fillStyle = "#9aa3ae"; g.font = "800 11px 'Avenir Next',Arial"; g.textAlign = "center";
+  g.fillText("GRILL " + (gi + 1), x + 60, 258);
+}
+
+function drawWarmer() {
+  const gr = g.createLinearGradient(596, 0, 706, 0);
+  gr.addColorStop(0, "#d7dce2"); gr.addColorStop(1, "#a5aeb8");
+  g.fillStyle = gr; rr(596, 140, 110, 132, 8); g.fill();
+  g.strokeStyle = "#77808c"; g.lineWidth = 2; rr(596, 140, 110, 132, 8); g.stroke();
+  g.fillStyle = "#241c10"; rr(608, 154, 86, 88, 6); g.fill();
+  g.fillStyle = "rgba(255,180,60,.18)"; rr(608, 154, 86, 88, 6); g.fill();
+  for (let i = 0; i < S.warm; i++) {
+    const col = i % 2, row = Math.floor(i / 2);
+    g.fillStyle = "#7a4a2b"; rr(616 + col * 42, 228 - row * 20, 36, 10, 5); g.fill();
+    g.fillStyle = "#9a6238"; rr(618 + col * 42, 229 - row * 20, 32, 3, 1.5); g.fill();
+  }
+  g.fillStyle = "#5b6470"; g.font = "800 11px 'Avenir Next',Arial"; g.textAlign = "center";
+  g.fillText("WARMER", 651, 260);
+  g.fillStyle = "#e8262c"; g.beginPath(); g.arc(696, 150, 11, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#fff"; g.font = "900 13px 'Avenir Next',Arial"; g.textBaseline = "middle";
+  g.fillText(String(S.warm), 696, 151);
+}
+
+function drawPass() {
+  // red ORDER UP panel
+  g.fillStyle = "#e8262c"; rr(730, 122, 200, 64, 12); g.fill();
+  drawLogo(760, 152, 1.4, "#f5ede3");
+  g.fillStyle = "#fff"; g.font = "900 19px 'Avenir Next',Arial";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("ORDER UP!", 850, 153);
+  // shelf
+  const sg = g.createLinearGradient(0, 214, 0, 230);
+  sg.addColorStop(0, "#e4e8ec"); sg.addColorStop(1, "#9ba4af");
+  g.fillStyle = sg; rr(722, 214, 216, 14, 4); g.fill();
+  // bell
+  g.fillStyle = "#e8b64a";
+  g.beginPath(); g.arc(754, 208, 12, Math.PI, 0); g.closePath(); g.fill();
+  g.fillStyle = "#c8942e"; rr(742, 206, 24, 5, 2); g.fill();
+  g.fillStyle = "#8a6a1e"; g.beginPath(); g.arc(754, 193, 3, 0, Math.PI * 2); g.fill();
+  // SERVE button
+  const ready = !!S.stack;
+  const pulse = ready ? 1 + Math.sin(S.timer * 0.12) * 0.04 : 1;
+  g.save(); g.translate(846, 252); g.scale(pulse, pulse);
+  g.fillStyle = ready ? "#2fae5e" : "#8a949e"; rr(-64, -19, 128, 38, 19); g.fill();
+  g.fillStyle = "#fff"; g.font = "900 19px 'Avenir Next',Arial";
+  g.fillText("SERVE ✓", 0, 1);
+  g.restore();
+  // a wrapped burger slides onto the pass after serving
+  if (S.serveFx > 0) {
+    const t = 1 - S.serveFx / 50;
+    const y = 208 - Math.sin(t * Math.PI) * 18;
+    g.fillStyle = "#f5ede3"; rr(790 - 14, y - 20, 34, 20, 7); g.fill();
+    drawLogo(807, y - 9, 0.7);
+  }
+}
+
+function drawKitchen() {
+  g.save();
+  g.translate(OX, OY); g.scale(SC, SC);
+  // wall
+  const wg = g.createLinearGradient(0, 0, 0, 322);
+  wg.addColorStop(0, "#dbe0e6"); wg.addColorStop(1, "#b3bac4");
+  g.fillStyle = wg; g.fillRect(0, 0, SW, 322);
+  g.strokeStyle = "rgba(120,130,142,.4)"; g.lineWidth = 2;
+  for (let x = 160; x < SW; x += 160) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 280); g.stroke(); }
+  // vent hood over the grills
+  const hg = g.createLinearGradient(0, 0, 0, 78);
+  hg.addColorStop(0, "#6b7480"); hg.addColorStop(1, "#4a525c");
+  g.fillStyle = hg; g.beginPath();
+  g.moveTo(246, 0); g.lineTo(714, 0); g.lineTo(694, 78); g.lineTo(266, 78);
+  g.closePath(); g.fill();
+  g.fillStyle = "#3a424b";
+  for (let x = 290; x < 670; x += 48) rr(x, 30, 34, 34, 4), g.fill();
+  // back counter
+  const cg = g.createLinearGradient(0, 272, 0, 322);
+  cg.addColorStop(0, "#cfd5db"); cg.addColorStop(1, "#99a2ad");
+  g.fillStyle = cg; g.fillRect(40, 272, SW - 80, 50);
+  g.fillStyle = "#e8ecef"; g.fillRect(40, 272, SW - 80, 6);
+  // floor — the red quarry tiles from dad's kitchen
+  g.fillStyle = "#a8492a"; g.fillRect(0, 322, SW, SH - 322);
+  g.strokeStyle = "#7e3319"; g.lineWidth = 2;
+  for (let y = 322; y <= SH; y += 44) { g.beginPath(); g.moveTo(0, y); g.lineTo(SW, y); g.stroke(); }
+  for (let ro = 0; ro < 6; ro++) {
+    const ty = 322 + ro * 44;
+    if (ty >= SH) break;
+    for (let x = (ro % 2) * 30; x <= SW; x += 60)
+      { g.beginPath(); g.moveTo(x, ty); g.lineTo(x, Math.min(ty + 44, SH)); g.stroke(); }
+  }
+
+  drawToaster(); drawChute(); drawGrill(0, 272); drawGrill(1, 434); drawWarmer(); drawPass();
+
+  // markers over every station we've queued up (first one bounces)
+  queue.forEach((q, qi) => {
+    const st = STATIONS.find(s2 => s2.id === q.id) ||
+      BINS.map(b => ({ id: "bin:" + b.ing, x: b.x, y: b.y, w: b.w })).find(s2 => s2.id === q.id);
+    if (!st) return;
+    const b = qi === 0 ? Math.sin(S.timer * 0.2) * 5 : 0;
+    g.font = "900 26px 'Avenir Next',Arial"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.globalAlpha = qi === 0 ? 1 : 0.45;
+    outlineText("▼", st.x + st.w / 2, st.y - 16 + b, "#ffd166", 26);
+    g.globalAlpha = 1;
+  });
+
+  // the hero at work
+  const walking = Math.abs(hero.tx - hero.x) > 5;
+  g.save();
+  g.translate(hero.x, 414); g.scale(3.1 * heroScale(S.heroKey), 3.1 * heroScale(S.heroKey));
+  drawKid(g, 0, 0, CHARS[S.heroKey], Math.floor(hero.walkT / 6) % 2, hero.facing, false, walking, 0);
+  g.restore();
+
+  // front make-line table
+  const tg = g.createLinearGradient(0, 418, 0, 560);
+  tg.addColorStop(0, "#c8cfd6"); tg.addColorStop(1, "#8f99a4");
+  g.fillStyle = tg; g.fillRect(40, 418, SW - 80, 142);
+  g.fillStyle = "#eef1f4"; g.fillRect(40, 400, SW - 80, 18);
+  g.fillStyle = "#d5dade"; g.fillRect(40, 414, SW - 80, 4);
+
+  // ingredient bins
+  g.textBaseline = "middle";
+  for (const b of BINS) {
+    g.fillStyle = "#aab3bd"; rr(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 8); g.fill();
+    g.fillStyle = "#727d89"; rr(b.x, b.y, b.w, b.h, 6); g.fill();
+    const ic = INGS[b.ing].col;
+    g.fillStyle = ic; rr(b.x + 6, b.y + 8, b.w - 12, b.h - 26, 5); g.fill();
+    // little texture on top of the bin contents
+    g.fillStyle = "rgba(255,255,255,.35)";
+    for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(b.x + 20 + i * 24, b.y + 22 + (i % 2) * 12, 5, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = "#fff"; g.font = "800 11px 'Avenir Next',Arial"; g.textAlign = "center";
+    g.fillText(INGS[b.ing].name, b.x + b.w / 2, b.y + b.h - 9);
+  }
+
+  // tray + the burger being built
+  g.fillStyle = "#f7f3ea"; rr(70, 424, 176, 116, 10); g.fill();
+  g.strokeStyle = "#d8cfc0"; g.lineWidth = 3; rr(70, 424, 176, 116, 10); g.stroke();
+  if (S.stack) {
+    drawStack(S.stack, 158, 526, 130);
+    g.fillStyle = "#b9ae9c"; g.font = "800 10px 'Avenir Next',Arial"; g.textAlign = "center";
+    g.fillText("tap burger = undo", 158, 534);
+  } else {
+    g.fillStyle = "#b9ae9c"; g.font = "800 13px 'Avenir Next',Arial"; g.textAlign = "center";
+    g.fillText("tap BUN BASKET", 158, 470);
+    g.fillText("to start a burger", 158, 488);
+  }
+
+  // confetti
+  for (const p of S.fx) { g.fillStyle = p.c; g.fillRect(p.x - 3, p.y - 3, 6, 6); }
+  g.restore();
+}
+
+/* ------------------------------ KDS + HUD ------------------------------ */
+function drawKDS() {
+  g.fillStyle = "#171c23"; g.fillRect(0, 0, W, KDS_H);
+  g.fillStyle = "#0d1117"; g.fillRect(0, KDS_H - 4, W, 4);
+  const tw = Math.min(Math.max(120, (W - 120) / 3), 262), th = KDS_H - 14;
+  S.tickets.forEach((t, i) => {
+    const x = 8 + i * (tw + 8) + t.ax * W * 0.4, y = 7;
+    const item = ITEMS[t.itemKey];
+    const late = t.age > t.patience;
+    g.save(); rr(x, y, tw, th, 8); g.clip();
+    g.fillStyle = late && (S.timer >> 4) % 2 ? "#3a1518" : "#242c36";
+    rr(x, y, tw, th, 8); g.fill();
+    g.fillStyle = item.col; rr(x, y, tw, 20, 8); g.fill();
+    g.fillStyle = "#242c36"; g.fillRect(x, y + 14, tw, 6);
+    g.font = "900 " + Math.min(13, tw / 11) + "px 'Avenir Next',Arial";
+    g.textAlign = "left"; g.textBaseline = "middle";
+    g.fillStyle = "#fff";
+    g.fillText("#" + t.id + "  " + item.name, x + 8, y + 10);
+    // mini burger picture of exactly what they want
+    const list = buildList(t.need);
+    const sh2 = stackH(list);
+    const sc2 = Math.min(0.42, (th - 34) / sh2);
+    g.save(); g.translate(x + 30, y + th - 12); g.scale(sc2, sc2);
+    const sp = S.stackPop; S.stackPop = 0;
+    drawStack(list, 0, 0, 130);
+    S.stackPop = sp;
+    g.restore();
+    // modifier callouts
+    g.font = "800 " + Math.min(11, tw / 13) + "px 'Avenir Next',Arial";
+    t.mods.forEach((m, mi) => {
+      g.fillStyle = m.t === "no" ? "#ff7a7a" : m.t === "extra" ? "#7ec850" : "#7fb6ff";
+      g.fillText((m.t === "no" ? "✖ " : "＋ ") + modLabel(m), x + 62, y + 30 + mi * 14);
+    });
+    if (!t.mods.length) { g.fillStyle = "#8a94a6"; g.fillText("just the way it comes", x + 62, y + 30); }
+    // patience bar
+    const pr = Math.max(0, 1 - t.age / t.patience);
+    g.fillStyle = "#10151b"; rr(x + 6, y + th - 10, tw - 12, 6, 3); g.fill();
+    g.fillStyle = pr > 0.5 ? "#4ade80" : pr > 0.2 ? "#ffb02a" : "#ff5e5e";
+    if (pr > 0) { rr(x + 6, y + th - 10, (tw - 12) * pr, 6, 3); g.fill(); }
+    if (late) { g.font = "14px Arial"; g.fillText("😠", x + tw - 22, y + th - 14); }
     g.restore();
   });
-  // Peach the pug — the very best ball dog — by the umpire chair
-  g.save(); g.translate(W * 0.05, courtTop() + 10); g.scale(0.5, 0.5);
-  drawPug(g, 0, 0); g.restore();
-
-  const yTop = -CY, yBot = CY;
-  const quad = (x0, x1, y0, y1, col) => {
-    g.fillStyle = col;
-    g.beginPath();
-    g.moveTo(px(x0, y0), py(y0)); g.lineTo(px(x1, y0), py(y0));
-    g.lineTo(px(x1, y1), py(y1)); g.lineTo(px(x0, y1), py(y1));
-    g.closePath(); g.fill();
-  };
-  quad(-CX - 70, CX + 70, yTop - 44, yBot + 44, "#2f6e9e");        // hard-court apron
-  quad(-CX - 70, CX + 70, yTop - 44, yTop - 36, "rgba(255,255,255,.12)");
-  quad(-CX, CX, yTop, yBot, "#3f8f5c");                            // grass
-  // mow stripes + worn patches where everyone runs
-  for (let i = 0; i < 6; i++)
-    quad(-CX, CX, yTop + i * (CY * 2 / 6), yTop + (i + 0.5) * (CY * 2 / 6), "rgba(255,255,255,.05)");
-  for (const wy of [yTop + 60, yBot - 60]) {
-    const wear = g.createRadialGradient(px(0, wy), py(wy), 6, px(0, wy), py(wy), 120 * persp(wy));
-    wear.addColorStop(0, "rgba(190,170,120,.20)"); wear.addColorStop(1, "rgba(190,170,120,0)");
-    g.fillStyle = wear;
-    g.beginPath(); g.ellipse(px(0, wy), py(wy), 150 * persp(wy), 34 * persp(wy), 0, 0, Math.PI * 2); g.fill();
-  }
-  // floodlight sheen across the court
-  const sheen = g.createLinearGradient(0, courtTop(), 0, courtTop() + courtH());
-  sheen.addColorStop(0, "rgba(255,250,220,.10)"); sheen.addColorStop(0.5, "rgba(255,250,220,0)");
-  quad(-CX - 70, CX + 70, yTop - 44, yBot + 44, sheen);
-  // lines
-  const line = (x0, x1, y0, y1) => {
-    g.strokeStyle = "rgba(255,255,255,.92)"; g.lineWidth = Math.max(2, 3 * persp((y0 + y1) / 2));
-    g.beginPath(); g.moveTo(px(x0, y0), py(y0)); g.lineTo(px(x1, y1), py(y1)); g.stroke();
-  };
-  line(-CX, CX, yTop, yTop); line(-CX, CX, yBot, yBot);
-  line(-CX, -CX, yTop, yBot); line(CX, CX, yTop, yBot);
-  line(-CX, CX, yTop / 2, yTop / 2); line(-CX, CX, yBot / 2, yBot / 2);
-  line(0, 0, yTop / 2, yBot / 2);
-  // net with its evening shadow falling toward the near court
-  const nl = px(-CX - 14, 0), nr = px(CX + 14, 0), ny = py(0);
-  g.fillStyle = "rgba(10,16,24,.18)";
-  g.beginPath(); g.moveTo(nl, ny); g.lineTo(nr, ny);
-  g.lineTo(nr - 14, ny + 16); g.lineTo(nl + 14, ny + 16); g.closePath(); g.fill();
-  g.fillStyle = "rgba(20,26,34,.35)";
-  g.fillRect(nl, ny - 26, nr - nl, 26);
-  g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 1;
-  for (let i = 0; i < 9; i++) { g.beginPath(); g.moveTo(nl, ny - 26 + i * 3.2); g.lineTo(nr, ny - 26 + i * 3.2); g.stroke(); }
-  for (let x = nl; x < nr; x += 9) { g.beginPath(); g.moveTo(x, ny - 26); g.lineTo(x, ny); g.stroke(); }
-  g.fillStyle = "#f2ede2"; g.fillRect(nl, ny - 29, nr - nl, 4);
-  g.fillStyle = "#3a3f4a"; g.fillRect(nl - 3, ny - 29, 4, 31); g.fillRect(nr - 1, ny - 29, 4, 31);
-}
-
-function drawBall() {
-  if (!ball) return;
-  // motion trail while the ball is flying fast
-  if (ball.live && ball.trail) {
-    ball.trail.forEach((tp, i) => {
-      const a = (i + 1) / ball.trail.length * 0.35;
-      const tpp = persp(tp.y);
-      g.fillStyle = "rgba(232,255,112," + a.toFixed(2) + ")";
-      g.beginPath(); g.arc(px(tp.x, tp.y), py(tp.y) - tp.z * tpp * 1.15, 5 * tpp * (i + 1) / ball.trail.length, 0, Math.PI * 2); g.fill();
-    });
-  }
-  const p = persp(ball.y), bx = px(ball.x, ball.y), by = py(ball.y);
-  g.fillStyle = "rgba(0,0,0,.3)";
-  g.beginPath(); g.ellipse(bx, by, 6 * p, 2.6 * p, 0, 0, Math.PI * 2); g.fill();
-  const r = 6.4 * p, byz = by - ball.z * p * 1.15;
-  const grad = g.createRadialGradient(bx - r * 0.4, byz - r * 0.4, r * 0.2, bx, byz, r);
-  grad.addColorStop(0, "#f8ff9e"); grad.addColorStop(1, "#c8d834");
-  g.fillStyle = grad;
-  g.beginPath(); g.arc(bx, byz, r, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 1;
-  g.beginPath(); g.arc(bx, byz, r * 0.82, 0.6, 2.2); g.stroke();
-  g.beginPath(); g.arc(bx, byz, r * 0.82, Math.PI + 0.6, Math.PI + 2.2); g.stroke();
-}
-
-function drawFx() {
-  for (const p of fx) {
-    const a = 1 - p.t / 30, sx = px(p.x, p.y), sy = py(p.y) - (p.z || 0) * persp(p.y);
-    g.globalAlpha = Math.max(0, a);
-    if (p.type === "pow") drawStarShape(g, sx, sy, 10 * a + 3, 4, p.t * 0.2, "#fff3a0");
-    else if (p.type === "spark") drawStarShape(g, sx, sy - p.t, 4, 1.8, p.t * 0.3, "#ffd1ec");
-    else if (p.type === "dust") {
-      g.fillStyle = "rgba(255,255,255,.5)";
-      g.beginPath(); g.ellipse(sx, sy, 4 + p.t * 0.8, 2 + p.t * 0.3, 0, 0, Math.PI * 2); g.fill();
-    }
-    g.globalAlpha = 1;
+  if (!S.tickets.length && S.state === "play") {
+    g.fillStyle = "#5b6470"; g.font = "800 14px 'Avenir Next',Arial";
+    g.textAlign = "left"; g.textBaseline = "middle";
+    g.fillText(S.ordersLeft ? "waiting for orders…" : "last orders served!", 14, KDS_H / 2);
   }
 }
 
-function drawScore() {
-  g.textAlign = "center"; g.textBaseline = "middle";
-  const s = Math.min(W / 10, 40);
-  g.font = "900 " + s + "px 'Avenir Next',Arial";
-  outlineText(S.scoreUs + " – " + S.scoreThem, W / 2, Math.max(30, H * 0.045), "#fff", s);
-  g.font = "700 " + Math.min(W / 34, 13) + "px 'Avenir Next',Arial";
-  outlineText("first to " + WIN_PTS + "  •  round " + (S.round + 1) + "/" + ROUNDS, W / 2, Math.max(30, H * 0.045) + s * 0.72, "#cfe8ff");
-  if (S.bannerT > 0) {
-    g.font = "800 " + Math.min(W / 16, 24) + "px 'Avenir Next',Arial";
-    g.globalAlpha = Math.min(1, S.bannerT / 20);
-    outlineText(S.pointBanner, W / 2, H * 0.32, "#ffd166");
-    g.globalAlpha = 1;
-  }
-}
-
-/* ---------- selection screens ---------- */
-function drawCardGrid(list, drawOne, label) {
-  S.cards = [];
-  g.textAlign = "center"; g.textBaseline = "middle";
-  g.font = "900 " + Math.min(W / 12, 34) + "px 'Avenir Next',Arial";
-  outlineText(label, W / 2, H * 0.14, "#ffd166");
-  const n = list.length, perRow = n <= 4 ? n : Math.ceil(n / 2), rows = Math.ceil(n / perRow);
-  const gap = Math.min(10, W * 0.016);
-  const cw = Math.min((W * 0.94 - (perRow - 1) * gap) / perRow, 120, H * 0.26);
-  const ch = Math.min(cw * 1.22, H * 0.26);
-  const cy0 = H * 0.5 - (rows * ch + (rows - 1) * 10) / 2 + 20;
-  list.forEach((item, i) => {
-    const row = Math.floor(i / perRow), idx = i - row * perRow;
-    const inRow = row === rows - 1 ? n - perRow * (rows - 1) : perRow;
-    const rowW = inRow * cw + (inRow - 1) * gap, startX = W / 2 - rowW / 2;
-    const sx = startX + idx * (cw + gap), sy = cy0 + row * (ch + 10);
-    const bounce = Math.sin(S.timer * 0.08 + i * 2) * 3;
-    g.fillStyle = "rgba(255,255,255,.93)";
-    rr(sx, sy, cw, ch, 12); g.fill();
-    drawOne(item, sx, sy, cw, ch, bounce, i);
-  });
-}
-function drawMode() {
-  const sky = g.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, "#1c3a5e"); sky.addColorStop(1, "#2e7d46");
-  g.fillStyle = sky; g.fillRect(0, 0, W, H);
-  g.textAlign = "center"; g.textBaseline = "middle";
-  g.font = "900 " + Math.min(W / 16, 30) + "px 'Avenir Next',Arial";
-  outlineText("How do you want to play?", W / 2, H * 0.16, "#ffd166");
-  S.cards = [];
-  const gap = Math.min(14, W * 0.02);
-  const cw = Math.min((W * 0.94 - gap * 2) / 3, 210), ch = Math.min(H * 0.28, 220);
-  const modes = [
-    { solo: false, single: false, emoji: "👭", title: "Two Players", sub: "sisters together!", col: "#ff8ec4" },
-    { solo: true,  single: false, emoji: "🤖", title: "One Player",  sub: "+ a magic buddy",   col: "#7fb6ff" },
-    { solo: false, single: true,  emoji: "🎾", title: "One on One",  sub: "just you vs a rival", col: "#7ec850" },
-  ];
-  const startX = W / 2 - (cw * 3 + gap * 2) / 2;
-  modes.forEach((m2, i) => {
-    const sx = startX + i * (cw + gap), sy = H * 0.22;
-    const bounce = Math.sin(S.timer * 0.08 + i * 2) * 3;
-    g.fillStyle = "rgba(255,255,255,.93)";
-    rr(sx, sy + bounce, cw, ch, 16); g.fill();
-    g.lineWidth = 4; g.strokeStyle = m2.col;
-    rr(sx, sy + bounce, cw, ch, 16); g.stroke();
-    g.font = (ch * 0.26) + "px 'Avenir Next',Arial";
-    g.fillText(m2.emoji, sx + cw / 2, sy + bounce + ch * 0.3);
-    let fs = Math.min(cw / 7, 22);
-    g.font = "900 " + fs + "px 'Avenir Next',Arial";
-    while (g.measureText(m2.title).width > cw - 10 && fs > 8) { fs -= 0.5; g.font = "900 " + fs + "px 'Avenir Next',Arial"; }
-    g.fillStyle = "#2a3a55";
-    g.fillText(m2.title, sx + cw / 2, sy + bounce + ch * 0.6);
-    let fs2 = Math.min(cw / 10, 14);
-    g.font = "700 " + fs2 + "px 'Avenir Next',Arial";
-    while (g.measureText(m2.sub).width > cw - 8 && fs2 > 7) { fs2 -= 0.5; g.font = "700 " + fs2 + "px 'Avenir Next',Arial"; }
-    g.fillStyle = "#6a7a96";
-    g.fillText(m2.sub, sx + cw / 2, sy + bounce + ch * 0.78);
-    S.cards.push({ solo: m2.solo, single: m2.single, sx, sy, sw: cw, sh: ch });
-  });
-  g.font = "700 " + Math.min(W / 30, 14) + "px 'Avenir Next',Arial";
-  outlineText("buddies play by themselves • one on one is all you!", W / 2, H * 0.22 + ch + 26, "#cfe8ff");
-  // speed toggles — how fast the ball flies and everyone runs (kept high
-  // on the screen so phone toolbars never cover them)
-  S.speedChips = [];
-  const rows2 = [ { which: "ballSpd", label: "🎾 ball", muls: BALL_MULS },
-                  { which: "runSpd", label: "🏃 running", muls: RUN_MULS } ];
-  const chipW = Math.min(W * 0.15, 62), chipH = Math.min(H * 0.055, 44), chipGap = 8;
-  const rowsTop = H * 0.22 + ch + 48;
-  rows2.forEach((row, ri) => {
-    const ry = rowsTop + ri * (chipH + 22);
-    g.font = "800 " + Math.min(W / 26, 15) + "px 'Avenir Next',Arial";
-    g.textAlign = "right"; g.textBaseline = "middle";
-    outlineText(row.label, W / 2 - chipW * 1.5 - chipGap - 12, ry + chipH / 2, "#fff");
-    g.textAlign = "center";
-    SPEED_LABELS.forEach((label, oi) => {
-      const mul = row.muls[oi];
-      const x = W / 2 - (chipW * 1.5 + chipGap) + oi * (chipW + chipGap);
-      const sel = Math.abs(S[row.which] - mul) < 0.01;
-      g.fillStyle = sel ? "#ffd166" : "rgba(255,255,255,.25)";
-      rr(x, ry, chipW, chipH, chipH / 2); g.fill();
-      if (sel) { g.lineWidth = 2.5; g.strokeStyle = "#fff"; rr(x, ry, chipW, chipH, chipH / 2); g.stroke(); }
-      g.font = (chipH * 0.55) + "px 'Avenir Next',Arial";
-      g.fillText(label, x + chipW / 2, ry + chipH / 2 + 1);
-      S.speedChips.push({ which: row.which, mul, x, y: ry, w: chipW, h: chipH });
-    });
-  });
+function drawHUD() {
+  const y = H - 26;
+  g.font = "900 15px 'Avenir Next',Arial"; g.textBaseline = "middle";
+  g.fillStyle = "rgba(20,26,32,.55)";
+  rr(W - 304, y - 15, 108, 30, 15); g.fill();
+  rr(W - 188, y - 15, 76, 30, 15); g.fill();
+  rr(W - 104, y - 15, 96, 30, 15); g.fill();
   g.textAlign = "center";
+  g.fillStyle = "#ffd166"; g.fillText(fmt$(S.coins), W - 250, y + 1);
+  g.fillStyle = "#fff"; g.fillText("DAY " + S.day, W - 150, y + 1);
+  g.fillStyle = "#9ef0c0"; g.fillText("🧾 " + (S.ordersLeft + S.tickets.length), W - 56, y + 1);
+
+  if (S.hint) {
+    g.font = "800 " + Math.min(16, W / 28) + "px 'Avenir Next',Arial";
+    const tw2 = g.measureText(S.hint.text).width + 30;
+    g.fillStyle = "rgba(232,38,44,.92)";
+    rr(W / 2 - tw2 / 2, KDS_H + 8, tw2, 32, 16); g.fill();
+    g.fillStyle = "#fff"; g.textAlign = "center";
+    g.fillText(S.hint.text, W / 2, KDS_H + 25);
+  }
+  if (S.banner) {
+    const a = Math.min(1, (130 - S.banner.t) / 12, S.banner.t / 20);
+    g.save(); g.globalAlpha = a;
+    const bw = Math.min(W * 0.8, 420);
+    g.fillStyle = "rgba(255,255,255,.95)";
+    rr(W / 2 - bw / 2, H * 0.32, bw, 86, 18); g.fill();
+    g.textAlign = "center";
+    g.font = "34px Arial"; g.fillText(S.banner.emoji, W / 2 - bw / 2 + 44, H * 0.32 + 44);
+    g.font = "900 " + Math.min(19, bw / 22) + "px 'Avenir Next',Arial";
+    g.fillStyle = "#2a3a55"; g.fillText(S.banner.text, W / 2 + 22, H * 0.32 + 32);
+    g.font = "900 22px 'Avenir Next',Arial";
+    g.fillStyle = "#2fae5e"; g.fillText("+" + fmt$(S.banner.pay), W / 2 + 22, H * 0.32 + 62);
+    g.restore();
+  }
+}
+
+/* ------------------------------ screens ------------------------------ */
+function creamBG() {
+  g.fillStyle = "#f5ede3"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#e8262c"; g.fillRect(0, 0, W, 8); g.fillRect(0, H - 8, W, 8);
+}
+function drawTitleLogo(cy, s) {
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = "900 " + s + "px 'Avenir Next',Arial";
+  const t1 = "F", t23 = "CE PLANT";
+  const w1 = g.measureText(t1).width, w2 = g.measureText(t23).width, aw = s * 0.8;
+  const total = w1 + aw + w2, x0 = W / 2 - total / 2;
+  g.fillStyle = "#e8262c"; g.textAlign = "left";
+  g.fillText(t1, x0, cy);
+  drawLogo(x0 + w1 + aw / 2, cy + s * 0.06, s / 26);
+  g.fillText(t23, x0 + w1 + aw, cy);
+  g.textAlign = "center";
+}
+function drawTitle() {
+  creamBG();
+  const s = Math.min(W / 8.4, 86);
+  drawTitleLogo(H * 0.16, s);
+  g.font = "800 " + Math.min(W / 34, 17) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#8a4b2f";
+  g.fillText("100% PLANT BASED  •  DAD'S WORK  •  AT YOUR SERVICE", W / 2, H * 0.16 + s * 0.72);
+
+  // the three burgers you'll be building, menu-board style
+  const cards = [["ry"], ["fancy"], ["dfancy"]];
+  const cw = Math.min(W * 0.28, 190), chh = Math.min(H * 0.34, 230), gap = Math.min(16, W * 0.02);
+  const x0 = W / 2 - (cw * 3 + gap * 2) / 2, y0 = H * 0.30;
+  cards.forEach((c, i) => {
+    const key = c[0], item = ITEMS[key];
+    const x = x0 + i * (cw + gap), b = Math.sin(S.timer * 0.06 + i * 2) * 4;
+    g.fillStyle = "#fff"; rr(x, y0 + b, cw, chh, 14); g.fill();
+    g.strokeStyle = "#e8262c"; g.lineWidth = 4; rr(x, y0 + b, cw, chh, 14); g.stroke();
+    const list = buildList(item.recipe);
+    const sc2 = Math.min((cw - 40) / 150, (chh - 90) / stackH(list));
+    g.save(); g.translate(x + cw / 2, y0 + b + chh - 66); g.scale(sc2, sc2);
+    drawStack(list, 0, 0, 130); g.restore();
+    g.font = "900 " + Math.min(cw / 9, 19) + "px 'Avenir Next',Arial";
+    g.fillStyle = "#e8262c"; g.fillText(item.name, x + cw / 2, y0 + b + chh - 42);
+    g.font = "900 " + Math.min(cw / 10, 17) + "px 'Avenir Next',Arial";
+    g.fillStyle = "#2a3a55"; g.fillText(fmt$(item.price), x + cw / 2, y0 + b + chh - 18);
+  });
+
+  g.font = "900 " + Math.min(W / 20, 26) + "px 'Avenir Next',Arial";
+  if ((S.timer >> 5) % 2) { g.fillStyle = "#e8262c"; g.fillText("TAP TO CLOCK IN!", W / 2, H * 0.82); }
+  if (S.best > 0) {
+    g.font = "800 " + Math.min(W / 32, 15) + "px 'Avenir Next',Arial";
+    g.fillStyle = "#8a4b2f"; g.fillText("best day: " + fmt$(S.best), W / 2, H * 0.89);
+  }
+  g.font = "800 " + Math.min(W / 36, 13) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#b9a08c"; g.fillText("nuggies coming soon!", W / 2, H * 0.95);
 }
 
 function drawPick() {
-  const sky = g.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, "#1c3a5e"); sky.addColorStop(1, "#2e7d46");
-  g.fillStyle = sky; g.fillRect(0, 0, W, H);
-  const who = S.stage < 2 ? ((S.solo || S.single) ? "You" : "Player 1") : (S.solo ? "Your buddy 🤖" : "Player 2");
-  if (S.stage === 0 || S.stage === 2) {
-    const taken = S.stage === 2 ? [S.players[0].key] : [];
-    const list = KEYS.filter(k => !taken.includes(k));
-    drawCardGrid(list, (k, sx, sy, cw, ch, bounce) => {
-      g.lineWidth = 3.5; g.strokeStyle = NAME_COL[k]; rr(sx, sy, cw, ch, 12); g.stroke();
-      g.save(); g.translate(sx + cw / 2, sy + ch * 0.62 + bounce);
-      const ks = (cw / 48) * (k === "nora" ? 1.5 : 1);
-      g.scale(ks, ks);
-      drawKid(g, 0, 0, CHARS[k], Math.floor(S.timer / 20) % 2, 1, false, true);
-      g.restore();
-      let nm = CHARS[k].name, fs = cw / 7;
-      g.font = "900 " + fs + "px 'Avenir Next',Arial";
-      while (g.measureText(nm).width > cw - 12 && fs > 6) { fs -= 0.5; g.font = "900 " + fs + "px 'Avenir Next',Arial"; }
-      const tw2 = g.measureText(nm).width, pillH = fs + 6, pillW = Math.min(cw - 4, tw2 + 12);
-      g.fillStyle = NAME_COL[k];
-      rr(sx + cw / 2 - pillW / 2, sy + ch - cw / 9 - pillH / 2, pillW, pillH, pillH / 2); g.fill();
-      g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
-      g.fillText(nm, sx + cw / 2, sy + ch - cw / 9 + 0.5);
-      S.cards.push({ key: k, sx, sy, sw: cw, sh: ch });
-    }, who + " — pick your hero!");
-  } else {
-    drawCardGrid(RACKETS, (r, sx, sy, cw, ch, bounce, i) => {
-      g.lineWidth = 3.5; g.strokeStyle = r.head === "rainbow" ? "#9b6cff" : r.head; rr(sx, sy, cw, ch, 12); g.stroke();
-      g.save(); g.translate(sx + cw / 2, sy + ch * 0.52 + bounce); g.scale(cw / 44, cw / 44);
-      drawRacket({ racket: i, face: 1, swingT: 0 }, 1.5);
-      g.restore();
-      g.font = "900 " + cw / 7.2 + "px 'Avenir Next',Arial";
-      g.fillStyle = "#2a3a55"; g.textAlign = "center"; g.textBaseline = "middle";
-      g.fillText(r.name, sx + cw / 2, sy + ch - cw / 8);
-      S.cards.push({ idx: i, sx, sy, sw: cw, sh: ch });
-    }, who + " — pick your stick!");
-  }
-  g.font = "700 " + Math.min(W / 26, 15) + "px 'Avenir Next',Arial";
-  outlineText(S.stage < 2 ? (S.single ? "one on one — all yours!" : S.solo ? "then pick your teammate!" : "then it's your sister's turn!")
-                          : "almost ready to play!", W / 2, H * 0.9, "#cfe8ff");
-}
-
-function drawBracket() {
-  const sky = g.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, "#1c3a5e"); sky.addColorStop(1, "#2e7d46");
-  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  creamBG();
+  S.cards = [];
   g.textAlign = "center"; g.textBaseline = "middle";
-  g.font = "900 " + Math.min(W / 10, 40) + "px 'Avenir Next',Arial";
-  outlineText(S.round + 1 >= ROUNDS ? "🏆 THE FINAL!" : "Round " + (S.round + 1), W / 2, H * 0.16, "#ffd166");
-  const duo = (keysArr, y, label) => {
-    keysArr.forEach((k, i) => {
-      g.save(); g.translate(W / 2 + (keysArr.length === 1 ? 0 : (i ? 60 : -60)), y);
-      const ks = (Math.min(W, H) / 130) * (k === "nora" ? 1.5 : 1) * 0.8;
-      g.scale(ks, ks);
-      drawKid(g, 0, 0, CHARS[k], Math.floor(S.timer / 18) % 2, i ? -1 : 1, false, false);
-      g.restore();
-    });
-    g.font = "800 " + Math.min(W / 18, 20) + "px 'Avenir Next',Arial";
-    outlineText(label, W / 2, y + 26, "#fff");
-  };
-  const usKeys = S.single ? [S.players[0].key] : [S.players[0].key, S.players[1].key];
-  duo(usKeys, H * 0.38, S.single ? CHARS[S.players[0].key].name : "Jules & Nora's team");
-  g.font = "900 " + Math.min(W / 12, 30) + "px 'Avenir Next',Arial";
-  outlineText("VS", W / 2, H * 0.52, "#ff8ab0");
-  duo(S.rivals, H * 0.68, S.rivals.map(k => CHARS[k].name).join(" & "));
-  if (Math.floor(S.timer / 30) % 2 === 0) {
-    g.font = "700 " + Math.min(W / 22, 17) + "px 'Avenir Next',Arial";
-    outlineText("tap to play!", W / 2, H * 0.88, "#aee0ff");
-  }
-}
-
-function drawMatchEnd() {
-  g.fillStyle = "rgba(20,30,55,.7)"; g.fillRect(0, 0, W, H);
-  g.textAlign = "center"; g.textBaseline = "middle";
-  const won = S.scoreUs >= WIN_PTS;
-  g.font = "900 " + Math.min(W / 9, 46) + "px 'Avenir Next',Arial";
-  outlineText(won ? "YOU WIN! " + S.scoreUs + "–" + S.scoreThem : "So close! " + S.scoreUs + "–" + S.scoreThem,
-    W / 2, H * 0.3, won ? "#ffd166" : "#fff");
-  g.font = "700 " + Math.min(W / 20, 20) + "px 'Avenir Next',Arial";
-  outlineText(won ? (S.round + 1 >= ROUNDS ? "tap for the trophy!" : "tap for the next round!") : "tap to try again!",
-    W / 2, H * 0.45, "#aee0ff");
-  if (won) {
-    (S.single ? [S.players[0].key] : [S.players[0].key, S.players[1].key]).forEach((k, i) => {
-      const hop = Math.abs(Math.sin(S.timer * 0.12 + i)) * 16;
-      g.save(); g.translate(W / 2 + (S.single ? 0 : i ? 70 : -70), H * 0.68 - hop);
-      const ks = (Math.min(W, H) / 120) * (k === "nora" ? 1.5 : 1);
-      g.scale(ks, ks);
-      drawKid(g, 0, 0, CHARS[k], Math.floor(S.timer / 14) % 2, i ? -1 : 1, true, false);
-      g.restore();
-    });
-  }
-}
-
-function drawChampion() {
-  const sky = g.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, "#2a1c5e"); sky.addColorStop(1, "#1c3a5e");
-  g.fillStyle = sky; g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 30; i++) {
-    const cy2 = ((S.timer * (1.5 + (i % 5) * 0.5) + i * 97) % (H + 40)) - 20;
-    g.fillStyle = ["#ff6b9d", "#4dabf7", "#ffd43b", "#69db7c", "#b197fc"][i % 5];
-    g.save(); g.translate((i * 137) % W, cy2); g.rotate(S.timer * 0.05 + i);
-    g.fillRect(-4, -2, 8, 4); g.restore();
-  }
-  g.textAlign = "center"; g.textBaseline = "middle";
-  g.font = "900 " + Math.min(W / 9, 56) + "px 'Avenir Next',Arial";
-  outlineText(S.single ? "🏆 CHAMPION!" : "🏆 CHAMPIONS!", W / 2, H * 0.13, "#ffd166");
-  g.font = "700 " + Math.min(W / 18, 22) + "px 'Avenir Next',Arial";
-  outlineText(S.single ? CHARS[S.players[0].key].name + " wins the whole tournament!" : "Jules & Nora win the whole tournament!", W / 2, H * 0.24, "#fff");
-  g.font = "900 " + Math.min(W / 8, 52) + "px 'Avenir Next',Arial";
-  outlineText("🏆", W / 2, H * 0.38, "#ffd166");
-  (S.single ? [S.players[0].key] : [S.players[0].key, S.players[1].key]).forEach((k, i) => {
-    const hop = Math.abs(Math.sin(S.timer * 0.11 + i)) * 14;
-    g.save(); g.translate(W / 2 + (S.single ? 0 : (i ? 1 : -1) * Math.min(W * 0.18, 110)), H * 0.74 - hop);
-    const ks = (Math.min(W, H) / 150) * (k === "nora" ? 1.5 : 1);
+  g.font = "900 " + Math.min(W / 14, 32) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#e8262c"; g.fillText("Who's working today?", W / 2, H * 0.11);
+  const n = KEYS.length, perRow = Math.ceil(n / 2), rows = 2;
+  const gap = Math.min(10, W * 0.014);
+  const cw = Math.min((W * 0.95 - (perRow - 1) * gap) / perRow, 118, H * 0.3);
+  const chh = Math.min(cw * 1.24, H * 0.3);
+  const cy0 = H * 0.52 - (rows * chh + 12) / 2;
+  KEYS.forEach((k, i) => {
+    const row = Math.floor(i / perRow), idx = i - row * perRow;
+    const inRow = row === rows - 1 ? n - perRow : perRow;
+    const rowW = inRow * cw + (inRow - 1) * gap, startX = W / 2 - rowW / 2;
+    const sx = startX + idx * (cw + gap), sy = cy0 + row * (chh + 12);
+    const bounce = Math.sin(S.timer * 0.08 + i * 2) * 3;
+    g.fillStyle = "#fff"; rr(sx, sy, cw, chh, 12); g.fill();
+    g.lineWidth = 3.5; g.strokeStyle = NAME_COL[k]; rr(sx, sy, cw, chh, 12); g.stroke();
+    g.save(); g.translate(sx + cw / 2, sy + chh * 0.62 + bounce);
+    const ks = (cw / 48) * (k === "nora" ? 1.5 : 1);
     g.scale(ks, ks);
-    drawKid(g, 0, 0, CHARS[k], Math.floor(S.timer / 14) % 2, i ? -1 : 1, true, false);
+    drawKid(g, 0, 0, CHARS[k], Math.floor(S.timer / 20) % 2, 1, false, true);
     g.restore();
+    let nm = CHARS[k].name, fs = cw / 7;
+    g.font = "900 " + fs + "px 'Avenir Next',Arial";
+    while (g.measureText(nm).width > cw - 12 && fs > 6) { fs -= 0.5; g.font = "900 " + fs + "px 'Avenir Next',Arial"; }
+    const tw2 = g.measureText(nm).width, pillH = fs + 6, pillW = Math.min(cw - 4, tw2 + 12);
+    g.fillStyle = NAME_COL[k];
+    rr(sx + cw / 2 - pillW / 2, sy + chh - cw / 9 - pillH / 2, pillW, pillH, pillH / 2); g.fill();
+    g.fillStyle = "#fff";
+    g.fillText(nm, sx + cw / 2, sy + chh - cw / 9 + 0.5);
+    S.cards.push({ key: k, sx, sy, sw: cw, sh: chh });
   });
-  g.save(); g.translate(W / 2, H * 0.75); g.scale(1.1, 1.1); drawPug(g, 0, 0); g.restore();
-  if (S.timer > 90 && Math.floor(S.timer / 30) % 2 === 0) {
-    g.font = "700 " + Math.min(W / 22, 17) + "px 'Avenir Next',Arial";
-    outlineText("tap to play again", W / 2, H * 0.88, "#aee0ff");
-  }
+  g.font = "800 " + Math.min(W / 28, 15) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#8a4b2f"; g.fillText("everyone can work the make line!", W / 2, H * 0.93);
 }
 
-function drawTitle() {
-  const sky = g.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, "#1c3a5e"); sky.addColorStop(0.5, "#2e567e"); sky.addColorStop(1, "#2e7d46");
-  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+function drawDayIntro() {
+  creamBG();
   g.textAlign = "center"; g.textBaseline = "middle";
-  const big = Math.min(W / 7, 58);
-  g.font = "900 " + big + "px 'Avenir Next',Arial";
-  outlineText("MAGIC TENNIS", W / 2, H * 0.18, "#c8ff6a", big);
-  g.font = "700 " + Math.min(W / 24, 17) + "px 'Avenir Next',Arial";
-  outlineText("✨ doubles, together — by Jules & Nora ✨", W / 2, H * 0.18 + big * 0.8, "#fff");
-  // two heroes rallying on the title
-  const t = S.timer, bx2 = W / 2 + Math.sin(t * 0.04) * W * 0.22;
-  const bz = Math.abs(Math.sin(t * 0.08)) * 60;
-  g.save(); g.translate(W * 0.24, H * 0.62); g.scale(1.6, 1.6);
-  drawKid(g, 0, 0, CHARS.nora, Math.floor(t / 16) % 2, 1, false, true); g.restore();
-  g.save(); g.translate(W * 0.76, H * 0.62); g.scale(0.95, 0.95);
-  drawKid(g, 0, 0, CHARS.chunmi, Math.floor(t / 16) % 2, -1, false, true); g.restore();
-  g.fillStyle = "#e8ff70";
-  g.beginPath(); g.arc(bx2, H * 0.52 - bz, 7, 0, Math.PI * 2); g.fill();
-  g.font = "800 " + Math.min(W / 15, 26) + "px 'Avenir Next',Arial";
-  outlineText("two players, one team 🎾", W / 2, H * 0.78, "#ffd166");
-  if (Math.floor(t / 30) % 2 === 0) {
-    g.font = "700 " + Math.min(W / 20, 18) + "px 'Avenir Next',Arial";
-    outlineText("tap to start", W / 2, H * 0.86, "#aee0ff");
+  g.font = "900 " + Math.min(W / 9, 58) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#e8262c"; g.fillText("DAY " + S.day, W / 2, H * 0.16);
+  g.font = "800 " + Math.min(W / 24, 19) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#2a3a55";
+  g.fillText(dayOrders(S.day) + " orders today", W / 2, H * 0.25);
+  const items = dayItems(S.day);
+  const newKey = S.day === 2 ? "fancy" : S.day === 3 ? "dfancy" : null;
+  const cw = Math.min(W * 0.24, 150), chh = Math.min(H * 0.3, 190), gap = 14;
+  const x0 = W / 2 - (items.length * cw + (items.length - 1) * gap) / 2, y0 = H * 0.31;
+  items.forEach((key, i) => {
+    const item = ITEMS[key], x = x0 + i * (cw + gap);
+    g.fillStyle = "#fff"; rr(x, y0, cw, chh, 12); g.fill();
+    g.strokeStyle = key === newKey ? "#2fae5e" : "#e8262c"; g.lineWidth = 4; rr(x, y0, cw, chh, 12); g.stroke();
+    const list = buildList(item.recipe);
+    const sc2 = Math.min((cw - 34) / 150, (chh - 70) / stackH(list));
+    g.save(); g.translate(x + cw / 2, y0 + chh - 44); g.scale(sc2, sc2);
+    drawStack(list, 0, 0, 130); g.restore();
+    let fs = Math.min(cw / 8.5, 15);
+    g.font = "900 " + fs + "px 'Avenir Next',Arial";
+    while (g.measureText(item.name).width > cw - 12 && fs > 7) { fs -= 0.5; g.font = "900 " + fs + "px 'Avenir Next',Arial"; }
+    g.fillStyle = "#e8262c"; g.fillText(item.name, x + cw / 2, y0 + chh - 22);
+    if (key === newKey) {
+      g.fillStyle = "#2fae5e"; rr(x + cw / 2 - 26, y0 - 10, 52, 20, 10); g.fill();
+      g.fillStyle = "#fff"; g.font = "900 12px 'Avenir Next',Arial"; g.fillText("NEW!", x + cw / 2, y0);
+    }
+  });
+  g.font = "800 " + Math.min(W / 30, 15) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#8a4b2f";
+  if (S.day === 1) {
+    const steps = ["1. Tap TOASTER to toast buns", "2. Tap a GRILL to cook patties (they go to the WARMER)",
+                   "3. Bun basket starts a burger — add toppings from the bins", "4. Tap SERVE at the pass when it matches the ticket!"];
+    steps.forEach((s2, i) => g.fillText(s2, W / 2, H * 0.31 + Math.min(H * 0.3, 190) + 30 + i * 22));
+  } else {
+    g.fillText(S.day === 2 ? "watch the tickets — modifiers start today!" : "up to TWO modifiers per ticket — read carefully!", W / 2, H * 0.31 + Math.min(H * 0.3, 190) + 34);
   }
+  g.font = "900 " + Math.min(W / 20, 24) + "px 'Avenir Next',Arial";
+  if ((S.timer >> 5) % 2) { g.fillStyle = "#e8262c"; g.fillText("TAP TO START YOUR SHIFT", W / 2, H * 0.9); }
 }
 
-function drawPlay() {
-  drawCourt();
-  // far team first, then ball & near team (painter's order)
-  const sorted = [...ents].sort((a, b) => a.y - b.y);
-  for (const e of sorted) { if (e.y < 0) drawAthlete(e); }
-  drawBall();
-  drawFx();
-  for (const e of sorted) { if (e.y >= 0) drawAthlete(e); }
-  drawScore();
-  // touch guide, fading after the start
-  if (S.timer < 240) {
-    g.globalAlpha = Math.max(0, Math.min(1, (240 - S.timer) / 60));
-    if (!S.solo && !S.single) {
-      g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 2; g.setLineDash([8, 8]);
-      g.beginPath(); g.moveTo(W / 2, py(10)); g.lineTo(W / 2, H); g.stroke(); g.setLineDash([]);
-    }
-    g.font = "700 " + Math.min(W / 24, 15) + "px 'Avenir Next',Arial";
-    g.textAlign = "center";
-    if (S.single) {
-      outlineText("👆 drag anywhere — the whole court is yours!", W / 2, H * 0.88, "#fff");
-    } else if (S.solo) {
-      outlineText("👆 drag anywhere — " + CHARS[S.players[0].key].name, W / 2, H * 0.88, "#fff");
-      outlineText("🤖 " + CHARS[S.players[1].key].name + " plays by herself!", W / 2, H * 0.93, "#aee0ff");
-    } else {
-      outlineText("👆 " + CHARS[S.players[0].key].name, W * 0.25, H * 0.9, "#fff");
-      outlineText(CHARS[S.players[1].key].name + " 👆", W * 0.75, H * 0.9, "#fff");
-    }
-    g.globalAlpha = 1;
+function drawDayEnd() {
+  creamBG();
+  S.cards = [];
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = "900 " + Math.min(W / 11, 46) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#e8262c"; g.fillText("DAY " + S.day + " DONE!", W / 2, H * 0.14);
+  for (let i = 0; i < 3; i++) {
+    const on = i < S.stars, b = on ? Math.sin(S.timer * 0.1 + i) * 3 : 0;
+    drawStarShape(g, W / 2 + (i - 1) * Math.min(W * 0.14, 74), H * 0.27 + b,
+      Math.min(W * 0.055, 28), Math.min(W * 0.024, 12.5), 0,
+      on ? "#ffd166" : "#e2d5c2", on ? "#d99e2b" : "#cbbda6");
   }
+  g.font = "900 " + Math.min(W / 16, 30) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#2fae5e"; g.fillText("+" + fmt$(S.dayCoins), W / 2, H * 0.4);
+  g.font = "800 " + Math.min(W / 26, 17) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#2a3a55";
+  g.fillText(S.perfect + " of " + S.served + " burgers were PERFECT", W / 2, H * 0.47);
+  g.fillStyle = "#8a4b2f";
+  g.fillText("register total: " + fmt$(S.coins), W / 2, H * 0.53);
+  // the shift-manager pug approves
+  g.save(); g.translate(W / 2 - Math.min(W * 0.2, 130), H * 0.66); g.scale(3, 3);
+  drawPug(g, 0, 0); g.restore();
+  g.font = "800 " + Math.min(W / 30, 14) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#8a4b2f";
+  g.fillText(S.stars === 3 ? "the manager pug is SO proud!" : S.stars === 2 ? "the manager pug wags happily" : "the manager pug believes in you", W / 2 + 30, H * 0.66 - 10);
+  const bw = Math.min(W * 0.5, 260), bh = Math.min(H * 0.1, 54), bx = W / 2 - bw / 2, by = H * 0.78;
+  g.fillStyle = "#e8262c"; rr(bx, by, bw, bh, bh / 2); g.fill();
+  g.fillStyle = "#fff"; g.font = "900 " + Math.min(bh * 0.44, 22) + "px 'Avenir Next',Arial";
+  g.fillText("NEXT DAY ▶", W / 2, by + bh / 2 + 1);
+  S.cards.push({ next: true, sx: bx, sy: by, sw: bw, sh: bh });
 }
-
-/* ------------------------------ games menu ------------------------------ */
-const gBtn = document.getElementById("gamesBtn"), gMenu = document.getElementById("gamesMenu");
-gBtn.addEventListener("click", e => { e.stopPropagation(); gMenu.hidden = !gMenu.hidden; });
-document.addEventListener("pointerdown", e => {
-  if (!gMenu.hidden && !gMenu.contains(e.target) && e.target !== gBtn) gMenu.hidden = true;
-});
 
 /* ------------------------------ main loop ------------------------------ */
-function frameLoop() {
-  update();
+function render() {
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
   g.clearRect(0, 0, W, H);
   if (S.state === "title") drawTitle();
-  else if (S.state === "mode") drawMode();
   else if (S.state === "pick") drawPick();
-  else if (S.state === "bracket") drawBracket();
-  else if (S.state === "champion") drawChampion();
-  else { drawPlay(); if (S.state === "matchend") drawMatchEnd(); }
-  requestAnimationFrame(frameLoop);
+  else if (S.state === "dayIntro") drawDayIntro();
+  else if (S.state === "dayEnd") drawDayEnd();
+  else {
+    g.fillStyle = "#f5ede3"; g.fillRect(0, 0, W, H);
+    drawKitchen(); drawKDS(); drawHUD();
+  }
 }
-frameLoop();
+function frame() { update(); render(); requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+
+/* ------------------------------ input ------------------------------ */
+function playTap(sx, sy) {
+  const p = toScene(sx, sy);
+  let hit = null;
+  for (const b of BINS)
+    if (p.x >= b.x - 4 && p.x <= b.x + b.w + 4 && p.y >= b.y - 6 && p.y <= SH) hit = "bin:" + b.ing;
+  if (!hit) for (const st of STATIONS)
+    if (p.x >= st.x && p.x <= st.x + st.w && p.y >= st.y && p.y <= st.y + st.h) hit = st.id;
+  if (!hit) return;
+  if (queue.length >= 5 || (queue.length && queue[queue.length - 1].id === hit)) return;
+  SFX.tap();
+  const rect = STATIONS.find(s2 => s2.id === hit);
+  const cx = rect ? rect.x + rect.w / 2 : BINS.find(b => "bin:" + b.ing === hit).x + 44;
+  queue.push({ id: hit, tx: Math.max(70, Math.min(890, cx)) });
+}
+cv.addEventListener("pointerdown", e => {
+  e.preventDefault(); audio();
+  const x = e.clientX, y = e.clientY;
+  if (S.state === "title") { S.state = "pick"; SFX.select(); }
+  else if (S.state === "pick") {
+    for (const c of S.cards)
+      if (x >= c.sx && x <= c.sx + c.sw && y >= c.sy && y <= c.sy + c.sh) {
+        S.heroKey = c.key; S.coins = 0; SFX.select(); startDay(1); return;
+      }
+  } else if (S.state === "dayIntro") beginShift();
+  else if (S.state === "dayEnd") {
+    for (const c of S.cards)
+      if (x >= c.sx && x <= c.sx + c.sw && y >= c.sy && y <= c.sy + c.sh) {
+        SFX.select(); startDay(S.day + 1); return;
+      }
+  } else playTap(x, y);
+}, { passive: false });
+window.addEventListener("keydown", e => {
+  audio();
+  if (e.code === "Space" || e.code === "Enter") {
+    if (S.state === "title") { S.state = "pick"; SFX.select(); }
+    else if (S.state === "dayIntro") beginShift();
+    else if (S.state === "dayEnd") { SFX.select(); startDay(S.day + 1); }
+  }
+});
+// block 1-finger scroll; keep 2-finger pinch so the page can be un-zoomed
+document.addEventListener("touchmove", e => { if (e.touches.length < 2) e.preventDefault(); }, { passive: false });
+let lastTouchEnd = 0;
+document.addEventListener("touchend", e => {
+  const tnow = Date.now();
+  if (tnow - lastTouchEnd < 350) e.preventDefault();
+  lastTouchEnd = tnow;
+}, { passive: false });
+</script>
+<script>
+(function () {
+  var b = document.getElementById("gamesBtn"), m = document.getElementById("gamesMenu");
+  b.addEventListener("click", function (e) { e.stopPropagation(); m.hidden = !m.hidden; });
+  document.addEventListener("pointerdown", function (e) {
+    if (!m.hidden && !m.contains(e.target) && e.target !== b) m.hidden = true;
+  });
+})();
 </script>
 </body>
 </html>
