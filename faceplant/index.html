@@ -1635,21 +1635,23 @@ const fmt$ = n => "$" + n.toFixed(2);
 
 /* ------------------------------ the menu ------------------------------ */
 const INGS = {
-  patty:   { name:"PATTY",   col:"#6b3f28", h:15 },
-  cheese:  { name:"CHEESE",  col:"#ffc93c", h:8  },
-  sauce:   { name:"SAUCE",   col:"#f0a05a", h:6  },
-  ketchup: { name:"KETCHUP", col:"#e63b3b", h:6  },
-  lettuce: { name:"LETTUCE", col:"#7ec850", h:10 },
-  tomato:  { name:"TOMATO",  col:"#ef4d3d", h:8  },
-  onion:   { name:"ONION",   col:"#e9def0", h:6  },
-  pickles: { name:"PICKLES", col:"#4f9e3f", h:8  },
+  patty:   { name:"PATTY",       col:"#6b3f28", h:15 },
+  cheese:  { name:"CHEESE",      col:"#ffc93c", h:8  },
+  sauce:   { name:"FANCY SAUCE", col:"#f0a05a", h:6  },
+  ketchup: { name:"KETCHUP",     col:"#e63b3b", h:6  },
+  mustard: { name:"MUSTARD",     col:"#eebc1d", h:6  },
+  lettuce: { name:"LETTUCE",     col:"#7ec850", h:10 },
+  tomato:  { name:"TOMATO",      col:"#ef4d3d", h:8  },
+  onion:   { name:"ONION",       col:"#e9def0", h:6  },
+  pickles: { name:"PICKLES",     col:"#4f9e3f", h:8  },
 };
-const BIN_ORDER = ["sauce","ketchup","lettuce","tomato","onion","pickles","cheese"];
-/* Recipes straight from the Face Plant menu board.
-   NUGGIE (crispy nugget sandwich, $8.99) is coming in a later update! */
+const BIN_ORDER = ["sauce","ketchup","mustard","lettuce","tomato","onion","pickles","cheese"];
+/* Recipes straight from the Face Plant menu board — red & yellow means
+   ketchup AND mustard. NUGGIE (crispy nugget sandwich, $8.99) is coming in a
+   later update! */
 const ITEMS = {
   ry:     { name:"RED & YELLOW", price:4.49, col:"#e8a020",
-            recipe:{ ketchup:1, pickles:1, cheese:1, patty:1 } },
+            recipe:{ ketchup:1, mustard:1, pickles:1, cheese:1, patty:1 } },
   fancy:  { name:"FANCY",        price:7.49, col:"#e0508c",
             recipe:{ sauce:1, lettuce:1, tomato:1, onion:1, pickles:1, cheese:1, patty:1 } },
   dfancy: { name:"DOUBLE FANCY", price:8.99, col:"#9b6cff",
@@ -1668,16 +1670,21 @@ function layout() {
 }
 const toScene = (sx, sy) => ({ x: (sx - OX) / SC, y: (sy - OY) / SC });
 
-const BINS = BIN_ORDER.map((ing, i) => ({ ing, x: 262 + i * 96, y: 424, w: 88, h: 84 }));
+/* the real line order: grills → warmer → toaster (bun slot in its base) →
+   build station, with the pass at the far right */
+const BINS = BIN_ORDER.map((ing, i) => ({ ing, x: 52 + i * 86, y: 424, w: 80, h: 84 }));
+const BUILD_X = 830;   // where the hero stands to build — all build taps walk here
 const STATIONS = [
-  { id:"toaster", x: 56,  y: 100, w: 112, h: 180 },
-  { id:"chute",   x: 170, y: 200, w: 90,  h: 80  },
-  { id:"grill0",  x: 266, y: 128, w: 158, h: 152 },
-  { id:"grill1",  x: 428, y: 128, w: 158, h: 152 },
-  { id:"warmer",  x: 590, y: 128, w: 122, h: 152 },
-  { id:"pass",    x: 716, y: 108, w: 228, h: 172 },
-  { id:"tray",    x: 58,  y: 400, w: 200, h: 158 },
+  { id:"grill0",   x: 54,  y: 128, w: 158, h: 152 },
+  { id:"grill1",   x: 216, y: 128, w: 158, h: 152 },
+  { id:"warmer",   x: 378, y: 128, w: 122, h: 152 },
+  { id:"toaster",  x: 504, y: 100, w: 112, h: 132 },
+  { id:"bunslot",  x: 500, y: 232, w: 120, h: 48  },
+  { id:"pass",     x: 650, y: 108, w: 294, h: 172 },
+  { id:"tray",     x: 742, y: 400, w: 134, h: 158 },
+  { id:"topbun",   x: 880, y: 410, w: 58,  h: 110 },
 ];
+const BUILD_IDS = ["bunslot","warmer","tray","topbun"];   // + every bin
 
 const TOAST_T = 140, GRILL_T = 300, WARM_MAX = 8, BUN_MAX = 3;
 
@@ -1691,7 +1698,7 @@ const S = {
   warm: 0,
   stack: null, stackPop: 0,
   served: 0, perfect: 0, dayCoins: 0, stars: 0,
-  banner: null, hint: null, fx: [], cards: [], serveFx: 0,
+  banner: null, hint: null, fx: [], cards: [], serveFx: 0, recipeTip: null,
 };
 try { S.best = parseFloat(localStorage.getItem("fpBestDay")) || 0; } catch (e) {}
 const hero = { x: 480, tx: 480, facing: 1, walkT: 0 };
@@ -1749,7 +1756,7 @@ function startDay(d) {
   S.grills = [ { state:"empty", t:0, lid:0 }, { state:"empty", t:0, lid:0 } ];
   S.warm = 0; S.stack = null;
   S.served = 0; S.perfect = 0; S.dayCoins = 0;
-  S.banner = null; S.hint = null; S.fx = []; S.serveFx = 0;
+  S.banner = null; S.hint = null; S.fx = []; S.serveFx = 0; S.recipeTip = null;
   hero.x = hero.tx = 480; queue = [];
   S.state = "dayIntro";
 }
@@ -1778,12 +1785,14 @@ function endDay() {
 /* ------------------------------ actions ------------------------------ */
 function hint(text) { S.hint = { text, t: 120 }; }
 
+function capped() { return !!S.stack && S.stack[S.stack.length - 1] === "crown"; }
+
 function doAction(id) {
   if (id === "toaster") {
     if (S.toast.active) hint("Toasting…");
-    else if (S.buns >= BUN_MAX) { hint("Bun basket is full!"); SFX.buzz(); }
+    else if (S.buns >= BUN_MAX) { hint("Bun slot is full!"); SFX.buzz(); }
     else { S.toast = { active:true, t:0 }; SFX.pop(); }
-  } else if (id === "chute") {
+  } else if (id === "bunslot") {
     if (S.stack) { hint("Burger already started — build it!"); SFX.buzz(); }
     else if (S.buns > 0) { S.buns--; S.stack = ["heel"]; S.stackPop = 12; SFX.add(0); }
     else { hint("Toast a bun first!"); SFX.buzz(); }
@@ -1797,14 +1806,20 @@ function doAction(id) {
     }
   } else if (id === "warmer") {
     if (!S.stack) { hint("Start with a toasted bun!"); SFX.buzz(); }
+    else if (capped()) { hint("Top bun is on — serve it!"); SFX.buzz(); }
     else if (S.warm > 0) { S.warm--; S.stack.push("patty"); S.stackPop = 12; SFX.add(5); }
     else { hint("Grill some patties!"); SFX.buzz(); }
   } else if (id.startsWith("bin:")) {
     const ing = id.slice(4);
     if (!S.stack) { hint("Start with a toasted bun!"); SFX.buzz(); }
+    else if (capped()) { hint("Top bun is on — serve it!"); SFX.buzz(); }
     else { S.stack.push(ing); S.stackPop = 12; SFX.add(BIN_ORDER.indexOf(ing)); }
+  } else if (id === "topbun") {
+    if (!S.stack) { hint("Start a burger first!"); SFX.buzz(); }
+    else if (capped()) { hint("Top bun is already on!"); SFX.buzz(); }
+    else { S.stack.push("crown"); S.stackPop = 14; SFX.pop(); }
   } else if (id === "tray") {
-    if (!S.stack) hint("Tap the bun basket to start a burger!");
+    if (!S.stack) hint("Tap the toaster's bun slot to start a burger!");
     else if (S.stack.length > 1) { const top = S.stack.pop(); if (top === "patty") S.warm = Math.min(WARM_MAX, S.warm + 1); S.stackPop = 8; SFX.undo(); }
     else { S.stack = null; SFX.undo(); hint("Burger cancelled"); }
   } else if (id === "pass") {
@@ -1819,6 +1834,7 @@ function stackCounts() {
 }
 function serveBurger() {
   if (!S.stack) { hint("Nothing to serve — build a burger!"); SFX.buzz(); return; }
+  if (!capped()) { hint("Put the TOP BUN on first!"); SFX.buzz(); return; }
   if (!S.tickets.length) { hint("No orders on the screen yet!"); SFX.buzz(); return; }
   const have = stackCounts();
   let best = null, bestErr = 1e9;
@@ -1851,6 +1867,7 @@ function serveBurger() {
   else if (fast && bestErr === 0) text += " +$1 tip!";
   S.coins += pay; S.dayCoins += pay; S.served++;
   S.tickets = S.tickets.filter(t => t !== best);
+  if (S.recipeTip === best) S.recipeTip = null;
   S.banner = { emoji, text, pay, t: 130 };
   S.stack = null; S.serveFx = 50;
   SFX.bell();
@@ -1989,7 +2006,7 @@ function drawStack(list, cx, baseY, w) {
 function buildList(need) {
   // the house build: sauce on the heel, patty & cheese, produce on top
   const list = ["heel"];
-  for (const k of ["sauce","ketchup"])
+  for (const k of ["sauce","ketchup","mustard"])
     for (let i = 0; i < (need[k] || 0); i++) list.push(k);
   const p = need.patty || 0, ch = need.cheese || 0, n = Math.max(p, ch);
   for (let i = 0; i < n; i++) { if (i < p) list.push("patty"); if (i < ch) list.push("cheese"); }
@@ -2025,36 +2042,31 @@ function drawBunIcon(x, y, s, toasted) {
 }
 
 function drawToaster() {
-  const gr = g.createLinearGradient(62, 0, 162, 0);
+  const gr = g.createLinearGradient(510, 0, 610, 0);
   gr.addColorStop(0, "#e4e8ec"); gr.addColorStop(0.5, "#c2c9d1"); gr.addColorStop(1, "#9ba4af");
-  g.fillStyle = gr; rr(62, 108, 100, 164, 10); g.fill();
-  g.strokeStyle = "#77808c"; g.lineWidth = 2; rr(62, 108, 100, 164, 10); g.stroke();
-  g.fillStyle = "#2a2f36"; rr(76, 118, 72, 15, 6); g.fill();          // in-slot
-  g.fillStyle = "#2a2f36"; rr(76, 240, 72, 16, 6); g.fill();          // out-slot
+  g.fillStyle = gr; rr(510, 108, 100, 164, 10); g.fill();
+  g.strokeStyle = "#77808c"; g.lineWidth = 2; rr(510, 108, 100, 164, 10); g.stroke();
+  g.fillStyle = "#2a2f36"; rr(524, 118, 72, 15, 6); g.fill();          // in-slot
   // glass strip — watch the bun ride down
-  g.fillStyle = "#414a55"; rr(92, 140, 40, 96, 6); g.fill();
+  g.fillStyle = "#414a55"; rr(540, 140, 40, 82, 6); g.fill();
   if (S.toast.active) {
     const p = S.toast.t / TOAST_T;
     g.fillStyle = "rgba(255,150,60," + (0.25 + 0.15 * Math.sin(S.timer * 0.3)) + ")";
-    rr(92, 140, 40, 96, 6); g.fill();
-    drawBunIcon(112, 158 + p * 72, 1, p > 0.6);
+    rr(540, 140, 40, 82, 6); g.fill();
+    drawBunIcon(560, 156 + p * 60, 1, p > 0.6);
   }
-  g.fillStyle = "#e8262c"; g.beginPath(); g.arc(80, 148, 4, 0, Math.PI * 2); g.fill();
-  g.fillStyle = "#fff"; g.font = "800 11px 'Avenir Next',Arial";
+  g.fillStyle = "#e8262c"; g.beginPath(); g.arc(528, 148, 4, 0, Math.PI * 2); g.fill();
   g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillStyle = "#5b6470"; g.fillText("TOASTER", 112, 265);
   g.fillStyle = "#fff"; g.font = "800 10px 'Avenir Next',Arial";
-  g.fillText("BUNS ▼", 112, 126);
-}
-
-function drawChute() {
-  g.fillStyle = "#8d97a3"; rr(172, 246, 86, 26, 5); g.fill();          // basket base
-  g.strokeStyle = "#6d7784"; g.lineWidth = 2;
-  for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(178 + i * 24, 222); g.lineTo(178 + i * 24, 248); g.stroke(); }
-  g.beginPath(); g.moveTo(172, 222); g.lineTo(258, 222); g.stroke();
-  for (let i = 0; i < S.buns; i++) drawBunIcon(190 + i * 26, 242, 1.1, true);
-  g.font = "800 11px 'Avenir Next',Arial"; g.textAlign = "center";
-  g.fillStyle = "#5b6470"; g.fillText("BUN BASKET", 215, 265);
+  g.fillText("BUNS ▼", 560, 126);
+  // the bun slot built into the toaster's base — toasted buns land here
+  g.fillStyle = "#333941"; rr(516, 232, 88, 34, 6); g.fill();
+  g.fillStyle = "#20252b"; rr(520, 236, 80, 26, 5); g.fill();
+  for (let i = 0; i < S.buns; i++) drawBunIcon(535 + i * 25, 257, 1, true);
+  g.fillStyle = "#ffd166"; g.font = "800 8px 'Avenir Next',Arial";
+  g.fillText("BUN SLOT", 560, 228);
+  g.fillStyle = "#5b6470"; g.font = "800 10px 'Avenir Next',Arial";
+  g.fillText("TOASTER", 560, 280);
 }
 
 function drawGrill(gi, x) {
@@ -2114,42 +2126,42 @@ function drawGrill(gi, x) {
 }
 
 function drawWarmer() {
-  const gr = g.createLinearGradient(596, 0, 706, 0);
+  const gr = g.createLinearGradient(384, 0, 494, 0);
   gr.addColorStop(0, "#d7dce2"); gr.addColorStop(1, "#a5aeb8");
-  g.fillStyle = gr; rr(596, 140, 110, 132, 8); g.fill();
-  g.strokeStyle = "#77808c"; g.lineWidth = 2; rr(596, 140, 110, 132, 8); g.stroke();
-  g.fillStyle = "#241c10"; rr(608, 154, 86, 88, 6); g.fill();
-  g.fillStyle = "rgba(255,180,60,.18)"; rr(608, 154, 86, 88, 6); g.fill();
+  g.fillStyle = gr; rr(384, 140, 110, 132, 8); g.fill();
+  g.strokeStyle = "#77808c"; g.lineWidth = 2; rr(384, 140, 110, 132, 8); g.stroke();
+  g.fillStyle = "#241c10"; rr(396, 154, 86, 88, 6); g.fill();
+  g.fillStyle = "rgba(255,180,60,.18)"; rr(396, 154, 86, 88, 6); g.fill();
   for (let i = 0; i < S.warm; i++) {
     const col = i % 2, row = Math.floor(i / 2);
-    g.fillStyle = "#7a4a2b"; rr(616 + col * 42, 228 - row * 20, 36, 10, 5); g.fill();
-    g.fillStyle = "#9a6238"; rr(618 + col * 42, 229 - row * 20, 32, 3, 1.5); g.fill();
+    g.fillStyle = "#7a4a2b"; rr(404 + col * 42, 228 - row * 20, 36, 10, 5); g.fill();
+    g.fillStyle = "#9a6238"; rr(406 + col * 42, 229 - row * 20, 32, 3, 1.5); g.fill();
   }
   g.fillStyle = "#5b6470"; g.font = "800 11px 'Avenir Next',Arial"; g.textAlign = "center";
-  g.fillText("WARMER", 651, 260);
-  g.fillStyle = "#e8262c"; g.beginPath(); g.arc(696, 150, 11, 0, Math.PI * 2); g.fill();
+  g.fillText("WARMER", 439, 260);
+  g.fillStyle = "#e8262c"; g.beginPath(); g.arc(484, 150, 11, 0, Math.PI * 2); g.fill();
   g.fillStyle = "#fff"; g.font = "900 13px 'Avenir Next',Arial"; g.textBaseline = "middle";
-  g.fillText(String(S.warm), 696, 151);
+  g.fillText(String(S.warm), 484, 151);
 }
 
 function drawPass() {
   // red ORDER UP panel
-  g.fillStyle = "#e8262c"; rr(730, 122, 200, 64, 12); g.fill();
-  drawLogo(760, 152, 1.4, "#f5ede3");
+  g.fillStyle = "#e8262c"; rr(664, 122, 266, 64, 12); g.fill();
+  drawLogo(696, 152, 1.4, "#f5ede3");
   g.fillStyle = "#fff"; g.font = "900 19px 'Avenir Next',Arial";
   g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillText("ORDER UP!", 850, 153);
+  g.fillText("ORDER UP!", 816, 153);
   // shelf
   const sg = g.createLinearGradient(0, 214, 0, 230);
   sg.addColorStop(0, "#e4e8ec"); sg.addColorStop(1, "#9ba4af");
-  g.fillStyle = sg; rr(722, 214, 216, 14, 4); g.fill();
+  g.fillStyle = sg; rr(656, 214, 284, 14, 4); g.fill();
   // bell
   g.fillStyle = "#e8b64a";
-  g.beginPath(); g.arc(754, 208, 12, Math.PI, 0); g.closePath(); g.fill();
-  g.fillStyle = "#c8942e"; rr(742, 206, 24, 5, 2); g.fill();
-  g.fillStyle = "#8a6a1e"; g.beginPath(); g.arc(754, 193, 3, 0, Math.PI * 2); g.fill();
-  // SERVE button
-  const ready = !!S.stack;
+  g.beginPath(); g.arc(688, 208, 12, Math.PI, 0); g.closePath(); g.fill();
+  g.fillStyle = "#c8942e"; rr(676, 206, 24, 5, 2); g.fill();
+  g.fillStyle = "#8a6a1e"; g.beginPath(); g.arc(688, 193, 3, 0, Math.PI * 2); g.fill();
+  // SERVE button — lights up once the top bun is on
+  const ready = capped();
   const pulse = ready ? 1 + Math.sin(S.timer * 0.12) * 0.04 : 1;
   g.save(); g.translate(846, 252); g.scale(pulse, pulse);
   g.fillStyle = ready ? "#2fae5e" : "#8a949e"; rr(-64, -19, 128, 38, 19); g.fill();
@@ -2160,8 +2172,8 @@ function drawPass() {
   if (S.serveFx > 0) {
     const t = 1 - S.serveFx / 50;
     const y = 208 - Math.sin(t * Math.PI) * 18;
-    g.fillStyle = "#f5ede3"; rr(790 - 14, y - 20, 34, 20, 7); g.fill();
-    drawLogo(807, y - 9, 0.7);
+    g.fillStyle = "#f5ede3"; rr(740 - 14, y - 20, 34, 20, 7); g.fill();
+    drawLogo(757, y - 9, 0.7);
   }
 }
 
@@ -2198,7 +2210,7 @@ function drawKitchen() {
       { g.beginPath(); g.moveTo(x, ty); g.lineTo(x, Math.min(ty + 44, SH)); g.stroke(); }
   }
 
-  drawToaster(); drawChute(); drawGrill(0, 272); drawGrill(1, 434); drawWarmer(); drawPass();
+  drawGrill(0, 60); drawGrill(1, 222); drawWarmer(); drawToaster(); drawPass();
 
   // markers over every station we've queued up (first one bounces)
   queue.forEach((q, qi) => {
@@ -2236,22 +2248,41 @@ function drawKitchen() {
     // little texture on top of the bin contents
     g.fillStyle = "rgba(255,255,255,.35)";
     for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(b.x + 20 + i * 24, b.y + 22 + (i % 2) * 12, 5, 0, Math.PI * 2); g.fill(); }
-    g.fillStyle = "#fff"; g.font = "800 11px 'Avenir Next',Arial"; g.textAlign = "center";
+    g.textAlign = "center";
+    let bfs = 11; g.font = "800 " + bfs + "px 'Avenir Next',Arial";
+    while (g.measureText(INGS[b.ing].name).width > b.w - 8 && bfs > 6.5)
+      { bfs -= 0.5; g.font = "800 " + bfs + "px 'Avenir Next',Arial"; }
+    g.fillStyle = "#fff";
     g.fillText(INGS[b.ing].name, b.x + b.w / 2, b.y + b.h - 9);
   }
 
-  // tray + the burger being built
-  g.fillStyle = "#f7f3ea"; rr(70, 424, 176, 116, 10); g.fill();
-  g.strokeStyle = "#d8cfc0"; g.lineWidth = 3; rr(70, 424, 176, 116, 10); g.stroke();
+  // BUILD STATION — the burger gets built here, at the end of the line
+  g.fillStyle = "#e8262c"; rr(748, 398, 186, 17, 8); g.fill();
+  g.fillStyle = "#fff"; g.font = "900 10px 'Avenir Next',Arial"; g.textAlign = "center";
+  g.fillText("BUILD STATION", 841, 407);
+  g.fillStyle = "#f7f3ea"; rr(746, 424, 132, 116, 10); g.fill();
+  g.strokeStyle = "#d8cfc0"; g.lineWidth = 3; rr(746, 424, 132, 116, 10); g.stroke();
   if (S.stack) {
-    drawStack(S.stack, 158, 526, 130);
+    drawStack(S.stack, 812, 526, 130);
     g.fillStyle = "#b9ae9c"; g.font = "800 10px 'Avenir Next',Arial"; g.textAlign = "center";
-    g.fillText("tap burger = undo", 158, 534);
+    g.fillText("tap burger = undo", 812, 534);
   } else {
-    g.fillStyle = "#b9ae9c"; g.font = "800 13px 'Avenir Next',Arial"; g.textAlign = "center";
-    g.fillText("tap BUN BASKET", 158, 470);
-    g.fillText("to start a burger", 158, 488);
+    g.fillStyle = "#b9ae9c"; g.font = "800 12px 'Avenir Next',Arial"; g.textAlign = "center";
+    g.fillText("tap the BUN SLOT", 812, 470);
+    g.fillText("to start a burger", 812, 488);
   }
+  // the waiting top bun — tap it to cap the burger
+  const wantCap = S.stack && S.stack.length > 1 && !capped();
+  g.fillStyle = "#f7f3ea"; rr(884, 452, 52, 60, 9); g.fill();
+  g.strokeStyle = wantCap ? "#e8262c" : "#d8cfc0"; g.lineWidth = 2.5; rr(884, 452, 52, 60, 9); g.stroke();
+  if (!capped() && S.stack) {
+    const bob = wantCap ? Math.sin(S.timer * 0.15) * 2.5 : 0;
+    drawBunIcon(910, 488 + bob, 1.7, true);
+  } else if (!S.stack) {
+    g.globalAlpha = 0.3; drawBunIcon(910, 488, 1.7, true); g.globalAlpha = 1;
+  }
+  g.fillStyle = wantCap ? "#e8262c" : "#8a949e"; g.font = "800 9px 'Avenir Next',Arial"; g.textAlign = "center";
+  g.fillText("TOP BUN", 910, 524);
 
   // confetti
   for (const p of S.fx) { g.fillStyle = p.c; g.fillRect(p.x - 3, p.y - 3, 6, 6); }
@@ -2259,10 +2290,11 @@ function drawKitchen() {
 }
 
 /* ------------------------------ KDS + HUD ------------------------------ */
+function ticketW() { return Math.min(Math.max(120, (W - 120) / 3), 262); }
 function drawKDS() {
   g.fillStyle = "#171c23"; g.fillRect(0, 0, W, KDS_H);
   g.fillStyle = "#0d1117"; g.fillRect(0, KDS_H - 4, W, 4);
-  const tw = Math.min(Math.max(120, (W - 120) / 3), 262), th = KDS_H - 14;
+  const tw = ticketW(), th = KDS_H - 14;
   S.tickets.forEach((t, i) => {
     const x = 8 + i * (tw + 8) + t.ax * W * 0.4, y = 7;
     const item = ITEMS[t.itemKey];
@@ -2291,7 +2323,7 @@ function drawKDS() {
       g.fillStyle = m.t === "no" ? "#ff7a7a" : m.t === "extra" ? "#7ec850" : "#7fb6ff";
       g.fillText((m.t === "no" ? "✖ " : "＋ ") + modLabel(m), x + tw * 0.44, y + 30 + mi * 14);
     });
-    if (!t.mods.length) { g.fillStyle = "#8a94a6"; g.fillText("just the way it comes", x + tw * 0.44, y + 30); }
+    if (!t.mods.length) { g.fillStyle = "#8a94a6"; g.fillText("tap me for the build!", x + tw * 0.44, y + 30); }
     // patience bar
     const pr = Math.max(0, 1 - t.age / t.patience);
     g.fillStyle = "#10151b"; rr(x + 6, y + th - 10, tw - 12, 6, 3); g.fill();
@@ -2341,6 +2373,45 @@ function drawHUD() {
     g.fillStyle = "#2fae5e"; g.fillText("+" + fmt$(S.banner.pay), W / 2 + 22, H * 0.32 + 62);
     g.restore();
   }
+}
+
+/* tap a KDS ticket → a build card showing exactly how the burger goes together */
+function drawRecipeTip() {
+  const t = S.recipeTip;
+  if (!t || !S.tickets.includes(t)) { S.recipeTip = null; return; }
+  const item = ITEMS[t.itemKey];
+  g.fillStyle = "rgba(10,14,18,.55)"; g.fillRect(0, 0, W, H);
+  // the steps, bottom bun first, sized before the card so the card fits them
+  const list = buildList(t.need);
+  const steps = [["TOASTED BUN", 1]];
+  for (let i = 1; i < list.length - 1; i++) {
+    const nm = INGS[list[i]].name, last = steps[steps.length - 1];
+    if (last[0] === nm) last[1]++; else steps.push([nm, 1]);
+  }
+  steps.push(["TOP BUN", 1]);
+  const w = Math.min(W * 0.88, 500);
+  const h = Math.min(H * 0.8, Math.max(240, 96 + steps.length * 26));
+  const x = W / 2 - w / 2, y = Math.max(KDS_H * 0.4, (H - h) / 2);
+  g.fillStyle = "#fff"; rr(x, y, w, h, 16); g.fill();
+  g.fillStyle = item.col; rr(x, y, w, 38, 16); g.fill(); g.fillRect(x, y + 22, w, 16);
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#fff"; g.font = "900 " + Math.min(17, w / 20) + "px 'Avenir Next',Arial";
+  g.fillText("#" + t.id + "  " + item.name + " — the build", x + w / 2, y + 19);
+  // the finished burger, big, on the left
+  const sc2 = Math.min(1.4, (w * 0.4 - 24) / 146, (h - 82) / stackH(list));
+  g.save(); g.translate(x + w * 0.24, y + (h + 38) / 2 + stackH(list) * sc2 / 2 - 6); g.scale(sc2, sc2);
+  const sp = S.stackPop; S.stackPop = 0; drawStack(list, 0, 0, 130); S.stackPop = sp;
+  g.restore();
+  const lx = x + w * 0.47, lstep = Math.min(26, (h - 96) / steps.length);
+  g.textAlign = "left";
+  g.font = "800 " + Math.min(15, lstep * 0.72) + "px 'Avenir Next',Arial";
+  steps.forEach((s2, i) => {
+    const ly = y + 58 + i * lstep;
+    g.fillStyle = "#8a94a6"; g.fillText((i + 1) + ".", lx, ly);
+    g.fillStyle = "#2a3a55"; g.fillText(s2[0] + (s2[1] > 1 ? "  ×" + s2[1] : ""), lx + 24, ly);
+  });
+  g.textAlign = "center"; g.font = "800 " + Math.min(12, w / 38) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#8a94a6"; g.fillText("tap anywhere to close", x + w / 2, y + h - 14);
 }
 
 /* ------------------------------ screens ------------------------------ */
@@ -2467,8 +2538,9 @@ function drawDayIntro() {
   g.font = "800 " + Math.min(W / 30, 15) + "px 'Avenir Next',Arial";
   g.fillStyle = "#8a4b2f";
   if (S.day === 1) {
-    const steps = ["1. Tap TOASTER to toast buns", "2. Tap a GRILL to cook patties (they go to the WARMER)",
-                   "3. Bun basket starts a burger — add toppings from the bins", "4. Tap SERVE at the pass when it matches the ticket!"];
+    const steps = ["1. Tap a GRILL to cook patties — they go to the WARMER", "2. Tap the TOASTER — buns drop into its BUN SLOT",
+                   "3. Tap the BUN SLOT to start a burger at the BUILD STATION", "4. Add toppings, tap the TOP BUN to cap it, then SERVE!",
+                   "TIP: tap any ticket on the screen to see how to build it"];
     steps.forEach((s2, i) => g.fillText(s2, W / 2, H * 0.31 + Math.min(H * 0.3, 190) + 30 + i * 22));
   } else {
     g.fillText(S.day === 2 ? "watch the tickets — modifiers start today!" : "up to TWO modifiers per ticket — read carefully!", W / 2, H * 0.31 + Math.min(H * 0.3, 190) + 34);
@@ -2519,7 +2591,7 @@ function render() {
   else if (S.state === "dayEnd") drawDayEnd();
   else {
     g.fillStyle = "#f5ede3"; g.fillRect(0, 0, W, H);
-    drawKitchen(); drawKDS(); drawHUD();
+    drawKitchen(); drawKDS(); drawHUD(); drawRecipeTip();
   }
 }
 function frame() { update(); render(); requestAnimationFrame(frame); }
@@ -2536,9 +2608,11 @@ function playTap(sx, sy) {
   if (!hit) return;
   if (queue.length >= 5 || (queue.length && queue[queue.length - 1].id === hit)) return;
   SFX.tap();
-  const rect = STATIONS.find(s2 => s2.id === hit);
-  const cx = rect ? rect.x + rect.w / 2 : BINS.find(b => "bin:" + b.ing === hit).x + 44;
-  queue.push({ id: hit, tx: Math.max(70, Math.min(890, cx)) });
+  // building happens at the build station — every build tap walks the hero there
+  let tx;
+  if (hit.startsWith("bin:") || BUILD_IDS.includes(hit)) tx = BUILD_X;
+  else { const rect = STATIONS.find(s2 => s2.id === hit); tx = rect.x + rect.w / 2; }
+  queue.push({ id: hit, tx: Math.max(70, Math.min(890, tx)) });
 }
 cv.addEventListener("pointerdown", e => {
   e.preventDefault(); audio();
@@ -2555,7 +2629,15 @@ cv.addEventListener("pointerdown", e => {
       if (x >= c.sx && x <= c.sx + c.sw && y >= c.sy && y <= c.sy + c.sh) {
         SFX.select(); startDay(S.day + 1); return;
       }
-  } else playTap(x, y);
+  } else {
+    if (S.recipeTip) { S.recipeTip = null; SFX.tap(); return; }
+    if (y < KDS_H) {                      // tap a ticket → show its build card
+      const tw = ticketW(), i = Math.floor((x - 8) / (tw + 8));
+      if (i >= 0 && i < S.tickets.length && x - 8 - i * (tw + 8) <= tw) { S.recipeTip = S.tickets[i]; SFX.chime(); }
+      return;
+    }
+    playTap(x, y);
+  }
 }, { passive: false });
 window.addEventListener("keydown", e => {
   audio();
