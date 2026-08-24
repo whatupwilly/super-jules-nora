@@ -1641,7 +1641,7 @@ const INGS = {
   ketchup: { name:"KETCHUP",     col:"#e63b3b", h:6  },
   mustard: { name:"MUSTARD",     col:"#eebc1d", h:6  },
   lettuce: { name:"LETTUCE",     col:"#7ec850", h:10 },
-  tomato:  { name:"TOMATO",      col:"#ef4d3d", h:8  },
+  tomato:  { name:"TOMATO",      col:"#ef4d3d", h:12 },
   onion:   { name:"ONION",       col:"#e9def0", h:6  },
   pickles: { name:"PICKLES",     col:"#4f9e3f", h:8  },
 };
@@ -1952,20 +1952,24 @@ function drawLayerAt(cx, yb, w, ing) {
     return 8;
   }
   if (ing === "lettuce") {
+    // ruffled edge — tucked in tight so it never hides the layer below
     g.fillStyle = c;
-    const n = 6, rw = (w + 10) / n;
+    const n = 6, rw = (w + 8) / n;
     for (let i = 0; i < n; i++) {
       g.beginPath();
-      g.arc(cx - (w + 10)/2 + rw * (i + 0.5), yb - 4, rw * 0.62, 0, Math.PI * 2);
+      g.arc(cx - (w + 8)/2 + rw * (i + 0.5), yb - 5.5, rw * 0.46, 0, Math.PI * 2);
       g.fill();
     }
     g.fillStyle = "#95d96a"; rr(cx - w/2, yb - 10, w, 5, 2); g.fill();
     return 10;
   }
   if (ing === "tomato") {
-    g.fillStyle = c; rr(cx - w/2 + 5, yb - 8, w - 10, 8, 4); g.fill();
-    g.fillStyle = "#ff7a64"; rr(cx - w/2 + 10, yb - 6, w - 20, 3, 1.5); g.fill();
-    return 8;
+    // a thick juicy slice that sticks out past the bun, like the cheese does
+    g.fillStyle = "#e0271c"; rr(cx - w/2 - 9, yb - 12, w + 18, 12, 6); g.fill();
+    g.fillStyle = "#ff6a55"; rr(cx - w/2 - 2, yb - 9, w + 4, 4.5, 2.25); g.fill();
+    g.fillStyle = "#ffb3a5";                                 // seedy middle
+    for (let i = -1; i <= 1; i++) { g.beginPath(); g.ellipse(cx + i * w * 0.3, yb - 6.5, 3.5, 1.6, 0, 0, Math.PI * 2); g.fill(); }
+    return 12;
   }
   if (ing === "onion") {
     g.strokeStyle = "#f4ecf8"; g.lineWidth = 3;
