@@ -1700,7 +1700,11 @@ const S = {
   served: 0, perfect: 0, dayCoins: 0, stars: 0,
   banner: null, hint: null, fx: [], cards: [], serveFx: 0, recipeTip: null,
 };
-try { S.best = parseFloat(localStorage.getItem("fpBestDay")) || 0; } catch (e) {}
+S.exact = false;   // 🌶 exact-build mode: the stacking order has to match the house build
+try {
+  S.best = parseFloat(localStorage.getItem("fpBestDay")) || 0;
+  S.exact = localStorage.getItem("fpExact") === "1";
+} catch (e) {}
 const hero = { x: 480, tx: 480, facing: 1, walkT: 0 };
 let queue = [];    // [{ id, tx }] — stations we'll walk to, in tap order
 
@@ -1845,9 +1849,15 @@ function serveBurger() {
     if (err < bestErr) { bestErr = err; best = t; }
   }
   const item = ITEMS[best.itemKey];
+  // 🌶 exact-build mode: right toppings in the wrong order costs the PERFECT
+  const wrongOrder = S.exact && bestErr === 0 && S.stack.join() !== buildList(best.need).join();
   const fast = best.age < best.patience * 0.5, late = best.age > best.patience;
   let pay, emoji, text;
-  if (bestErr === 0) {
+  if (bestErr === 0 && wrongOrder) {
+    pay = Math.max(1, item.price - 1.5);
+    emoji = "🤔"; text = "Right toppings — wrong order!";
+    SFX.coin();
+  } else if (bestErr === 0) {
     pay = item.price + (fast ? 1.0 : 0);
     emoji = "😍"; text = "PERFECT " + item.name + "!";
     S.perfect++; SFX.fanfare();
@@ -1864,7 +1874,7 @@ function serveBurger() {
     SFX.oops();
   }
   if (late) { pay = Math.max(0.5, pay / 2); text += " (so slow!)"; }
-  else if (fast && bestErr === 0) text += " +$1 tip!";
+  else if (fast && bestErr === 0 && !wrongOrder) text += " +$1 tip!";
   S.coins += pay; S.dayCoins += pay; S.served++;
   S.tickets = S.tickets.filter(t => t !== best);
   if (S.recipeTip === best) S.recipeTip = null;
@@ -2506,8 +2516,27 @@ function drawPick() {
     g.fillText(nm, sx + cw / 2, sy + chh - cw / 9 + 0.5);
     S.cards.push({ key: k, sx, sy, sw: cw, sh: chh });
   });
-  g.font = "800 " + Math.min(W / 28, 15) + "px 'Avenir Next',Arial";
-  g.fillStyle = "#8a4b2f"; g.fillText("everyone can work the make line!", W / 2, H * 0.93);
+  // difficulty: does the stacking order matter?
+  S.modeChips = [];
+  const chipW = Math.min(W * 0.32, 175), chipH = Math.min(H * 0.058, 40), cgap = 10;
+  const cy2 = H * 0.885;
+  g.font = "800 " + Math.min(W / 32, 13) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#8a4b2f";
+  g.fillText("does the build order matter?", W / 2, cy2 - chipH / 2 - 12);
+  [["🙂 ANY ORDER", false], ["🌶 EXACT BUILD", true]].forEach((m, i) => {
+    const cx = W / 2 - chipW - cgap / 2 + i * (chipW + cgap), cyy = cy2 - chipH / 2;
+    const sel = S.exact === m[1];
+    g.fillStyle = sel ? "#ffd166" : "rgba(120,90,70,.14)";
+    rr(cx, cyy, chipW, chipH, chipH / 2); g.fill();
+    if (sel) { g.lineWidth = 2.5; g.strokeStyle = "#e8262c"; rr(cx, cyy, chipW, chipH, chipH / 2); g.stroke(); }
+    g.fillStyle = sel ? "#7a4b12" : "#8a7a6e";
+    g.font = "900 " + Math.min(chipH * 0.38, chipW / 11) + "px 'Avenir Next',Arial";
+    g.fillText(m[0], cx + chipW / 2, cyy + chipH / 2 + 1);
+    S.modeChips.push({ val: m[1], x: cx, y: cyy, w: chipW, h: chipH });
+  });
+  g.font = "800 " + Math.min(W / 32, 13) + "px 'Avenir Next',Arial";
+  g.fillStyle = "#b9a08c";
+  g.fillText(S.exact ? "stack it exactly like the recipe card shows!" : "any stacking order counts — just match the toppings", W / 2, cy2 + chipH / 2 + 14);
 }
 
 function drawDayIntro() {
@@ -2518,6 +2547,11 @@ function drawDayIntro() {
   g.font = "800 " + Math.min(W / 24, 19) + "px 'Avenir Next',Arial";
   g.fillStyle = "#2a3a55";
   g.fillText(dayOrders(S.day) + " orders today", W / 2, H * 0.25);
+  if (S.exact) {
+    g.font = "800 " + Math.min(W / 32, 14) + "px 'Avenir Next',Arial";
+    g.fillStyle = "#c8362c";
+    g.fillText("🌶 exact build — stack in recipe order! (tap tickets to peek)", W / 2, H * 0.288);
+  }
   const items = dayItems(S.day);
   const newKey = S.day === 2 ? "fancy" : S.day === 3 ? "dfancy" : null;
   const cw = Math.min(W * 0.24, 150), chh = Math.min(H * 0.3, 190), gap = 14;
@@ -2623,6 +2657,12 @@ cv.addEventListener("pointerdown", e => {
   const x = e.clientX, y = e.clientY;
   if (S.state === "title") { S.state = "pick"; SFX.select(); }
   else if (S.state === "pick") {
+    for (const c of (S.modeChips || []))
+      if (x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h) {
+        S.exact = c.val;
+        try { localStorage.setItem("fpExact", c.val ? "1" : "0"); } catch (err) {}
+        SFX.select(); return;
+      }
     for (const c of S.cards)
       if (x >= c.sx && x <= c.sx + c.sw && y >= c.sy && y <= c.sy + c.sh) {
         S.heroKey = c.key; S.coins = 0; SFX.select(); startDay(1); return;
