@@ -114,6 +114,8 @@ const SFX = {
   win:     () => { [523, 659, 784, 1046, 784, 1046, 1318].forEach((f, i) => tone(f, .22, "square", .11, 0, i * .13)); },
   faint:   () => { [330, 294, 262, 196].forEach((f, i) => tone(f, .3, "square", .1, 0, i * .22)); },
   click:   () => tone(880, .05, "square", .07),
+  whimper: () => { tone(900, .18, "sine", .07, -300); tone(700, .2, "sine", .06, -250, .22); },
+  found:   () => { [784, 988, 1175, 1568].forEach((f, i) => tone(f, .16, "triangle", .1, 0, i * .08)); },
 };
 
 /* ------------------------------ input ------------------------------ */
@@ -189,12 +191,45 @@ const STAGES = [
 const DOOR = { x: HOUSE.x + 2, y: HOUSE.y + HOUSE.h - 1 };
 // bunk beds go in the other corners of the room; the second row stacks on top
 const BUNK_POS = [{ x: HOUSE.x + 3, y: HOUSE.y + 1 }, { x: HOUSE.x + 1, y: HOUSE.y + 3 }, { x: HOUSE.x + 3, y: HOUSE.y + 3 }];
-const MAX_BUNKS = BUNK_POS.length * 2;
-const FOLLOW = [[-1.1, .9], [1.1, .9], [-1.7, -.1], [1.7, -.1], [-.6, 1.7], [.6, 1.7], [0, -1.5], [-2, 1.4]];
+const MAX_BUNKS = BUNK_POS.length * 2;   // three downstairs, three upstairs
+const FOLLOW = [[-1.1, .9], [1.1, .9], [-1.7, -.1], [1.7, -.1], [-.6, 1.7], [.6, 1.7], [0, -1.5], [-2, 1.4], [2, 1.4], [-1.2, -1.2], [1.2, -1.2], [0, 2.3]];
+// the barn for rescued pets, to the left of the house
+const BARN = { x: HOUSE.x - 7, y: HOUSE.y + 1, w: 4, h: 4 };
+const BARNDOOR = { x: BARN.x + 2, y: BARN.y + BARN.h - 1 };
+const PET_BEDS = [{ x: BARN.x + 1, y: BARN.y + 1 }, { x: BARN.x + 2, y: BARN.y + 1 }, { x: BARN.x + 1, y: BARN.y + 2 }, { x: BARN.x + 2, y: BARN.y + 2 }];
+const STAIRS = { x: HOUSE.x + 2, y: HOUSE.y + 1 };
+// what the helpers build after the house is done, in order
+const EXTRAS = [
+  { key: "bunk",      name: "a bunk bed for a new helper", short: "a bunk bed", cost: 5, site: "house" },
+  { key: "bunk",      name: "a bunk bed for a new helper", short: "a bunk bed", cost: 6, site: "house" },
+  { key: "barnfloor", name: "the barn floor",  short: "the barn floor", cost: 5, site: "barn" },
+  { key: "barnwalls", name: "the barn walls",  short: "the barn walls", cost: 8, site: "barn" },
+  { key: "barnroof",  name: "the barn roof",   short: "the barn roof",  cost: 6, site: "barn" },
+  { key: "petbed",    name: "a pet bed — a lost pet will need it", short: "a pet bed", cost: 3, site: "barn" },
+  { key: "bunk",      name: "a bunk bed for a new helper", short: "a bunk bed", cost: 7, site: "house" },
+  { key: "upwalls",   name: "the upstairs walls", short: "the upstairs", cost: 10, site: "house" },
+  { key: "upfloor",   name: "the upstairs floor and stairs", short: "the stairs", cost: 6, site: "house" },
+  { key: "petbed",    name: "a pet bed — a lost pet will need it", short: "a pet bed", cost: 3, site: "barn" },
+  { key: "bunk",      name: "an upstairs bunk bed", short: "an upstairs bunk", cost: 8, site: "house" },
+  { key: "petbed",    name: "a pet bed — a lost pet will need it", short: "a pet bed", cost: 3, site: "barn" },
+  { key: "bunk",      name: "an upstairs bunk bed", short: "an upstairs bunk", cost: 9, site: "house" },
+  { key: "bunk",      name: "an upstairs bunk bed", short: "an upstairs bunk", cost: 10, site: "house" },
+  { key: "petbed",    name: "a pet bed — a lost pet will need it", short: "a pet bed", cost: 3, site: "barn" },
+];
+const PET_KINDS = [
+  { kind: "pug",    name: "Peach",   label: "Peach the pug",       body: "#d9b382", belly: "#f0e4cc", muzzle: "#3a2a1a", ears: "flop", tail: true },
+  { kind: "kitten", name: "Biscuit", label: "Biscuit the kitten",  body: "#9aa3ad", belly: "#ffffff", ears: "tri", tail: true },
+  { kind: "chick",  name: "Nugget",  label: "Nugget the chick",    body: "#ffd23f", belly: "#ffe680", muzzle: "#ff8c1a", ears: "none", tail: false },
+  { kind: "lamb",   name: "Clover",  label: "Clover the lamb",     body: "#f7f3ea", belly: "#f2c6d0", muzzle: "#f2c6d0", ears: "flop", tail: false },
+];
+let pets = [];
+function inBarn(x, y) { return x >= BARN.x && x < BARN.x + BARN.w && y >= BARN.y && y < BARN.y + BARN.h; }
+function onBarnRing(x, y) { return inBarn(x, y) && (x === BARN.x || y === BARN.y || x === BARN.x + BARN.w - 1 || y === BARN.y + BARN.h - 1); }
+function hasX(key) { return EXTRAS.slice(0, S.extra).some(s => s.key === key); }
 const BED  = { x: HOUSE.x + 1, y: HOUSE.y + 1 };
 const S = { state: "title", built: 0, pile: 0, day: 1, clock: 0, phase: "day", t: 0, rain: 0, rainT: 0,
   flash: 0, thunderT: 0, msg: "", msgT: 0, prompt: null, fade: 0, fadeMode: "", won: false, wonT: 0,
-  spawnT: 0, builder: null, buildProg: 0, nightsSurvived: 0, bunks: 0 };
+  spawnT: 0, builder: null, buildProg: 0, nightsSurvived: 0, bunks: 0, extra: 0, petBeds: 0, buildSpot: null };
 const DAY_LEN = 75, DUSK_LEN = 8, NIGHT_LEN = 55, DAWN_LEN = 7;
 
 function inHouse(x, y) { return x >= HOUSE.x && x < HOUSE.x + HOUSE.w && y >= HOUSE.y && y < HOUSE.y + HOUSE.h; }
@@ -204,12 +239,11 @@ function inSquare(x, y) { return x >= SQUARE.x && x < SQUARE.x + SQUARE.w && y >
 function has(key) { return S.built > STAGES.findIndex(s => s.key === key); }
 function nextStage() {
   if (S.built < STAGES.length) return STAGES[S.built];
-  if (S.bunks < MAX_BUNKS) return { key: "bunk", name: "a bunk bed for a new helper", short: "a bunk bed", cost: 5 + S.bunks };
-  return null;
+  return EXTRAS[S.extra] || null;
 }
 
 function genWorld() {
-  tiles = []; solid = []; trees = []; logs = []; zombies = []; fx = []; drops = [];
+  tiles = []; solid = []; trees = []; logs = []; zombies = []; fx = []; drops = []; pets = [];
   for (let y = 0; y < MAP; y++) { tiles.push([]); solid.push([]); for (let x = 0; x < MAP; x++) { tiles[y].push(T.GRASS); solid[y].push(false); } }
   // a little pond
   const px = ri(4, 8), py = ri(20, 26);
@@ -221,7 +255,7 @@ function genWorld() {
   while (trees.length < 62 && tries++ < 4000) {
     const x = ri(1, MAP - 2), y = ri(1, MAP - 2);
     if (tiles[y][x] !== T.GRASS || solid[y][x]) continue;
-    if (x >= HOUSE.x - 2 && x < SQUARE.x + SQUARE.w + 2 && y >= HOUSE.y - 2 && y < HOUSE.y + HOUSE.h + 4) continue;
+    if (x >= BARN.x - 2 && x < SQUARE.x + SQUARE.w + 2 && y >= HOUSE.y - 2 && y < HOUSE.y + HOUSE.h + 4) continue;
     if (trees.some(t => Math.abs(t.x - x) + Math.abs(t.y - y) < 2)) continue;
     trees.push({ x, y, hp: 3, shake: 0, stump: 0, big: Math.random() < .3, tone: rnd(.85, 1.15) });
     solid[y][x] = true;
@@ -238,11 +272,14 @@ function rebuildHouseSolids() {
     solid[y][x] = s;
   }
   if (has("bed")) solid[BED.y][BED.x] = false;   // bed is touchable, you walk onto it
+  for (let y = BARN.y; y < BARN.y + BARN.h; y++) for (let x = BARN.x; x < BARN.x + BARN.w; x++)
+    solid[y][x] = onBarnRing(x, y) && hasX("barnwalls") && !(x === BARNDOOR.x && y === BARNDOOR.y);
 }
 function blocked(x, y, zombie) {
   const tx = Math.floor(x), ty = Math.floor(y);
   if (tx < 1 || ty < 1 || tx >= MAP - 1 || ty >= MAP - 1) return true;
   if (zombie && tx === DOOR.x && ty === DOOR.y && has("door")) return true;   // the door keeps zombies out
+  if (zombie && tx === BARNDOOR.x && ty === BARNDOOR.y && hasX("barnwalls")) return true;
   return solid[ty][tx];
 }
 function fits(e, x, y) {   // does the entity's little footprint sit on free tiles?
@@ -361,6 +398,48 @@ function newHelper() {   // a new blocky friend walks in from the edge of the fo
   return h;
 }
 
+function spawnLostPet() {   // a lost pet appears deep in the forest, somewhere you can walk to
+  const k = PET_KINDS[pets.length % PET_KINDS.length];
+  const p = Object.assign({ x: 0, y: 0, r: .2, dir: 1, walk: 0, bob: 0, swing: 0, type: "animal", pet: true, state: "lost", cry: 1, wanderT: 0, idx: pets.length }, k);
+  for (let i = 0; i < 300; i++) {
+    const x = ri(2, MAP - 3) + .5, y = ri(2, MAP - 3) + .5;
+    if (blocked(x, y) || Math.hypot(x - HOUSE.x - 2.5, y - HOUSE.y - 2.5) < 10) continue;
+    if (!findPath(DOOR.x + .5, DOOR.y + 1.5, x, y)) continue;
+    p.x = x; p.y = y; pets.push(p); return p;
+  }
+  return null;
+}
+function updatePets(dt) {
+  for (const p of pets) {
+    if (p.state === "lost") {
+      p.cry -= dt;
+      if (p.cry <= 0) { p.cry = rnd(2.5, 4); if (Math.hypot(p.x - P.x, p.y - P.y) < 14) SFX.whimper(); }
+      p.bob = 0; p.walk = 0;
+      if (Math.hypot(p.x - P.x, p.y - P.y) < 1.4) {
+        p.state = "follow"; SFX.found(); boom(p.x, p.y, "#ff6b9d", 12, 4);
+        say("You found " + p.label + "! 💕 Bring them home to the barn 🏠", 4);
+      }
+      continue;
+    }
+    if (p.state === "follow") {
+      const fo = FOLLOW[(p.idx + 9) % FOLLOW.length], tx = P.x + fo[0] * .8, ty = P.y + fo[1] * .8;
+      if (Math.hypot(tx - p.x, ty - p.y) > .9) goTo(p, tx, ty, 3.6, dt); else { p.walk = 0; p.bob = 0; }
+      // home when YOU reach the barn door (the pet trails behind you), or either of you is inside
+      if (inBarn(Math.floor(p.x), Math.floor(p.y)) || inBarn(Math.floor(P.x), Math.floor(P.y)) || Math.hypot(P.x - BARNDOOR.x - .5, P.y - BARNDOOR.y - 1.5) < 2.2) {
+        p.state = "home"; p.wanderT = 0; SFX.built(); boom(BARN.x + 2, BARN.y + 2, "#ff6b9d", 16, 5);
+        say(p.label + " moved into the barn! 🏠💕", 4);
+      }
+      continue;
+    }
+    // home: potter around inside the barn; at night curl up on their own bed
+    p.wanderT -= dt;
+    const bed = PET_BEDS[p.idx % PET_BEDS.length];
+    if (timeOfDay() > .5) { p.tx = bed.x + .5; p.ty = bed.y + .5; }
+    else if (p.wanderT <= 0 || p.tx === undefined) { p.wanderT = rnd(2, 5); p.tx = BARN.x + 1 + ri(0, 1) + .5; p.ty = BARN.y + 1 + ri(0, 1) + .5; }
+    if (Math.hypot(p.tx - p.x, p.ty - p.y) > .2) goTo(p, p.tx, p.ty, 1.4, dt); else { p.walk = 0; p.bob = 0; }
+  }
+}
+
 /* ------------------------------ messages ------------------------------ */
 function say(m, t) { S.msg = m; S.msgT = t || 3; }
 function boom(x, y, col, n, up) {
@@ -372,7 +451,7 @@ function boom(x, y, col, n, up) {
 function startGame() {
   genWorld();
   S.state = "play"; S.built = 0; S.pile = 0; S.day = 1; S.clock = 0; S.phase = "day"; S.rain = 0; S.rainT = rnd(25, 60);
-  S.flash = 0; S.msgT = 0; S.prompt = null; S.fade = 0; S.won = false; S.builder = null; S.buildProg = 0; S.nightsSurvived = 0; S.bunks = 0;
+  S.flash = 0; S.msgT = 0; S.prompt = null; S.fade = 0; S.won = false; S.builder = null; S.buildProg = 0; S.nightsSurvived = 0; S.bunks = 0; S.extra = 0; S.petBeds = 0; S.buildSpot = null;
   helpers.length = 2;   // a fresh game starts with the two original helpers
   P.x = HOUSE.x + 2.5; P.y = HOUSE.y + HOUSE.h + 2.5; P.hp = P.maxHp; P.wood = 0; P.dir = 1;
   cam.x = P.x; cam.y = P.y;
@@ -433,7 +512,7 @@ function pressAction() {
   // whack a zombie that's close
   for (const z of zombies) if (Math.hypot(z.x - P.x, z.y - P.y) < 1.2) { hitZombie(z, 1, P); return; }
   // helping the builder hammer faster
-  if (S.builder && Math.hypot(P.x - (HOUSE.x + 2.5), P.y - (HOUSE.y + 2.5)) < 4.5) { S.buildProg += .6; SFX.hammer(); say("You're helping build! 🔨", 1.2); return; }
+  if (S.builder && S.buildSpot && Math.hypot(P.x - S.buildSpot.x, P.y - S.buildSpot.y) < 3.5) { S.buildProg += .6; SFX.hammer(); say("You're helping build! 🔨", 1.2); return; }
 }
 function hitZombie(z, dmg, by) {
   z.hp -= dmg; z.hurt = .25; SFX.whack();
@@ -455,10 +534,11 @@ function update() {
   if (S.prompt) return;   // world pauses while the bed asks
   advanceClock(dt);
   updateWeather(dt);
-  unstick(P); helpers.forEach(unstick); zombies.forEach(unstick);
+  unstick(P); helpers.forEach(unstick); zombies.forEach(unstick); pets.forEach(unstick);
   updatePlayer(dt);
   updateLogs(dt);
   updateHelpers(dt);
+  updatePets(dt);
   updateZombies(dt);
   updateBuild(dt);
   trees.forEach(t => { if (t.shake > 0) t.shake -= dt; if (t.stump > 0) { t.stump -= dt; if (t.stump <= 0 && [P, ...helpers, ...zombies].some(e => Math.hypot(e.x - t.x - .5, e.y - t.y - .5) < .9)) t.stump = 2; if (t.stump <= 0) { t.hp = 3; solid[t.y][t.x] = true; boom(t.x + .5, t.y + .5, "#6ad06a", 8, 3); } } });
@@ -505,11 +585,15 @@ function updatePlayer(dt) {
   }
   if (!(tx === BED.x && ty === BED.y)) P.onBed = false;
 }
+function buildSpot(st) {   // where the builder stands: right of the house, or right of the barn
+  return st.site === "barn" ? { x: BARN.x + BARN.w + .6, y: BARN.y + 1.5 } : { x: HOUSE.x + HOUSE.w + .6, y: HOUSE.y + 2.5 };
+}
 function checkStage() {
   const st = nextStage();
   if (st && S.pile >= st.cost && !S.builder) {
-    const h = helpers.reduce((a, b) => (Math.hypot(a.x - HOUSE.x - 2.5, a.y - HOUSE.y - 2.5) < Math.hypot(b.x - HOUSE.x - 2.5, b.y - HOUSE.y - 2.5) ? a : b));
-    S.builder = h; S.buildProg = 0; h.state = "build";
+    const sp = buildSpot(st);
+    const h = helpers.reduce((a, b) => (Math.hypot(a.x - sp.x, a.y - sp.y) < Math.hypot(b.x - sp.x, b.y - sp.y) ? a : b));
+    S.builder = h; S.buildProg = 0; h.state = "build"; S.buildSpot = sp;
     say(h.name + " is going to build " + st.name + "! 🔨", 3);
   }
 }
@@ -520,16 +604,23 @@ function updateBuild(dt) {
   if (!S.builder) { checkStage(); return; }
   const h = S.builder, st = nextStage();
   if (!st) { S.builder = null; return; }
-  const gx = HOUSE.x + HOUSE.w + .6, gy = HOUSE.y + 2.5;   // stand at the right side of the house
+  const sp = buildSpot(st), gx = sp.x, gy = sp.y;
   const d = Math.hypot(gx - h.x, gy - h.y);
   if (d > .4) { goTo(h, gx, gy, 3.4, dt); return; }
   h.dir = 2; h.hammer = (h.hammer || 0) + dt * 10;
   if (Math.floor(h.hammer / Math.PI) !== Math.floor((h.hammer - dt * 10) / Math.PI)) SFX.hammer();
   S.buildProg += dt;
   if (S.buildProg >= 3.2) {
-    S.pile -= st.cost; SFX.built(); boom(HOUSE.x + 2.5, HOUSE.y + 2.5, "#ffd166", 20, 5);
+    S.pile -= st.cost; SFX.built(); boom(gx - 3, gy, "#ffd166", 20, 5);
     S.builder = null; h.state = "follow"; h.hammer = 0;
-    if (st.key === "bunk") { S.bunks++; const nh = newHelper(); say(h.name + " built a bunk bed — " + nh.name + " is coming to join you! 🛏", 4); return; }
+    if (S.built >= STAGES.length) {   // an extra
+      S.extra++; rebuildHouseSolids();
+      if (st.key === "bunk") { S.bunks++; const nh = newHelper(); say(h.name + " built a bunk bed — " + nh.name + " is coming to join you! 🛏", 4); }
+      else if (st.key === "petbed") { S.petBeds++; const p = spawnLostPet(); say(h.name + " built a pet bed! " + (p ? p.label + " is lost in the forest — follow the 🐾 and find them!" : ""), 5); }
+      else say(h.name + " built " + st.name + "! 🎉", 3);
+      if (!nextStage()) say("The whole village is finished! 🎉 You're amazing, " + P.name + "!", 6);
+      return;
+    }
     S.built++; rebuildHouseSolids();
     if (S.built >= STAGES.length) { S.won = true; S.wonT = 0; S.state = "win"; SFX.win(); }
     else say(h.name + " built " + st.name + "! 🎉", 3);
@@ -674,6 +765,8 @@ function drawGround(x0, y0, x1, y1) {
     if (t === T.PATH) { diamond(x, y, h < .5 ? "#b08a55" : "#a07f4e"); continue; }
     if (inHouse(x, y) && has("floor") && !onRing(x, y)) { diamond(x, y, (x + y) % 2 ? "#c69a5a" : "#b98d50"); continue; }
     if (inSquare(x, y)) { diamond(x, y, (x + y) % 2 ? "#e9d77a" : "#e3cf6c"); continue; }
+    if (inBarn(x, y) && hasX("barnfloor") && !onBarnRing(x, y)) { diamond(x, y, (x + y) % 2 ? "#dcb765" : "#d2ac5c"); continue; }
+    if (inBarn(x, y) && !hasX("barnfloor") && S.built >= STAGES.length) { diamond(x, y, (x + y) % 2 ? "#78c752" : "#6ab848"); continue; }
     diamond(x, y, (x + y) % 2 ? "#6cbf47" : "#5fae3e");
     if (h > .82) diamond(x + .2 + h * .4, y + .3, "#7ed35a", .18);   // grass tufts
   }
@@ -715,13 +808,19 @@ function drawHouseTile(x, y) {
   if (!back && !has("front")) return;
   // the front walls go see-through while you're inside so the beds show
   const inside = inHouse(Math.floor(P.x), Math.floor(P.y)), wa = !back && inside ? .22 : undefined;
+  const col = "#c69a5a";
   if (x === DOOR.x && y === DOOR.y) {
     if (has("door")) cube(x, y + .8, 0, 1, .2, 1.7, "#6b3f1f", { top: "#8a5a32", alpha: wa });
     if (has("roof")) cube(x, y, 1.9, 1, 1, .15, "#c07a3a", { alpha: wa });   // wall top beam over the door gap
+    if (hasX("upwalls")) cube(x, y, 2.05, 1, 1, 1.95, col, { line: wa ? undefined : "rgba(0,0,0,.18)", alpha: wa });
     return;
   }
-  const col = "#c69a5a";
   cube(x, y, 0, 1, 1, 2, col, { line: wa ? undefined : "rgba(0,0,0,.18)", alpha: wa });
+  if (hasX("upwalls")) {   // second storey
+    cube(x, y, 2, 1, 1, 2, col, { line: wa ? undefined : "rgba(0,0,0,.18)", alpha: wa });
+    if (!back && ((y === HOUSE.y + HOUSE.h - 1 && (x === HOUSE.x + 1 || x === HOUSE.x + 3)) || (x === HOUSE.x + HOUSE.w - 1 && y === HOUSE.y + 2)))
+      patch(x, y, 0, 1, 1, x === HOUSE.x + HOUSE.w - 1 ? 0 : 1, .3, 2.9, .4, .5, timeOfDay() > .5 && has("lantern") ? "#ffe08a" : "#9fd4ff");
+  }
   // a window on the front walls
   if (!back && has("front") && ((y === HOUSE.y + HOUSE.h - 1 && x === HOUSE.x + 3) || (x === HOUSE.x + HOUSE.w - 1 && y === HOUSE.y + 2))) {
     patch(x, y, 0, 1, 1, x === HOUSE.x + HOUSE.w - 1 ? 0 : 1, .3, .9, .4, .5, timeOfDay() > .5 && has("lantern") ? "#ffe08a" : "#9fd4ff");
@@ -730,11 +829,11 @@ function drawHouseTile(x, y) {
 function drawRoof() {
   if (!has("roof")) return;
   const inside = inHouse(Math.floor(P.x), Math.floor(P.y));
-  const alpha = inside ? .12 : 1;
-  cube(HOUSE.x - .2, HOUSE.y - .2, 2, HOUSE.w + .4, HOUSE.h + .4, .3, "#b34a2e", { alpha });
-  cube(HOUSE.x + .6, HOUSE.y + .6, 2.3, HOUSE.w - 1.2, HOUSE.h - 1.2, .35, "#c25535", { alpha });
-  cube(HOUSE.x + 1.5, HOUSE.y + 1.5, 2.65, HOUSE.w - 3, HOUSE.h - 3, .35, "#cf6040", { alpha });
-  cube(HOUSE.x + 3.4, HOUSE.y + .6, 2.6, .5, .5, 1, "#777", { alpha });   // chimney
+  const alpha = inside ? .12 : 1, rz = hasX("upwalls") ? 4 : 2;   // the roof lifts when the upstairs goes on
+  cube(HOUSE.x - .2, HOUSE.y - .2, rz, HOUSE.w + .4, HOUSE.h + .4, .3, "#b34a2e", { alpha });
+  cube(HOUSE.x + .6, HOUSE.y + .6, rz + .3, HOUSE.w - 1.2, HOUSE.h - 1.2, .35, "#c25535", { alpha });
+  cube(HOUSE.x + 1.5, HOUSE.y + 1.5, rz + .65, HOUSE.w - 3, HOUSE.h - 3, .35, "#cf6040", { alpha });
+  cube(HOUSE.x + 3.4, HOUSE.y + .6, rz + .6, .5, .5, 1, "#777", { alpha });   // chimney
 }
 function drawBed() {
   if (!has("bed")) return;
@@ -743,9 +842,8 @@ function drawBed() {
   cube(BED.x + .2, BED.y + .2, .5, .6, .35, .15, "#fff", { top: "#fff" });
 }
 function drawBunk(i) {
-  const p = BUNK_POS[i % BUNK_POS.length], top = i >= BUNK_POS.length, z = top ? .75 : 0;
+  const p = BUNK_POS[i % BUNK_POS.length], top = i >= BUNK_POS.length, z = top ? 2.15 : 0;
   const col = ["#3a86ff", "#06d6a0", "#8338ec", "#ffbe0b", "#fb5607", "#ff006e"][i % 6];
-  if (top) for (const [px, py] of [[.1, .1], [.85, .1], [.1, 1.2], [.85, 1.2]]) cube(p.x + px, p.y + py, .3, .08, .08, .5, "#6b3f1f");
   cube(p.x + .1, p.y + .1, z, .8, 1.2, .3, "#8a5a32");
   cube(p.x + .15, p.y + .15, z + .3, .7, 1.1, .18, col, { top: shade(col, 1.25) });
   cube(p.x + .2, p.y + .2, z + .48, .6, .32, .13, "#fff", { top: "#fff" });
@@ -814,7 +912,7 @@ function drawAnimal(c, x, y, z, dir, swing) {
   // head
   const hz = z + .5, hs = .5;
   cube(x - .05 + .1, y - .25, hz, hs, hs, hs, c.body);
-  patch(x + .05, y - .25, hz, hs, hs, dir === 0 ? 0 : 1, .15, .05, .2, .16, c.kind === "panda" ? "#222" : c.belly);   // muzzle
+  patch(x + .05, y - .25, hz, hs, hs, dir === 0 ? 0 : 1, .15, .05, .2, .16, c.kind === "panda" ? "#222" : (c.muzzle || c.belly));   // muzzle
   eyes(x + .05, y - .25, hz, hs, hs, dir, c.kind === "frog" ? "#fff" : "#111", .3);
   if (c.kind === "panda" && dir <= 1) { patch(x + .05, y - .25, hz, hs, hs, dir === 0 ? 0 : 1, .1, .24, .14, .18, "#222"); patch(x + .05, y - .25, hz, hs, hs, dir === 0 ? 0 : 1, .27, .24, .14, .18, "#222"); }
   // ears
@@ -834,6 +932,53 @@ function drawChar(c) {
   const w = c.wood || c.carry || 0;
   for (let i = 0; i < w; i++) cube(c.x - .3, c.y - .1, z + (c.type === "kid" ? 1.4 : 1.15) + i * .24, .6, .24, .22, "#a86a35", { top: "#d9a56a" });
   if (c.hammer > 0) { const hz = 1.0 + Math.abs(Math.sin(c.hammer)) * .4; cube(c.x - .45, c.y - .05, z + hz, .08, .08, .4, "#8a5a32"); cube(c.x - .55, c.y - .1, z + hz + .35, .28, .18, .16, "#777", { top: "#999" }); }
+}
+function drawPet(p) {   // a small animal: the normal blocky animal, scaled down about its feet
+  const s = proj(p.x, p.y, 0);
+  g.fillStyle = "rgba(0,0,0,.2)"; g.beginPath(); g.ellipse(s.sx, s.sy, TW * .2, TH * .2, 0, 0, Math.PI * 2); g.fill();
+  g.save(); g.translate(s.sx, s.sy); g.scale(.62, .62); g.translate(-s.sx, -s.sy);
+  drawAnimal(p, p.x, p.y, p.bob || 0, p.dir, 0);
+  g.restore();
+  if (p.state === "lost") {   // a bobbing ❓ so you can spot them between the trees
+    const q2 = proj(p.x, p.y, 1.1 + Math.sin(S.t * 4) * .1);
+    g.font = "bold 22px sans-serif"; g.textAlign = "center"; g.fillStyle = "#fff"; g.fillText("❓", q2.sx, q2.sy);
+  } else if (p.state === "home" && timeOfDay() > .5) {
+    const q2 = proj(p.x, p.y, .9); g.font = "bold 14px sans-serif"; g.textAlign = "center"; g.fillStyle = "#fff"; g.fillText("💤", q2.sx + 8, q2.sy);
+  }
+}
+function drawBarnTile(x, y) {
+  if (!onBarnRing(x, y) || !hasX("barnwalls")) return;
+  const inside = inBarn(Math.floor(P.x), Math.floor(P.y));
+  const front = x === BARN.x + BARN.w - 1 || y === BARN.y + BARN.h - 1, wa = front && inside ? .22 : undefined;
+  if (x === BARNDOOR.x && y === BARNDOOR.y) {
+    cube(x, y + .8, 0, 1, .2, 1.6, "#6b3f1f", { top: "#8a5a32", alpha: wa });
+    cube(x, y, 1.8, 1, 1, .2, "#f2f2f2", { alpha: wa });
+    return;
+  }
+  cube(x, y, 0, 1, 1, 2, "#b8412e", { alpha: wa, line: wa ? undefined : "rgba(255,255,255,.35)" });
+  if (front && ((y === BARN.y + BARN.h - 1 && x === BARN.x + 1) || (x === BARN.x + BARN.w - 1 && y === BARN.y + 2)))
+    patch(x, y, 0, 1, 1, x === BARN.x + BARN.w - 1 ? 0 : 1, .3, .9, .4, .5, "#f2f2f2");
+}
+function drawBarnRoof() {
+  if (!hasX("barnroof")) return;
+  const alpha = inBarn(Math.floor(P.x), Math.floor(P.y)) ? .12 : 1;
+  cube(BARN.x - .2, BARN.y - .2, 2, BARN.w + .4, BARN.h + .4, .3, "#6d7783", { alpha });
+  cube(BARN.x + .5, BARN.y + .5, 2.3, BARN.w - 1, BARN.h - 1, .35, "#7b8794", { alpha });
+  cube(BARN.x + 1.2, BARN.y + 1.2, 2.65, BARN.w - 2.4, BARN.h - 2.4, .3, "#8a97a5", { alpha });
+}
+function drawPetBed(i) {
+  const p = PET_BEDS[i], col = ["#ff6b9d", "#3a86ff", "#ffbe0b", "#06d6a0"][i % 4];
+  cube(p.x + .2, p.y + .2, 0, .6, .6, .16, "#8a5a32");
+  cube(p.x + .25, p.y + .25, .16, .5, .5, .12, col, { top: shade(col, 1.25) });
+}
+function drawUpstairs() {   // the floor slab between the two storeys, plus the stairs
+  if (!hasX("upfloor")) return;
+  const inside = inHouse(Math.floor(P.x), Math.floor(P.y)), alpha = inside ? .15 : 1;
+  cube(HOUSE.x + 1, HOUSE.y + 1, 2, HOUSE.w - 2, HOUSE.h - 2, .15, "#b98d50", { alpha });
+}
+function drawStairs() {
+  if (!hasX("upfloor")) return;
+  for (let i = 0; i < 3; i++) cube(STAIRS.x + .1, STAIRS.y + .7 - i * .3, 0, .8, .3, .65 * (i + 1), "#c69a5a");
 }
 const ZOMBIE_KID = { type: "kid", skin: "#6fa85a", hair: "#2f4f2f", shirt: "#3b6f8f", pants: "#2f3f5f", hairStyle: "short", hat: "none", zombie: true };
 function drawZombie(z) {
@@ -869,9 +1014,15 @@ function drawScene() {
   for (const t of trees) if (t.x >= x0 - 1 && t.x <= x1 + 1 && t.y >= y0 - 1 && t.y <= y1 + 1) q(t.x + t.y + 1 + (t.stump > 0 ? 0 : .3), () => drawTree(t));
   for (let y = HOUSE.y; y < HOUSE.y + HOUSE.h; y++) for (let x = HOUSE.x; x < HOUSE.x + HOUSE.w; x++) if (onRing(x, y)) q(x + y + 1, () => drawHouseTile(x, y));
   q(BED.x + BED.y + 1.2, drawBed);
+  q(STAIRS.x + STAIRS.y + 1.2, drawStairs);
+  for (let y = BARN.y; y < BARN.y + BARN.h; y++) for (let x = BARN.x; x < BARN.x + BARN.w; x++) if (onBarnRing(x, y)) q(x + y + 1, () => drawBarnTile(x, y));
+  for (let i = 0; i < S.petBeds; i++) { const p = PET_BEDS[i]; q(p.x + p.y + 1.2, () => drawPetBed(i)); }
+  for (const p of pets) q(p.x + p.y + .6, () => drawPet(p));
+  q(BARN.x + BARN.y + BARN.w + BARN.h + .5, drawBarnRoof);
   for (let i = 0; i < S.bunks; i++) { const p = BUNK_POS[i % BUNK_POS.length]; q(p.x + p.y + 1.2 + (i >= BUNK_POS.length ? .01 : 0), () => drawBunk(i)); }
   q(SQUARE.x + SQUARE.y + 2, drawPile);
   q(HOUSE.x + HOUSE.w + HOUSE.y + HOUSE.h, drawLantern);
+  q(HOUSE.x + HOUSE.y + HOUSE.w + HOUSE.h + .49, drawUpstairs);
   q(HOUSE.x + HOUSE.y + HOUSE.w + HOUSE.h + .5, drawRoof);
   for (const l of logs) q(l.x + l.y + .6, () => drawLog(l));
   q(P.x + P.y + .6, () => drawChar(P));
@@ -897,6 +1048,8 @@ function drawWeather() {
     const lights = [{ e: P, r: 4.2 }, ...helpers.map(h => ({ e: h, r: 2.4 }))];
     if (has("lantern")) lights.push({ e: { x: HOUSE.x + HOUSE.w + .3, y: HOUSE.y + HOUSE.h - .5 }, r: 7 });
     if (has("floor")) lights.push({ e: { x: HOUSE.x + 2.5, y: HOUSE.y + 2.5 }, r: 3 });
+    if (hasX("barnroof")) lights.push({ e: { x: BARN.x + 2, y: BARN.y + 2 }, r: 3.5 });
+    for (const p of pets) if (p.state === "lost") lights.push({ e: p, r: 1.6 });
     for (const l of lights) { const p = screenOf(l.e.x, l.e.y, .5), R = l.r * TW * .5 * ZOOM; const gr = dg.createRadialGradient(p.x, p.y, 0, p.x, p.y, R); gr.addColorStop(0, "rgba(0,0,0,.95)"); gr.addColorStop(.6, "rgba(0,0,0,.5)"); gr.addColorStop(1, "rgba(0,0,0,0)"); dg.fillStyle = gr; dg.beginPath(); dg.arc(p.x, p.y, R, 0, Math.PI * 2); dg.fill(); }
     dg.globalCompositeOperation = "source-over";
     g.drawImage(dark, 0, 0, W, H);
@@ -937,7 +1090,7 @@ function drawHUD() {
     }
   }
   const st = nextStage();
-  row(["🪵 " + P.wood + "/2 carrying", "pile: " + S.pile, st ? "next: " + (st.short || st.name) + " (" + st.cost + ")" : "🏠 house full — everyone has a bed!"]);
+  row(["🪵 " + P.wood + "/2 carrying", "pile: " + S.pile, st ? "next: " + (st.short || st.name) + " (" + st.cost + ")" : "🏆 the whole village is finished!"]);
   const ph = S.phase === "day" ? "☀️ Day " + S.day : S.phase === "dusk" ? "🌇 Evening" : S.phase === "night" ? "🌙 Night " + S.day : "🌅 Dawn";
   row([ph + (S.rain ? "  ⛈" : ""), "you are " + P.label]);
   // house progress bar
@@ -946,7 +1099,9 @@ function drawHUD() {
   g.fillStyle = "#ffd166"; roundRect(px + 2, py + 2, (pw - 4) * (S.built / STAGES.length), 12, 6); g.fill();
   y = py + 22;
   g.font = "bold 12px 'Avenir Next','Trebuchet MS',Arial";
-  if (S.built >= STAGES.length) { g.fillStyle = "#fff"; g.fillText("🛏 bunk beds " + S.bunks + "/" + MAX_BUNKS + "   👫 helpers " + helpers.length, px, y + 6, maxW); y += 18; }
+  if (S.built >= STAGES.length) { g.fillStyle = "#fff"; g.fillText("🛏 bunks " + S.bunks + "/" + MAX_BUNKS + "   👫 helpers " + helpers.length + "   🐾 pets home " + pets.filter(p => p.state === "home").length + "/" + PET_KINDS.length, px, y + 6, maxW); y += 18; }
+  const lost = pets.find(p => p.state !== "home");
+  if (lost) { g.fillStyle = "#ffd166"; g.fillText(lost.state === "lost" ? "🐾 " + lost.label + " is lost in the forest! Follow the paw prints" : "🐾 bring " + lost.name + " to the barn!", px, y + 6, maxW); y += 18; }
   if (S.builder) { g.fillStyle = "#fff"; g.fillText("🔨 " + S.builder.name + " is building… stand close + 🪓 to help", px, y + 6, maxW); }
   // message
   if (S.msgT > 0 && S.msg) {
@@ -954,6 +1109,16 @@ function drawHUD() {
     const mw = Math.min(W - 30, g.measureText(S.msg).width + 30);
     g.fillStyle = "rgba(0,0,0,.55)"; roundRect(W / 2 - mw / 2, H - 150, mw, 34, 12); g.fill(); g.fillStyle = "#ffe";
     g.fillText(S.msg, W / 2, H - 133, W - 40);
+  }
+  // paw-print pointer toward a lost pet when it's off screen
+  if (lost && lost.state === "lost") {
+    const sp = screenOf(lost.x, lost.y, .5), cx = W / 2, cy = H / 2, dx = sp.x - cx, dy = sp.y - cy;
+    if (sp.x < 30 || sp.x > W - 30 || sp.y < 120 || sp.y > H - 120) {
+      const m = Math.max(Math.abs(dx) / (W / 2 - 40), Math.abs(dy) / (H / 2 - 130)), ex = cx + dx / m, ey = cy + dy / m;
+      g.font = "bold 30px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillStyle = "rgba(0,0,0,.45)"; g.beginPath(); g.arc(ex, ey, 24, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "#fff"; g.fillText("🐾", ex, ey + 2);
+    }
   }
   // touch controls
   const b = actBtn();
@@ -986,7 +1151,7 @@ function drawWin() {
   g.fillStyle = "#fff"; g.textAlign = "center"; g.font = "bold 44px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("🏠 YOU BUILT THE HOUSE! 🎉", W / 2, H / 2 - 30, W - 30);
   g.font = "bold 22px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(P.name + " and the helpers did it!", W / 2, H / 2 + 14);
   if (t > 1.2) { g.fillStyle = "#ffd166"; g.font = "bold 20px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("Tap to keep playing!", W / 2, H / 2 + 60, W - 30);
-    g.fillStyle = "#fff"; g.font = "bold 16px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("Next: build bunk beds and new helpers will move in 🛏", W / 2, H / 2 + 90, W - 30); }
+    g.fillStyle = "#fff"; g.font = "bold 16px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("Next: bunk beds, a barn for lost pets, and an upstairs! 🛏🐾🏠", W / 2, H / 2 + 90, W - 30); }
 }
 
 /* ------------------------------ title ------------------------------ */
@@ -1009,7 +1174,7 @@ function drawTitle() {
 }
 function dismissWin() {
   if (S.wonT < 1.2) return;
-  S.state = "play"; say("Build bunk beds and new helpers will move in! 🛏", 5);
+  S.state = "play"; say("Keep bringing wood — bunk beds, a barn, lost pets and an upstairs are next! 🛏🐾", 5);
 }
 function titleBtns() { return [{ x: W / 2 - 110, y: H * .8, w: 220, h: 54, main: true, t: "▶ PLAY" }, { x: W / 2 - 110, y: H * .8 + 66, w: 220, h: 44, t: "🎲 new random character" }]; }
 function handleTaps() {
