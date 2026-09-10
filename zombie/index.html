@@ -397,7 +397,8 @@ function updatePlayer(dt) {
   if (keys["arrowup"] || keys["w"]) { dx -= 1; dy -= 1; }
   if (keys["arrowdown"] || keys["s"]) { dx += 1; dy += 1; }
   if (joy.id !== null) {   // screen joystick → iso world axes
-    dx += (joy.dx - joy.dy); dy += (-joy.dx - joy.dy);
+    // screen sx=(x-y), sy=(x+y)  →  x=(sx+sy)/2, y=(sy-sx)/2
+    dx += (joy.dx + joy.dy); dy += (joy.dy - joy.dx);
   }
   const m = Math.hypot(dx, dy);
   if (m > .01) {
