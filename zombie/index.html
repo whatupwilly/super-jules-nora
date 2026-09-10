@@ -204,7 +204,7 @@ function inSquare(x, y) { return x >= SQUARE.x && x < SQUARE.x + SQUARE.w && y >
 function has(key) { return S.built > STAGES.findIndex(s => s.key === key); }
 function nextStage() {
   if (S.built < STAGES.length) return STAGES[S.built];
-  if (S.bunks < MAX_BUNKS) return { key: "bunk", name: "a bunk bed for a new helper", cost: 5 + S.bunks };
+  if (S.bunks < MAX_BUNKS) return { key: "bunk", name: "a bunk bed for a new helper", short: "a bunk bed", cost: 5 + S.bunks };
   return null;
 }
 
@@ -921,23 +921,33 @@ function drawHUD() {
   // hearts
   let hearts = ""; for (let i = 0; i < P.maxHp; i++) hearts += i < P.hp ? "❤️" : "🖤";
   g.fillStyle = "rgba(0,0,0,.4)"; roundRect(10, top, 150, 30, 10); g.fill(); g.fillText(hearts, 18, top + 16);
-  // wood + pile
-  const st = nextStage();
-  const line2 = "🪵 " + P.wood + "/2 carrying   pile: " + S.pile + (st ? "   next: " + st.name + " (" + st.cost + ")" : "   🏠 house full — everyone has a bed!");
+  // info rows: each row is a few segments in one pill; on a narrow phone a row
+  // that won't fit splits into one pill per segment so nothing gets chopped off
   g.font = "bold 14px 'Avenir Next','Trebuchet MS',Arial";
-  const w2 = g.measureText(line2).width + 20;
-  g.fillStyle = "rgba(0,0,0,.4)"; roundRect(10, top + 36, w2, 26, 9); g.fill(); g.fillStyle = "#fff"; g.fillText(line2, 20, top + 49);
-  // time + character
+  const maxW = W - 20;
+  let y = top + 36;
+  function row(segs) {
+    const joined = segs.join("   ");
+    const groups = g.measureText(joined).width + 20 <= maxW ? [joined] : segs;
+    for (const s of groups) {
+      const w = Math.min(maxW, g.measureText(s).width + 20);
+      g.fillStyle = "rgba(0,0,0,.4)"; roundRect(10, y, w, 26, 9); g.fill();
+      g.fillStyle = "#fff"; g.fillText(s, 20, y + 13, w - 20);
+      y += 32;
+    }
+  }
+  const st = nextStage();
+  row(["🪵 " + P.wood + "/2 carrying", "pile: " + S.pile, st ? "next: " + (st.short || st.name) + " (" + st.cost + ")" : "🏠 house full — everyone has a bed!"]);
   const ph = S.phase === "day" ? "☀️ Day " + S.day : S.phase === "dusk" ? "🌇 Evening" : S.phase === "night" ? "🌙 Night " + S.day : "🌅 Dawn";
-  const line3 = ph + (S.rain ? "  ⛈" : "") + "   you are " + P.label;
-  const w3 = g.measureText(line3).width + 20;
-  g.fillStyle = "rgba(0,0,0,.4)"; roundRect(10, top + 68, w3, 26, 9); g.fill(); g.fillStyle = "#fff"; g.fillText(line3, 20, top + 81);
+  row([ph + (S.rain ? "  ⛈" : ""), "you are " + P.label]);
   // house progress bar
-  const pw = Math.min(240, W - 40), px = 10, py = top + 100;
+  const pw = Math.min(240, W - 40), px = 10, py = y + 4;
   g.fillStyle = "rgba(0,0,0,.4)"; roundRect(px, py, pw, 16, 8); g.fill();
   g.fillStyle = "#ffd166"; roundRect(px + 2, py + 2, (pw - 4) * (S.built / STAGES.length), 12, 6); g.fill();
-  if (S.built >= STAGES.length) { g.fillStyle = "#fff"; g.font = "bold 12px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("🛏 bunk beds " + S.bunks + "/" + MAX_BUNKS + "   👫 helpers " + helpers.length, px + pw + 10, py + 9); }
-  if (S.builder) { g.fillStyle = "#fff"; g.font = "bold 12px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("🔨 " + S.builder.name + " is building… (stand close + 🪓 to help)", px, py + 28); }
+  y = py + 22;
+  g.font = "bold 12px 'Avenir Next','Trebuchet MS',Arial";
+  if (S.built >= STAGES.length) { g.fillStyle = "#fff"; g.fillText("🛏 bunk beds " + S.bunks + "/" + MAX_BUNKS + "   👫 helpers " + helpers.length, px, y + 6, maxW); y += 18; }
+  if (S.builder) { g.fillStyle = "#fff"; g.fillText("🔨 " + S.builder.name + " is building… stand close + 🪓 to help", px, y + 6, maxW); }
   // message
   if (S.msgT > 0 && S.msg) {
     g.font = "bold 16px 'Avenir Next','Trebuchet MS',Arial"; g.textAlign = "center";
