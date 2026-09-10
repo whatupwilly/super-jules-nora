@@ -123,6 +123,7 @@ window.addEventListener("keydown", e => {
   if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(e.key.toLowerCase())) e.preventDefault();
   audio();
   if (S.state === "title" && (e.key === " " || e.key === "Enter")) startGame();
+  else if (S.state === "win") dismissWin();
   else if (e.key === " " || e.key.toLowerCase() === "e") pressAction();
 });
 window.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
@@ -186,10 +187,14 @@ const STAGES = [
   { key: "lantern",name: "the lantern",     cost: 2 },
 ];
 const DOOR = { x: HOUSE.x + 2, y: HOUSE.y + HOUSE.h - 1 };
+// bunk beds go in the other corners of the room; the second row stacks on top
+const BUNK_POS = [{ x: HOUSE.x + 3, y: HOUSE.y + 1 }, { x: HOUSE.x + 1, y: HOUSE.y + 3 }, { x: HOUSE.x + 3, y: HOUSE.y + 3 }];
+const MAX_BUNKS = BUNK_POS.length * 2;
+const FOLLOW = [[-1.1, .9], [1.1, .9], [-1.7, -.1], [1.7, -.1], [-.6, 1.7], [.6, 1.7], [0, -1.5], [-2, 1.4]];
 const BED  = { x: HOUSE.x + 1, y: HOUSE.y + 1 };
 const S = { state: "title", built: 0, pile: 0, day: 1, clock: 0, phase: "day", t: 0, rain: 0, rainT: 0,
   flash: 0, thunderT: 0, msg: "", msgT: 0, prompt: null, fade: 0, fadeMode: "", won: false, wonT: 0,
-  spawnT: 0, builder: null, buildProg: 0, nightsSurvived: 0 };
+  spawnT: 0, builder: null, buildProg: 0, nightsSurvived: 0, bunks: 0 };
 const DAY_LEN = 75, DUSK_LEN = 8, NIGHT_LEN = 55, DAWN_LEN = 7;
 
 function inHouse(x, y) { return x >= HOUSE.x && x < HOUSE.x + HOUSE.w && y >= HOUSE.y && y < HOUSE.y + HOUSE.h; }
@@ -197,7 +202,11 @@ function onRing(x, y) { return inHouse(x, y) && (x === HOUSE.x || y === HOUSE.y 
 function isBack(x, y) { return onRing(x, y) && (x === HOUSE.x || y === HOUSE.y); }
 function inSquare(x, y) { return x >= SQUARE.x && x < SQUARE.x + SQUARE.w && y >= SQUARE.y && y < SQUARE.y + SQUARE.h; }
 function has(key) { return S.built > STAGES.findIndex(s => s.key === key); }
-function nextStage() { return STAGES[S.built] || null; }
+function nextStage() {
+  if (S.built < STAGES.length) return STAGES[S.built];
+  if (S.bunks < MAX_BUNKS) return { key: "bunk", name: "a bunk bed for a new helper", cost: 5 + S.bunks };
+  return null;
+}
 
 function genWorld() {
   tiles = []; solid = []; trees = []; logs = []; zombies = []; fx = []; drops = [];
@@ -283,6 +292,19 @@ function newCharacters() {
   helpers.forEach((h, i) => { h.helper = true; h.state = "follow"; h.target = null; h.cool = 0; h.hp = 99; h.idx = i; });
 }
 newCharacters();
+function newHelper() {   // a new blocky friend walks in from the edge of the forest
+  const used = [P.name, ...helpers.map(h => h.name)];
+  const h = makeChar(used);
+  h.helper = true; h.state = "follow"; h.target = null; h.cool = 0; h.hp = 99; h.idx = helpers.length; h.carry = 0;
+  const side = ri(0, 3);
+  for (let i = 0; i < 40; i++) {
+    h.x = side === 0 ? 1.5 : side === 1 ? MAP - 1.5 : rnd(2, MAP - 2);
+    h.y = side === 2 ? 1.5 : side === 3 ? MAP - 1.5 : rnd(2, MAP - 2);
+    if (!blocked(h.x, h.y)) break;
+  }
+  helpers.push(h); boom(h.x, h.y, "#ffd166", 10, 4);
+  return h;
+}
 
 /* ------------------------------ messages ------------------------------ */
 function say(m, t) { S.msg = m; S.msgT = t || 3; }
@@ -295,10 +317,11 @@ function boom(x, y, col, n, up) {
 function startGame() {
   genWorld();
   S.state = "play"; S.built = 0; S.pile = 0; S.day = 1; S.clock = 0; S.phase = "day"; S.rain = 0; S.rainT = rnd(25, 60);
-  S.flash = 0; S.msgT = 0; S.prompt = null; S.fade = 0; S.won = false; S.builder = null; S.buildProg = 0; S.nightsSurvived = 0;
+  S.flash = 0; S.msgT = 0; S.prompt = null; S.fade = 0; S.won = false; S.builder = null; S.buildProg = 0; S.nightsSurvived = 0; S.bunks = 0;
+  helpers.length = 2;   // a fresh game starts with the two original helpers
   P.x = HOUSE.x + 2.5; P.y = HOUSE.y + HOUSE.h + 2.5; P.hp = P.maxHp; P.wood = 0; P.dir = 1;
   cam.x = P.x; cam.y = P.y;
-  helpers.forEach((h, i) => { h.x = P.x + (i ? 1.4 : -1.4); h.y = P.y + .6; h.state = "follow"; h.carry = 0; h.target = null; });
+  helpers.forEach((h, i) => { h.x = P.x + FOLLOW[i][0]; h.y = P.y + FOLLOW[i][1]; h.state = "follow"; h.carry = 0; h.target = null; });
   say("Chop trees with your axe 🪓 and bring wood to the yellow square!", 5);
 }
 function timeOfDay() {   // 0 = full day .. 1 = full night
@@ -365,9 +388,10 @@ let last = performance.now();
 function update() {
   const now = performance.now(); let dt = Math.min(.05, (now - last) / 1000); last = now;
   S.t += dt;
+  if (S.won) S.wonT += dt;   // ticks on the win screen too (it used to freeze there)
   if (S.msgT > 0) S.msgT -= dt;
   if (S.state === "title") { P.walk += dt * 4; return; }
-  if (S.state === "sleep" || S.state === "faint") { S.fade += dt; if (S.fade > 2.4) { S.state = "play"; S.fade = 0; morning(); if (S.fadeMode === "faint") { P.x = HOUSE.x + 2.5; P.y = HOUSE.y + HOUSE.h + 2.5; P.wood = 0; helpers.forEach((h, i) => { h.x = P.x + (i ? 1.2 : -1.2); h.y = P.y + .8; h.state = "follow"; }); say("Your helpers carried you home. Morning! ☀️", 4); } else { SFX.wake(); say("Good morning! ☀️ Day " + S.day, 3); } } return; }
+  if (S.state === "sleep" || S.state === "faint") { S.fade += dt; if (S.fade > 2.4) { S.state = "play"; S.fade = 0; morning(); if (S.fadeMode === "faint") { P.x = HOUSE.x + 2.5; P.y = HOUSE.y + HOUSE.h + 2.5; P.wood = 0; helpers.forEach((h, i) => { h.x = P.x + FOLLOW[i][0]; h.y = P.y + FOLLOW[i][1]; h.state = "follow"; }); say("Your helpers carried you home. Morning! ☀️", 4); } else { SFX.wake(); say("Good morning! ☀️ Day " + S.day, 3); } } return; }
   if (S.state !== "play") return;
   if (S.prompt) return;   // world pauses while the bed asks
   advanceClock(dt);
@@ -379,7 +403,6 @@ function update() {
   updateBuild(dt);
   trees.forEach(t => { if (t.shake > 0) t.shake -= dt; if (t.stump > 0) { t.stump -= dt; if (t.stump <= 0) { t.hp = 3; solid[t.y][t.x] = true; boom(t.x + .5, t.y + .5, "#6ad06a", 8, 3); } } });
   for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t -= dt; f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt; f.vz -= 9 * dt; if (f.z < 0) { f.z = 0; f.vz *= -.4; } if (f.t <= 0) fx.splice(i, 1); }
-  if (S.won) S.wonT += dt;
 }
 function updateWeather(dt) {
   if (S.flash > 0) S.flash -= dt * 3;
@@ -444,8 +467,10 @@ function updateBuild(dt) {
   if (Math.floor(h.hammer / Math.PI) !== Math.floor((h.hammer - dt * 10) / Math.PI)) SFX.hammer();
   S.buildProg += dt;
   if (S.buildProg >= 3.2) {
-    S.pile -= st.cost; S.built++; rebuildHouseSolids(); SFX.built(); boom(HOUSE.x + 2.5, HOUSE.y + 2.5, "#ffd166", 20, 5);
+    S.pile -= st.cost; SFX.built(); boom(HOUSE.x + 2.5, HOUSE.y + 2.5, "#ffd166", 20, 5);
     S.builder = null; h.state = "follow"; h.hammer = 0;
+    if (st.key === "bunk") { S.bunks++; const nh = newHelper(); say(h.name + " built a bunk bed — " + nh.name + " is coming to join you! 🛏", 4); return; }
+    S.built++; rebuildHouseSolids();
     if (S.built >= STAGES.length) { S.won = true; S.wonT = 0; S.state = "win"; SFX.win(); }
     else say(h.name + " built " + st.name + "! 🎉", 3);
   }
@@ -494,7 +519,7 @@ function updateHelpers(dt) {
       continue;
     }
     // 3. follow the player
-    const fx0 = P.x + (h.idx ? 1.1 : -1.1), fy0 = P.y + .9, d = Math.hypot(fx0 - h.x, fy0 - h.y);
+    const fo = FOLLOW[h.idx % FOLLOW.length], fx0 = P.x + fo[0], fy0 = P.y + fo[1], d = Math.hypot(fx0 - h.x, fy0 - h.y);
     if (d > 1.2) walkTo(h, fx0, fy0, 3.5, dt); else { h.walk = 0; h.bob = 0; }
   }
 }
@@ -502,7 +527,7 @@ function updateZombies(dt) {
   const night = S.phase === "night" || S.phase === "dusk";
   if (night) {
     S.spawnT -= dt;
-    const cap = 3 + S.nightsSurvived;
+    const cap = 3 + S.nightsSurvived + Math.floor((helpers.length - 2) / 2);
     if (S.spawnT <= 0 && zombies.length < cap) {
       S.spawnT = rnd(4, 8);
       const side = ri(0, 3); let x, y;
@@ -628,13 +653,15 @@ function drawHouseTile(x, y) {
   const back = isBack(x, y);
   if (back && !has("back")) return;
   if (!back && !has("front")) return;
+  // the front walls go see-through while you're inside so the beds show
+  const inside = inHouse(Math.floor(P.x), Math.floor(P.y)), wa = !back && inside ? .22 : undefined;
   if (x === DOOR.x && y === DOOR.y) {
-    if (has("door")) cube(x, y + .8, 0, 1, .2, 1.7, "#6b3f1f", { top: "#8a5a32" });
-    if (has("roof")) cube(x, y, 1.9, 1, 1, .15, "#c07a3a");   // wall top beam over the door gap
+    if (has("door")) cube(x, y + .8, 0, 1, .2, 1.7, "#6b3f1f", { top: "#8a5a32", alpha: wa });
+    if (has("roof")) cube(x, y, 1.9, 1, 1, .15, "#c07a3a", { alpha: wa });   // wall top beam over the door gap
     return;
   }
   const col = "#c69a5a";
-  cube(x, y, 0, 1, 1, 2, col, { line: "rgba(0,0,0,.18)" });
+  cube(x, y, 0, 1, 1, 2, col, { line: wa ? undefined : "rgba(0,0,0,.18)", alpha: wa });
   // a window on the front walls
   if (!back && has("front") && ((y === HOUSE.y + HOUSE.h - 1 && x === HOUSE.x + 3) || (x === HOUSE.x + HOUSE.w - 1 && y === HOUSE.y + 2))) {
     patch(x, y, 0, 1, 1, x === HOUSE.x + HOUSE.w - 1 ? 0 : 1, .3, .9, .4, .5, timeOfDay() > .5 && has("lantern") ? "#ffe08a" : "#9fd4ff");
@@ -643,7 +670,7 @@ function drawHouseTile(x, y) {
 function drawRoof() {
   if (!has("roof")) return;
   const inside = inHouse(Math.floor(P.x), Math.floor(P.y));
-  const alpha = inside ? .28 : 1;
+  const alpha = inside ? .12 : 1;
   cube(HOUSE.x - .2, HOUSE.y - .2, 2, HOUSE.w + .4, HOUSE.h + .4, .3, "#b34a2e", { alpha });
   cube(HOUSE.x + .6, HOUSE.y + .6, 2.3, HOUSE.w - 1.2, HOUSE.h - 1.2, .35, "#c25535", { alpha });
   cube(HOUSE.x + 1.5, HOUSE.y + 1.5, 2.65, HOUSE.w - 3, HOUSE.h - 3, .35, "#cf6040", { alpha });
@@ -654,6 +681,14 @@ function drawBed() {
   cube(BED.x + .1, BED.y + .1, 0, .8, 1.2, .3, "#8a5a32");
   cube(BED.x + .15, BED.y + .15, .3, .7, 1.1, .2, "#e63946", { top: "#f25c68" });
   cube(BED.x + .2, BED.y + .2, .5, .6, .35, .15, "#fff", { top: "#fff" });
+}
+function drawBunk(i) {
+  const p = BUNK_POS[i % BUNK_POS.length], top = i >= BUNK_POS.length, z = top ? .75 : 0;
+  const col = ["#3a86ff", "#06d6a0", "#8338ec", "#ffbe0b", "#fb5607", "#ff006e"][i % 6];
+  if (top) for (const [px, py] of [[.1, .1], [.85, .1], [.1, 1.2], [.85, 1.2]]) cube(p.x + px, p.y + py, .3, .08, .08, .5, "#6b3f1f");
+  cube(p.x + .1, p.y + .1, z, .8, 1.2, .3, "#8a5a32");
+  cube(p.x + .15, p.y + .15, z + .3, .7, 1.1, .18, col, { top: shade(col, 1.25) });
+  cube(p.x + .2, p.y + .2, z + .48, .6, .32, .13, "#fff", { top: "#fff" });
 }
 function drawLantern() {
   if (!has("lantern")) return;
@@ -774,6 +809,7 @@ function drawScene() {
   for (const t of trees) if (t.x >= x0 - 1 && t.x <= x1 + 1 && t.y >= y0 - 1 && t.y <= y1 + 1) q(t.x + t.y + 1 + (t.stump > 0 ? 0 : .3), () => drawTree(t));
   for (let y = HOUSE.y; y < HOUSE.y + HOUSE.h; y++) for (let x = HOUSE.x; x < HOUSE.x + HOUSE.w; x++) if (onRing(x, y)) q(x + y + 1, () => drawHouseTile(x, y));
   q(BED.x + BED.y + 1.2, drawBed);
+  for (let i = 0; i < S.bunks; i++) { const p = BUNK_POS[i % BUNK_POS.length]; q(p.x + p.y + 1.2 + (i >= BUNK_POS.length ? .01 : 0), () => drawBunk(i)); }
   q(SQUARE.x + SQUARE.y + 2, drawPile);
   q(HOUSE.x + HOUSE.w + HOUSE.y + HOUSE.h, drawLantern);
   q(HOUSE.x + HOUSE.y + HOUSE.w + HOUSE.h + .5, drawRoof);
@@ -827,7 +863,7 @@ function drawHUD() {
   g.fillStyle = "rgba(0,0,0,.4)"; roundRect(10, top, 150, 30, 10); g.fill(); g.fillText(hearts, 18, top + 16);
   // wood + pile
   const st = nextStage();
-  const line2 = "🪵 " + P.wood + "/2 carrying   pile: " + S.pile + (st ? "   next: " + st.name + " (" + st.cost + ")" : "   🏠 house done!");
+  const line2 = "🪵 " + P.wood + "/2 carrying   pile: " + S.pile + (st ? "   next: " + st.name + " (" + st.cost + ")" : "   🏠 house full — everyone has a bed!");
   g.font = "bold 14px 'Avenir Next','Trebuchet MS',Arial";
   const w2 = g.measureText(line2).width + 20;
   g.fillStyle = "rgba(0,0,0,.4)"; roundRect(10, top + 36, w2, 26, 9); g.fill(); g.fillStyle = "#fff"; g.fillText(line2, 20, top + 49);
@@ -840,6 +876,7 @@ function drawHUD() {
   const pw = Math.min(240, W - 40), px = 10, py = top + 100;
   g.fillStyle = "rgba(0,0,0,.4)"; roundRect(px, py, pw, 16, 8); g.fill();
   g.fillStyle = "#ffd166"; roundRect(px + 2, py + 2, (pw - 4) * (S.built / STAGES.length), 12, 6); g.fill();
+  if (S.built >= STAGES.length) { g.fillStyle = "#fff"; g.font = "bold 12px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("🛏 bunk beds " + S.bunks + "/" + MAX_BUNKS + "   👫 helpers " + helpers.length, px + pw + 10, py + 9); }
   if (S.builder) { g.fillStyle = "#fff"; g.font = "bold 12px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("🔨 " + S.builder.name + " is building… (stand close + 🪓 to help)", px, py + 28); }
   // message
   if (S.msgT > 0 && S.msg) {
@@ -878,7 +915,8 @@ function drawWin() {
   for (let i = 0; i < 80; i++) { const hx = hash(i, 1), hs = hash(i, 2); const y = ((t * (60 + hs * 120) + hx * H) % (H + 40)) - 20; g.fillStyle = ["#ffbe0b", "#fb5607", "#ff006e", "#8338ec", "#3a86ff", "#06d6a0"][i % 6]; g.fillRect(hx * W, y, 8, 12); }
   g.fillStyle = "#fff"; g.textAlign = "center"; g.font = "bold 44px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("🏠 YOU BUILT THE HOUSE! 🎉", W / 2, H / 2 - 30, W - 30);
   g.font = "bold 22px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(P.name + " and the helpers did it!", W / 2, H / 2 + 14);
-  if (t > 1.5) { g.fillStyle = "#ffd166"; g.font = "bold 20px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("Tap to keep playing (sleep in your bed, survive the nights!)", W / 2, H / 2 + 60, W - 30); }
+  if (t > 1.2) { g.fillStyle = "#ffd166"; g.font = "bold 20px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("Tap to keep playing!", W / 2, H / 2 + 60, W - 30);
+    g.fillStyle = "#fff"; g.font = "bold 16px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("Next: build bunk beds and new helpers will move in 🛏", W / 2, H / 2 + 90, W - 30); }
 }
 
 /* ------------------------------ title ------------------------------ */
@@ -899,12 +937,16 @@ function drawTitle() {
   g.fillText("helpers: " + helpers[0].name + " & " + helpers[1].name, W / 2, H * .72 + 26);
   for (const b of titleBtns()) { g.fillStyle = b.main ? "#06d6a0" : "rgba(255,255,255,.18)"; roundRect(b.x, b.y, b.w, b.h, 16); g.fill(); g.fillStyle = "#fff"; g.font = "bold 20px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(b.t, b.x + b.w / 2, b.y + b.h / 2 + 7); }
 }
+function dismissWin() {
+  if (S.wonT < 1.2) return;
+  S.state = "play"; say("Build bunk beds and new helpers will move in! 🛏", 5);
+}
 function titleBtns() { return [{ x: W / 2 - 110, y: H * .8, w: 220, h: 54, main: true, t: "▶ PLAY" }, { x: W / 2 - 110, y: H * .8 + 66, w: 220, h: 44, t: "🎲 new random character" }]; }
 function handleTaps() {
   while (taps.length) {
     const t = taps.shift();
     if (S.state === "title") { for (const b of titleBtns()) if (t.x > b.x && t.x < b.x + b.w && t.y > b.y && t.y < b.y + b.h) { SFX.click(); if (b.main) startGame(); else newCharacters(); } }
-    else if (S.state === "win" && S.wonT > 1.5) { S.state = "play"; say("Keep playing! Zombies still come at night. 🧟", 4); }
+    else if (S.state === "win") dismissWin();
   }
 }
 
