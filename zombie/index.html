@@ -245,12 +245,31 @@ function blocked(x, y, zombie) {
   if (zombie && tx === DOOR.x && ty === DOOR.y && has("door")) return true;   // the door keeps zombies out
   return solid[ty][tx];
 }
-function moveEnt(e, dx, dy) {   // axis-separated slide against solid tiles
+function fits(e, x, y) {   // does the entity's little footprint sit on free tiles?
   const r = e.r || .28, z = e.zombie;
-  let nx = e.x + dx;
-  if (!blocked(nx - r, e.y - r, z) && !blocked(nx + r, e.y - r, z) && !blocked(nx - r, e.y + r, z) && !blocked(nx + r, e.y + r, z)) e.x = nx;
-  let ny = e.y + dy;
-  if (!blocked(e.x - r, ny - r, z) && !blocked(e.x + r, ny - r, z) && !blocked(e.x - r, ny + r, z) && !blocked(e.x + r, ny + r, z)) e.y = ny;
+  return !blocked(x - r, y - r, z) && !blocked(x + r, y - r, z) && !blocked(x - r, y + r, z) && !blocked(x + r, y + r, z);
+}
+function moveEnt(e, dx, dy) {   // axis-separated slide against solid tiles
+  // already overlapping a block (a wall went up under our feet)? then any move
+  // is allowed so we can walk back out instead of being sealed in forever
+  const free = !fits(e, e.x, e.y);
+  const nx = e.x + dx;
+  if (free || fits(e, nx, e.y)) e.x = nx;
+  const ny = e.y + dy;
+  if (free || fits(e, e.x, ny)) e.y = ny;
+}
+function freeSpot(x, y, zombie) {   // nearest open tile centre, searching outward in rings
+  const tx = Math.floor(x), ty = Math.floor(y);
+  for (let r = 0; r < 8; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+    const cx = tx + dx + .5, cy = ty + dy + .5;
+    if (!blocked(cx, cy, zombie)) return { x: cx, y: cy };
+  }
+  return { x, y };
+}
+function unstick(e) {   // sealed inside a block: pop out to the nearest open tile
+  if (!blocked(e.x, e.y, e.zombie)) return;
+  const s = freeSpot(e.x, e.y, e.zombie); e.x = s.x; e.y = s.y; e.path = null;
 }
 // breadth-first path over free tiles (4 neighbours, so nobody clips a corner).
 // Returns tile-centre waypoints from the tile after the start to the target
@@ -436,12 +455,13 @@ function update() {
   if (S.prompt) return;   // world pauses while the bed asks
   advanceClock(dt);
   updateWeather(dt);
+  unstick(P); helpers.forEach(unstick); zombies.forEach(unstick);
   updatePlayer(dt);
   updateLogs(dt);
   updateHelpers(dt);
   updateZombies(dt);
   updateBuild(dt);
-  trees.forEach(t => { if (t.shake > 0) t.shake -= dt; if (t.stump > 0) { t.stump -= dt; if (t.stump <= 0) { t.hp = 3; solid[t.y][t.x] = true; boom(t.x + .5, t.y + .5, "#6ad06a", 8, 3); } } });
+  trees.forEach(t => { if (t.shake > 0) t.shake -= dt; if (t.stump > 0) { t.stump -= dt; if (t.stump <= 0 && [P, ...helpers, ...zombies].some(e => Math.hypot(e.x - t.x - .5, e.y - t.y - .5) < .9)) t.stump = 2; if (t.stump <= 0) { t.hp = 3; solid[t.y][t.x] = true; boom(t.x + .5, t.y + .5, "#6ad06a", 8, 3); } } });
   for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t -= dt; f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt; f.vz -= 9 * dt; if (f.z < 0) { f.z = 0; f.vz *= -.4; } if (f.t <= 0) fx.splice(i, 1); }
 }
 function updateWeather(dt) {
