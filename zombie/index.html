@@ -239,17 +239,53 @@ function rebuildHouseSolids() {
   }
   if (has("bed")) solid[BED.y][BED.x] = false;   // bed is touchable, you walk onto it
 }
-function blocked(x, y) {
+function blocked(x, y, zombie) {
   const tx = Math.floor(x), ty = Math.floor(y);
   if (tx < 1 || ty < 1 || tx >= MAP - 1 || ty >= MAP - 1) return true;
+  if (zombie && tx === DOOR.x && ty === DOOR.y && has("door")) return true;   // the door keeps zombies out
   return solid[ty][tx];
 }
 function moveEnt(e, dx, dy) {   // axis-separated slide against solid tiles
-  const r = e.r || .28;
+  const r = e.r || .28, z = e.zombie;
   let nx = e.x + dx;
-  if (!blocked(nx - r, e.y - r) && !blocked(nx + r, e.y - r) && !blocked(nx - r, e.y + r) && !blocked(nx + r, e.y + r)) e.x = nx;
+  if (!blocked(nx - r, e.y - r, z) && !blocked(nx + r, e.y - r, z) && !blocked(nx - r, e.y + r, z) && !blocked(nx + r, e.y + r, z)) e.x = nx;
   let ny = e.y + dy;
-  if (!blocked(e.x - r, ny - r) && !blocked(e.x + r, ny - r) && !blocked(e.x - r, ny + r) && !blocked(e.x + r, ny + r)) e.y = ny;
+  if (!blocked(e.x - r, ny - r, z) && !blocked(e.x + r, ny - r, z) && !blocked(e.x - r, ny + r, z) && !blocked(e.x + r, ny + r, z)) e.y = ny;
+}
+// breadth-first path over free tiles (4 neighbours, so nobody clips a corner).
+// Returns tile-centre waypoints from the tile after the start to the target
+// tile, or null when the target can't be reached.
+function findPath(sx, sy, tx, ty, zombie) {
+  const s = Math.floor(sy) * MAP + Math.floor(sx), goal = Math.floor(ty) * MAP + Math.floor(tx);
+  if (s === goal) return [];
+  const prev = new Int16Array(MAP * MAP).fill(-1); prev[s] = s;
+  const queue = [s]; let qi = 0;
+  while (qi < queue.length) {
+    const c = queue[qi++]; if (c === goal) break;
+    const cx = c % MAP, cy = (c - cx) / MAP;
+    for (const [nx, ny] of [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]]) {
+      if (nx < 1 || ny < 1 || nx >= MAP - 1 || ny >= MAP - 1) continue;
+      const n = ny * MAP + nx;
+      if (prev[n] !== -1 || blocked(nx + .5, ny + .5, zombie)) continue;
+      prev[n] = c; queue.push(n);
+    }
+  }
+  if (prev[goal] === -1) return null;
+  const path = [];
+  for (let c = goal; c !== s; c = prev[c]) path.push({ x: (c % MAP) + .5, y: Math.floor(c / MAP) + .5 });
+  return path.reverse();
+}
+// walk toward (tx,ty) along a path, re-planning every so often; falls back to
+// a straight walk when there's no route (e.g. a zombie outside a closed house)
+function goTo(e, tx, ty, sp, dt) {
+  e.pathT = (e.pathT || 0) - dt;
+  if (!e.path || e.pathT <= 0 || Math.abs(tx - e.ptx) > .9 || Math.abs(ty - e.pty) > .9) {
+    e.path = findPath(e.x, e.y, tx, ty, e.zombie); e.pathT = .7; e.ptx = tx; e.pty = ty;
+  }
+  if (e.path === null) return walkTo(e, tx, ty, sp, dt);
+  while (e.path.length && Math.hypot(e.path[0].x - e.x, e.path[0].y - e.y) < .25) e.path.shift();
+  if (!e.path.length) return walkTo(e, tx, ty, sp, dt);
+  walkTo(e, e.path[0].x, e.path[0].y, sp, dt); return false;
 }
 
 /* ------------------------------ characters ------------------------------ */
@@ -360,7 +396,11 @@ function chopTree(t, by) {
   if (t.hp <= 0) {
     SFX.fall(); t.stump = 45; solid[t.y][t.x] = false; boom(t.x + .5, t.y + .5, "#4a9a3a", 14, 5);
     const n = t.big ? 3 : 2;
-    for (let i = 0; i < n; i++) logs.push({ x: t.x + .5 + rnd(-.6, .6), y: t.y + .5 + rnd(-.6, .6), z: 1.2, vz: rnd(1, 3), bounce: 2, t: 0 });
+    for (let i = 0; i < n; i++) {
+      let lx = t.x + .5, ly = t.y + .5;
+      for (let k = 0; k < 12; k++) { const ax = t.x + .5 + rnd(-.7, .7), ay = t.y + .5 + rnd(-.7, .7); if (!blocked(ax, ay)) { lx = ax; ly = ay; break; } }
+      logs.push({ x: lx, y: ly, z: 1.2, vz: rnd(1, 3), bounce: 2, t: 0 });
+    }
     if (by === P) say(pick(["Timber! 🌳", "Great chop!", "Wood! Grab it (only 2 at a time)"]), 2);
   }
 }
@@ -462,7 +502,7 @@ function updateBuild(dt) {
   if (!st) { S.builder = null; return; }
   const gx = HOUSE.x + HOUSE.w + .6, gy = HOUSE.y + 2.5;   // stand at the right side of the house
   const d = Math.hypot(gx - h.x, gy - h.y);
-  if (d > .4) { walkTo(h, gx, gy, 3.4, dt); return; }
+  if (d > .4) { goTo(h, gx, gy, 3.4, dt); return; }
   h.dir = 2; h.hammer = (h.hammer || 0) + dt * 10;
   if (Math.floor(h.hammer / Math.PI) !== Math.floor((h.hammer - dt * 10) / Math.PI)) SFX.hammer();
   S.buildProg += dt;
@@ -502,25 +542,25 @@ function updateHelpers(dt) {
     for (const q of zombies) { const d = Math.min(Math.hypot(q.x - P.x, q.y - P.y), Math.hypot(q.x - h.x, q.y - h.y)); if (d < zd) { zd = d; z = q; } }
     if (z) {
       const d = Math.hypot(z.x - h.x, z.y - h.y);
-      if (d > 1.0) walkTo(h, z.x, z.y, 4.2, dt);
+      if (d > 1.0) goTo(h, z.x, z.y, 4.2, dt);
       else if (h.cool <= 0) { h.cool = .55; h.swing = .3; hitZombie(z, 1, h); h.dir = Math.abs(z.x - h.x) > Math.abs(z.y - h.y) ? (z.x > h.x ? 0 : 2) : (z.y > h.y ? 1 : 3); }
       continue;
     }
     // 2. fetch a loose log and take it to the square
     if (h.carry > 0) {
       const sx = SQUARE.x + 1, sy = SQUARE.y + 1;
-      if (walkTo(h, sx, sy, 3.2, dt) || Math.hypot(sx - h.x, sy - h.y) < .6) { S.pile += h.carry; h.carry = 0; SFX.drop(); boom(sx, sy, "#c8944a", 5, 3); checkStage(); }
+      if (goTo(h, sx, sy, 3.2, dt) || Math.hypot(sx - h.x, sy - h.y) < .6) { S.pile += h.carry; h.carry = 0; SFX.drop(); boom(sx, sy, "#c8944a", 5, 3); checkStage(); }
       continue;
     }
     let l = null, ld = 9;
     for (const q of logs) { const d = Math.hypot(q.x - h.x, q.y - h.y); if (q.z < .3 && d < ld && Math.hypot(q.x - P.x, q.y - P.y) > 1.6) { ld = d; l = q; } }
     if (l) {
-      if (walkTo(h, l.x, l.y, 3.2, dt) || Math.hypot(l.x - h.x, l.y - h.y) < .5) { logs.splice(logs.indexOf(l), 1); h.carry = 1; SFX.pick(); }
+      if (goTo(h, l.x, l.y, 3.2, dt) || Math.hypot(l.x - h.x, l.y - h.y) < .5) { logs.splice(logs.indexOf(l), 1); h.carry = 1; SFX.pick(); }
       continue;
     }
     // 3. follow the player
     const fo = FOLLOW[h.idx % FOLLOW.length], fx0 = P.x + fo[0], fy0 = P.y + fo[1], d = Math.hypot(fx0 - h.x, fy0 - h.y);
-    if (d > 1.2) walkTo(h, fx0, fy0, 3.5, dt); else { h.walk = 0; h.bob = 0; }
+    if (d > 1.2) goTo(h, fx0, fy0, 3.5, dt); else { h.walk = 0; h.bob = 0; }
   }
 }
 function updateZombies(dt) {
@@ -534,7 +574,7 @@ function updateZombies(dt) {
       if (side === 0) { x = 1.5; y = rnd(2, MAP - 2); } else if (side === 1) { x = MAP - 1.5; y = rnd(2, MAP - 2); }
       else if (side === 2) { x = rnd(2, MAP - 2); y = 1.5; } else { x = rnd(2, MAP - 2); y = MAP - 1.5; }
       const wolf = S.nightsSurvived >= 1 && Math.random() < .35;
-      zombies.push({ x, y, r: .3, wolf, hp: wolf ? 2 : 3, walk: 0, bob: 0, dir: 0, hurt: 0, kx: 0, ky: 0, groan: rnd(1, 4) });
+      zombies.push({ x, y, r: .3, zombie: true, wolf, hp: wolf ? 2 : 3, walk: 0, bob: 0, dir: 0, hurt: 0, kx: 0, ky: 0, groan: rnd(1, 4) });
       if (wolf) SFX.howl(); else SFX.groan();
     }
   }
@@ -544,7 +584,7 @@ function updateZombies(dt) {
     if (z.hurt > 0) z.hurt -= dt;
     if (Math.abs(z.kx) > .1 || Math.abs(z.ky) > .1) { moveEnt(z, z.kx * dt, z.ky * dt); z.kx *= .85; z.ky *= .85; continue; }
     const sp = z.wolf ? 2.9 : 1.5;
-    walkTo(z, P.x, P.y, sp, dt);
+    goTo(z, P.x, P.y, sp, dt);
     z.walk += dt * (z.wolf ? 12 : 5);
     if (Math.hypot(z.x - P.x, z.y - P.y) < .7 && P.hurtT <= 0) {
       P.hp--; P.hurtT = 1.3; SFX.hurt(); boom(P.x, P.y, "#ff5555", 8, 3);
