@@ -51,7 +51,9 @@
    the yellow square and they stack up. Your two helpers build the house from
    the pile and fight the zombies (and wolf zombies!) that come at night.
    It can rain, lightning can strike, and when you touch the bed you can sleep
-   until morning. Finish the whole house to win — then keep playing. */
+   until morning. Finish the whole house to win — then keep playing.
+   Your world saves itself while you play (in this browser), so you can come
+   back tomorrow, tap CONTINUE and pick up right where you left off. */
 
 const cv = document.getElementById("game");
 const g  = cv.getContext("2d");
@@ -124,7 +126,7 @@ window.addEventListener("keydown", e => {
   keys[e.key.toLowerCase()] = true;
   if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(e.key.toLowerCase())) e.preventDefault();
   audio();
-  if (S.state === "title" && (e.key === " " || e.key === "Enter")) startGame();
+  if (S.state === "title") { if (S.confirm) { if (e.key === "Escape") S.confirm = false; } else if (e.key === " " || e.key === "Enter") (SAVED ? continueGame : startGame)(); }
   else if (S.state === "win") dismissWin();
   else if (e.key === " " || e.key.toLowerCase() === "e") pressAction();
 });
@@ -229,7 +231,8 @@ function hasX(key) { return EXTRAS.slice(0, S.extra).some(s => s.key === key); }
 const BED  = { x: HOUSE.x + 1, y: HOUSE.y + 1 };
 const S = { state: "title", built: 0, pile: 0, day: 1, clock: 0, phase: "day", t: 0, rain: 0, rainT: 0,
   flash: 0, thunderT: 0, msg: "", msgT: 0, prompt: null, fade: 0, fadeMode: "", won: false, wonT: 0,
-  spawnT: 0, builder: null, buildProg: 0, nightsSurvived: 0, bunks: 0, extra: 0, petBeds: 0, buildSpot: null };
+  spawnT: 0, builder: null, buildProg: 0, nightsSurvived: 0, bunks: 0, extra: 0, petBeds: 0, buildSpot: null,
+  saveT: 8, savedT: 0, confirm: false };   // autosave countdown, "💾 saved" flash, "start over?" question on the title
 const DAY_LEN = 75, DUSK_LEN = 8, NIGHT_LEN = 55, DAWN_LEN = 7;
 
 function inHouse(x, y) { return x >= HOUSE.x && x < HOUSE.x + HOUSE.w && y >= HOUSE.y && y < HOUSE.y + HOUSE.h; }
@@ -427,7 +430,7 @@ function updatePets(dt) {
       // home when YOU reach the barn door (the pet trails behind you), or either of you is inside
       if (inBarn(Math.floor(p.x), Math.floor(p.y)) || inBarn(Math.floor(P.x), Math.floor(P.y)) || Math.hypot(P.x - BARNDOOR.x - .5, P.y - BARNDOOR.y - 1.5) < 2.2) {
         p.state = "home"; p.wanderT = 0; SFX.built(); boom(BARN.x + 2, BARN.y + 2, "#ff6b9d", 16, 5);
-        say(p.label + " moved into the barn! 🏠💕", 4);
+        say(p.label + " moved into the barn! 🏠💕", 4); saveGame(true);
       }
       continue;
     }
@@ -479,6 +482,92 @@ function morning() {   // after sleeping or fainting
   P.hp = P.maxHp;
 }
 
+/* ------------------------------ save & load ------------------------------ */
+// The world autosaves into this browser's localStorage: quietly every few
+// seconds while you play, right after every big moment (something got built,
+// a new morning, a pet came home — those flash "💾 saved"), and when the tab
+// is hidden or closed. Zombies, sparks and the half-built progress bar aren't
+// saved; everything else (the map, chopped trees, your crew, the pile, the
+// house, the barn, the pets, the day and the weather) comes right back.
+const SAVE_KEY = "zombieSave", SAVE_VER = 1;
+const CHAR_KEYS = ["type", "name", "label", "skin", "hair", "shirt", "pants", "hairStyle", "hat", "kind", "body", "belly", "ears", "tail", "patch", "stripes", "x", "y", "dir", "hp", "wood", "carry"];
+let SAVED = null;   // the save that was waiting when the page opened (drives the CONTINUE button)
+function charData(c) { const o = {}; for (const k of CHAR_KEYS) if (c[k] !== undefined) o[k] = c[k]; return o; }
+function snapshot() {
+  return {
+    v: SAVE_VER, at: Date.now(),
+    s: { built: S.built, pile: S.pile, day: S.day, clock: S.clock, phase: S.phase, rain: S.rain, rainT: S.rainT, thunderT: S.thunderT,
+         nightsSurvived: S.nightsSurvived, bunks: S.bunks, extra: S.extra, petBeds: S.petBeds, won: S.won },
+    tiles: tiles.map(r => r.join("")).join(""),
+    trees: trees.map(t => ({ x: t.x, y: t.y, hp: t.hp, big: t.big, tone: t.tone, stump: Math.max(0, t.stump) })),
+    logs: logs.map(l => ({ x: l.x, y: l.y })),
+    p: charData(P), helpers: helpers.map(charData),
+    pets: pets.map(p => ({ kind: p.kind, state: p.state, x: p.x, y: p.y })),
+  };
+}
+function saveGame(show) {
+  if (S.state === "title" || !tiles.length) return;   // nothing to save until a world exists
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot())); if (show) S.savedT = 2; } catch (e) {}
+}
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+function loadSave() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (d && d.v === SAVE_VER && typeof d.tiles === "string" && d.tiles.length === MAP * MAP && d.p && d.p.name &&
+        Array.isArray(d.helpers) && d.helpers.length >= 2 && Array.isArray(d.trees)) return d;
+  } catch (e) {}
+  return null;
+}
+function restoreGame(d) {   // rebuild the whole world from a save; nothing changes unless all of it checks out
+  try {
+    const nt = [], ns = [];
+    for (let y = 0; y < MAP; y++) { nt.push([]); ns.push([]); for (let x = 0; x < MAP; x++) { const v = +d.tiles[y * MAP + x]; if (!(v >= 0 && v <= 3)) throw 0; nt[y].push(v); ns[y].push(v === T.WATER); } }
+    const ntrees = d.trees.map(t => {
+      const x = t.x | 0, y = t.y | 0; if (x < 1 || y < 1 || x >= MAP - 1 || y >= MAP - 1) throw 0;
+      const stump = Math.max(0, +t.stump || 0);
+      return { x, y, hp: stump > 0 ? 0 : clamp(t.hp | 0, 1, 3), shake: 0, stump, big: !!t.big, tone: +t.tone || 1 };
+    });
+    for (const t of ntrees) if (t.stump <= 0) ns[t.y][t.x] = true;
+    const base = () => ({ x: 0, y: 0, r: .28, dir: 1, walk: 0, bob: 0, hp: 5, maxHp: 5, wood: 0, swing: 0, hurtT: 0 });
+    const pos = (c, dx, dy) => { c.x = clamp(+c.x || dx, 1, MAP - 1); c.y = clamp(+c.y || dy, 1, MAP - 1); c.dir = clamp(c.dir | 0, 0, 3); };
+    const np = Object.assign(base(), charData(d.p));
+    if (np.type !== "kid" && np.type !== "animal") throw 0;
+    pos(np, HOUSE.x + 2.5, HOUSE.y + HOUSE.h + 2.5); np.maxHp = 5; np.hp = clamp(np.hp | 0, 1, 5); np.wood = clamp(np.wood | 0, 0, 2);
+    const nh = d.helpers.map((h, i) => {
+      const c = Object.assign(base(), charData(h), { helper: true, state: "follow", target: null, cool: 0, hp: 99, idx: i, carry: clamp(h.carry | 0, 0, 1) });
+      if (!c.name || (c.type !== "kid" && c.type !== "animal")) throw 0;
+      pos(c, np.x + FOLLOW[i % FOLLOW.length][0], np.y + FOLLOW[i % FOLLOW.length][1]); return c;
+    });
+    const npets = (Array.isArray(d.pets) ? d.pets : []).map((p, i) => {
+      const k = PET_KINDS.find(q => q.kind === p.kind) || PET_KINDS[i % PET_KINDS.length];
+      const c = Object.assign({ x: 0, y: 0, r: .2, dir: 1, walk: 0, bob: 0, swing: 0, type: "animal", pet: true, state: ["lost", "follow", "home"].includes(p.state) ? p.state : "home", cry: 1, wanderT: 0, idx: i }, k);
+      c.x = p.x; c.y = p.y; pos(c, BARN.x + 2, BARN.y + 2); return c;
+    });
+    const nlogs = (Array.isArray(d.logs) ? d.logs : []).map(l => ({ x: clamp(+l.x || 0, 1, MAP - 1), y: clamp(+l.y || 0, 1, MAP - 1), z: 0, vz: 0, bounce: 0, t: 0 }));
+    const s = d.s || {};
+    // everything parsed fine — now swap it all in at once
+    tiles = nt; solid = ns; trees = ntrees; logs = nlogs; zombies = []; fx = []; drops = []; pets = npets; P = np; helpers = nh;
+    S.built = clamp(s.built | 0, 0, STAGES.length); S.extra = clamp(s.extra | 0, 0, EXTRAS.length); S.pile = Math.max(0, s.pile | 0);
+    S.day = Math.max(1, s.day | 0); S.phase = ["day", "dusk", "night", "dawn"].includes(s.phase) ? s.phase : "day"; S.clock = Math.max(0, +s.clock || 0);
+    S.rain = s.rain ? 1 : 0; S.rainT = +s.rainT || rnd(25, 60); S.thunderT = +s.thunderT || rnd(2, 6);
+    S.nightsSurvived = Math.max(0, s.nightsSurvived | 0); S.bunks = clamp(s.bunks | 0, 0, MAX_BUNKS); S.petBeds = Math.max(0, s.petBeds | 0);
+    S.won = !!s.won && S.built >= STAGES.length; S.wonT = 0;
+    S.builder = null; S.buildProg = 0; S.buildSpot = null; S.prompt = null; S.msgT = 0; S.fade = 0; S.spawnT = 0; S.flash = 0; S.saveT = 8; S.savedT = 0;
+    P.onBed = has("bed") && Math.floor(P.x) === BED.x && Math.floor(P.y) === BED.y;   // no surprise "sleep?" pop-up on arrival
+    rebuildHouseSolids();
+    cam.x = P.x; cam.y = P.y;
+    return true;
+  } catch (e) { return false; }
+}
+function continueGame() {   // tap CONTINUE on the title: the world was already restored when the page opened
+  S.state = "play"; S.confirm = false; S.saveT = 8; cam.x = P.x; cam.y = P.y;
+  const st = nextStage();
+  say("Welcome back, " + P.name + "! ☀️ Day " + S.day + (st ? " · next: " + (st.short || st.name) : " · the whole village is finished!"), 5);
+}
+// don't lose the last few seconds if the tab is closed, you switch games, or the phone gets locked
+window.addEventListener("pagehide", () => saveGame(false));
+document.addEventListener("visibilitychange", () => { if (document.hidden) saveGame(false); });
+
 /* ------------------------------ actions ------------------------------ */
 function facingTile(e, d) {
   const dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];   // 0:+x 1:+y 2:-x 3:-y
@@ -528,10 +617,12 @@ function update() {
   S.t += dt;
   if (S.won) S.wonT += dt;   // ticks on the win screen too (it used to freeze there)
   if (S.msgT > 0) S.msgT -= dt;
+  if (S.savedT > 0) S.savedT -= dt;
   if (S.state === "title") { P.walk += dt * 4; return; }
-  if (S.state === "sleep" || S.state === "faint") { S.fade += dt; if (S.fade > 2.4) { S.state = "play"; S.fade = 0; morning(); if (S.fadeMode === "faint") { P.x = HOUSE.x + 2.5; P.y = HOUSE.y + HOUSE.h + 2.5; P.wood = 0; helpers.forEach((h, i) => { h.x = P.x + FOLLOW[i][0]; h.y = P.y + FOLLOW[i][1]; h.state = "follow"; }); say("Your helpers carried you home. Morning! ☀️", 4); } else { SFX.wake(); say("Good morning! ☀️ Day " + S.day, 3); } } return; }
+  if (S.state === "sleep" || S.state === "faint") { S.fade += dt; if (S.fade > 2.4) { S.state = "play"; S.fade = 0; morning(); if (S.fadeMode === "faint") { P.x = HOUSE.x + 2.5; P.y = HOUSE.y + HOUSE.h + 2.5; P.wood = 0; helpers.forEach((h, i) => { h.x = P.x + FOLLOW[i][0]; h.y = P.y + FOLLOW[i][1]; h.state = "follow"; }); say("Your helpers carried you home. Morning! ☀️", 4); } else { SFX.wake(); say("Good morning! ☀️ Day " + S.day, 3); } saveGame(true); } return; }
   if (S.state !== "play") return;
   if (S.prompt) return;   // world pauses while the bed asks
+  S.saveT -= dt; if (S.saveT <= 0) { S.saveT = 8; saveGame(false); }   // quiet autosave
   advanceClock(dt);
   updateWeather(dt);
   unstick(P); helpers.forEach(unstick); zombies.forEach(unstick); pets.forEach(unstick);
@@ -619,11 +710,13 @@ function updateBuild(dt) {
       else if (st.key === "petbed") { S.petBeds++; const p = spawnLostPet(); say(h.name + " built a pet bed! " + (p ? p.label + " is lost in the forest — follow the 🐾 and find them!" : ""), 5); }
       else say(h.name + " built " + st.name + "! 🎉", 3);
       if (!nextStage()) say("The whole village is finished! 🎉 You're amazing, " + P.name + "!", 6);
+      saveGame(true);
       return;
     }
     S.built++; rebuildHouseSolids();
     if (S.built >= STAGES.length) { S.won = true; S.wonT = 0; S.state = "win"; SFX.win(); }
     else say(h.name + " built " + st.name + "! 🎉", 3);
+    saveGame(true);
   }
 }
 function walkTo(e, tx, ty, sp, dt) {
@@ -1120,6 +1213,12 @@ function drawHUD() {
       g.fillStyle = "#fff"; g.fillText("🐾", ex, ey + 2);
     }
   }
+  // "💾 saved" flash after a big-moment autosave
+  if (S.savedT > 0) {
+    g.globalAlpha = Math.min(1, S.savedT); g.font = "bold 13px 'Avenir Next','Trebuchet MS',Arial"; g.textAlign = "left";
+    g.fillStyle = "rgba(0,0,0,.45)"; roundRect(10, H - 74, 96, 26, 9); g.fill();
+    g.fillStyle = "#c8f7c5"; g.fillText("💾 saved", 20, H - 61); g.globalAlpha = 1;
+  }
   // touch controls
   const b = actBtn();
   g.fillStyle = actHeld ? "rgba(255,209,102,.9)" : "rgba(255,255,255,.35)"; g.beginPath(); g.arc(b.x, b.y, b.r, 0, Math.PI * 2); g.fill();
@@ -1162,25 +1261,47 @@ function drawTitle() {
   // ground + character preview
   g.save(); g.translate(W / 2, H * .58); g.scale(ZOOM * 1.5, ZOOM * 1.5);
   diamond(-1, -1, "#5fae3e", 2); diamond(-.5, -.5, "#6cbf47", 1);
-  P.dir = 1; P.hurtT = 0; P.bob = Math.abs(Math.sin(P.walk)) * .06; drawChar(P);
+  // the preview draws at map (0,0); a restored character stands wherever they were saved, so park them there for a moment
+  const ox = P.x, oy = P.y, od = P.dir;
+  P.x = 0; P.y = 0; P.dir = 1; P.hurtT = 0; P.bob = Math.abs(Math.sin(P.walk)) * .06; drawChar(P);
+  P.x = ox; P.y = oy; P.dir = od;
   g.restore();
   g.textAlign = "center"; g.fillStyle = "#6ee27a"; g.font = "900 " + Math.min(64, W / 8) + "px 'Avenir Next','Trebuchet MS',Arial";
   g.fillText("ZOMBIE NIGHT", W / 2, H * .2);
   g.fillStyle = "#fff"; g.font = "bold 16px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("a Nora game · chop, build, survive", W / 2, H * .2 + 30);
-  g.font = "bold 22px 'Avenir Next','Trebuchet MS',Arial"; g.fillStyle = "#ffd166"; g.fillText("You are " + P.label + "!", W / 2, H * .72);
+  g.font = "bold 22px 'Avenir Next','Trebuchet MS',Arial"; g.fillStyle = S.confirm ? "#ff8fa3" : "#ffd166";
+  g.fillText(S.confirm ? "Start a brand-new world?" : SAVED ? "Welcome back, " + P.name + "!" : "You are " + P.label + "!", W / 2, H * .72, W - 30);
   g.fillStyle = "#fff"; g.font = "bold 15px 'Avenir Next','Trebuchet MS',Arial";
-  g.fillText("helpers: " + helpers[0].name + " & " + helpers[1].name, W / 2, H * .72 + 26);
-  for (const b of titleBtns()) { g.fillStyle = b.main ? "#06d6a0" : "rgba(255,255,255,.18)"; roundRect(b.x, b.y, b.w, b.h, 16); g.fill(); g.fillStyle = "#fff"; g.font = "bold 20px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(b.t, b.x + b.w / 2, b.y + b.h / 2 + 7); }
+  const home = pets.filter(p => p.state === "home").length;
+  g.fillText(S.confirm ? "Day " + S.day + " with " + P.name + " and the whole house will be gone!"
+    : SAVED ? "Day " + S.day + " · " + P.label + " · " + helpers.length + " helpers" + (home ? " · " + home + " pets home" : "")
+    : "helpers: " + helpers[0].name + " & " + helpers[1].name, W / 2, H * .72 + 26, W - 30);
+  for (const b of titleBtns()) { g.fillStyle = b.act === "wipe" ? "#e63946" : b.main ? "#06d6a0" : "rgba(255,255,255,.18)"; roundRect(b.x, b.y, b.w, b.h, 16); g.fill(); g.fillStyle = "#fff"; g.font = "bold 20px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(b.t, b.x + b.w / 2, b.y + b.h / 2 + 7); }
+  if (!S.confirm) { g.fillStyle = "rgba(255,255,255,.6)"; g.font = "bold 12px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("💾 your world saves itself while you play", W / 2, Math.min(H - 12, H * .8 + 134), W - 30); }
 }
 function dismissWin() {
   if (S.wonT < 1.2) return;
   S.state = "play"; say("Keep bringing wood — bunk beds, a barn, lost pets and an upstairs are next! 🛏🐾", 5);
 }
-function titleBtns() { return [{ x: W / 2 - 110, y: H * .8, w: 220, h: 54, main: true, t: "▶ PLAY" }, { x: W / 2 - 110, y: H * .8 + 66, w: 220, h: 44, t: "🎲 new random character" }]; }
+function titleBtns() {
+  const x = W / 2 - 110, y = H * .8;
+  if (S.confirm) return [{ x, y, w: 220, h: 54, act: "keep", main: true, t: "↩ Keep my world" }, { x, y: y + 66, w: 220, h: 44, act: "wipe", t: "🗑 Yes, start over" }];
+  if (SAVED) return [{ x, y, w: 220, h: 54, act: "continue", main: true, t: "▶ CONTINUE · Day " + S.day }, { x, y: y + 66, w: 220, h: 44, act: "new", t: "🌱 start a new world" }];
+  return [{ x, y, w: 220, h: 54, act: "play", main: true, t: "▶ PLAY" }, { x, y: y + 66, w: 220, h: 44, act: "random", t: "🎲 new random character" }];
+}
+function titleAct(act) {
+  SFX.click();
+  if (act === "play") startGame();
+  else if (act === "random") newCharacters();
+  else if (act === "continue") continueGame();
+  else if (act === "new") S.confirm = true;            // ask first — a saved world is precious
+  else if (act === "keep") S.confirm = false;
+  else if (act === "wipe") { S.confirm = false; clearSave(); SAVED = null; newCharacters(); }
+}
 function handleTaps() {
   while (taps.length) {
     const t = taps.shift();
-    if (S.state === "title") { for (const b of titleBtns()) if (t.x > b.x && t.x < b.x + b.w && t.y > b.y && t.y < b.y + b.h) { SFX.click(); if (b.main) startGame(); else newCharacters(); } }
+    if (S.state === "title") { for (const b of titleBtns()) if (t.x > b.x && t.x < b.x + b.w && t.y > b.y && t.y < b.y + b.h) { titleAct(b.act); break; } }
     else if (S.state === "win") dismissWin();
   }
 }
@@ -1189,6 +1310,13 @@ function handleTaps() {
 const gBtn = document.getElementById("gamesBtn"), gMenu = document.getElementById("gamesMenu");
 gBtn.addEventListener("click", e => { e.stopPropagation(); gMenu.hidden = !gMenu.hidden; });
 document.addEventListener("pointerdown", e => { if (!gMenu.hidden && !gMenu.contains(e.target) && e.target !== gBtn) gMenu.hidden = true; });
+
+/* ------------------------------ boot ------------------------------ */
+// a saved world comes back before the first frame, so the title shows the
+// real crew and a CONTINUE button; a broken save is thrown away instead
+SAVED = loadSave();
+if (!SAVED || !restoreGame(SAVED)) { SAVED = null; clearSave(); }
+S.state = "title";
 
 /* ------------------------------ main loop ------------------------------ */
 function frameLoop() {
