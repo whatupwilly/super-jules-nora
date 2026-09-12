@@ -53,7 +53,10 @@
    It can rain, lightning can strike, and when you touch the bed you can sleep
    until morning. Finish the whole house to win — then keep playing.
    Your world saves itself while you play (in this browser), so you can come
-   back tomorrow, tap CONTINUE and pick up right where you left off. */
+   back tomorrow, tap CONTINUE and pick up right where you left off.
+   Finish the whole village and the fence gate swings open onto RAINBOW LAND:
+   striped ground, candy trees, a giant rainbow, and a Rainbow Restaurant to
+   build — but more (and faster, candy-coloured) zombies come every night. */
 
 const cv = document.getElementById("game");
 const g  = cv.getContext("2d");
@@ -176,7 +179,8 @@ function shade(col, k) {   // k>1 lighter, k<1 darker; accepts #hex or rgb(...)
 }
 
 /* ------------------------------ world ------------------------------ */
-const MAP = 34;                 // tiles per side
+const MW = 56, MH = 34;         // tiles across (x) and down (y): the home side, a fence, then rainbow land
+const FENCE_X = 33;             // the fence runs down this column; everything past it is rainbow land
 const T = { GRASS: 0, WATER: 1, PATH: 2, PLANK: 3 };
 let tiles = [], solid = [], trees = [], logs = [], zombies = [], parts = [], fx = [], drops = [];
 const HOUSE = { x: 14, y: 13, w: 5, h: 5 };                    // house footprint
@@ -225,6 +229,33 @@ const PET_KINDS = [
   { kind: "lamb",   name: "Clover",  label: "Clover the lamb",     body: "#f7f3ea", belly: "#f2c6d0", muzzle: "#f2c6d0", ears: "flop", tail: false },
 ];
 let pets = [];
+// 🌈 rainbow land, past the fence: a restaurant to build once the village is done
+const GATE = { x: FENCE_X, y: HOUSE.y + 4 };                                   // the one gap in the fence
+const RESTO = { x: 42, y: 12, w: 6, h: 5 };                                    // the Rainbow Restaurant footprint
+const RDOOR = { x: RESTO.x + 2, y: RESTO.y + RESTO.h - 1 };
+const SQUARE2 = { x: RESTO.x + RESTO.w + 2, y: RESTO.y + 1, w: 2, h: 2 };      // a second wood square (same magic pile)
+const SIGN = { x: RESTO.x + RESTO.w + .3, y: RESTO.y + RESTO.h - .5 };
+const RB = ["#ff5c8a", "#ff9f1c", "#ffd60a", "#8ac926", "#3a86ff", "#7b5cff", "#c77dff"];        // bright rainbow
+const RB_PASTEL = ["#ffb3c6", "#ffd1a1", "#fff2a8", "#c9f0b0", "#b3dcff", "#c7c0ff", "#ecc4ff"];  // the striped ground
+const RAINBOW = [   // what the helpers build in rainbow land, in order
+  { key: "rfloor",  name: "the restaurant floor",         short: "the restaurant floor", cost: 8,  site: "resto" },
+  { key: "rwalls",  name: "the rainbow walls",            short: "the rainbow walls",    cost: 12, site: "resto" },
+  { key: "rdoor",   name: "the restaurant door",          short: "the restaurant door",  cost: 4,  site: "resto" },
+  { key: "rroof",   name: "the rainbow roof",             short: "the rainbow roof",     cost: 12, site: "resto" },
+  { key: "counter", name: "the kitchen counter",          short: "the counter",          cost: 6,  site: "resto" },
+  { key: "tables",  name: "tables and chairs",            short: "the tables",           cost: 8,  site: "resto" },
+  { key: "sign",    name: "the big RAINBOW sign",         short: "the big sign",         cost: 6,  site: "resto" },
+  { key: "cakes",   name: "rainbow cakes for the window", short: "rainbow cakes",        cost: 5,  site: "resto" },
+];
+function inResto(x, y) { return x >= RESTO.x && x < RESTO.x + RESTO.w && y >= RESTO.y && y < RESTO.y + RESTO.h; }
+function onRestoRing(x, y) { return inResto(x, y) && (x === RESTO.x || y === RESTO.y || x === RESTO.x + RESTO.w - 1 || y === RESTO.y + RESTO.h - 1); }
+function inSquare2(x, y) { return x >= SQUARE2.x && x < SQUARE2.x + SQUARE2.w && y >= SQUARE2.y && y < SQUARE2.y + SQUARE2.h; }
+function inAnySquare(x, y) { return inSquare(x, y) || inSquare2(x, y); }
+function nearestSquare(e) {   // where a helper takes a log: the home square, or the rainbow one once the gate is open
+  const a = { x: SQUARE.x + 1, y: SQUARE.y + 1 }, b = { x: SQUARE2.x + 1, y: SQUARE2.y + 1 };
+  return S.gate && Math.hypot(b.x - e.x, b.y - e.y) < Math.hypot(a.x - e.x, a.y - e.y) ? b : a;
+}
+function hasR(key) { return RAINBOW.slice(0, S.rb).some(s => s.key === key); }
 function inBarn(x, y) { return x >= BARN.x && x < BARN.x + BARN.w && y >= BARN.y && y < BARN.y + BARN.h; }
 function onBarnRing(x, y) { return inBarn(x, y) && (x === BARN.x || y === BARN.y || x === BARN.x + BARN.w - 1 || y === BARN.y + BARN.h - 1); }
 function hasX(key) { return EXTRAS.slice(0, S.extra).some(s => s.key === key); }
@@ -232,7 +263,8 @@ const BED  = { x: HOUSE.x + 1, y: HOUSE.y + 1 };
 const S = { state: "title", built: 0, pile: 0, day: 1, clock: 0, phase: "day", t: 0, rain: 0, rainT: 0,
   flash: 0, thunderT: 0, msg: "", msgT: 0, prompt: null, fade: 0, fadeMode: "", won: false, wonT: 0,
   spawnT: 0, builder: null, buildProg: 0, nightsSurvived: 0, bunks: 0, extra: 0, petBeds: 0, buildSpot: null,
-  saveT: 8, savedT: 0, confirm: false };   // autosave countdown, "💾 saved" flash, "start over?" question on the title
+  saveT: 8, savedT: 0, confirm: false,     // autosave countdown, "💾 saved" flash, "start over?" question on the title
+  gate: 0, gateT: 0, rb: 0, winKind: "house" };   // fence gate open?, seconds since it opened, restaurant stages built, which win screen
 const DAY_LEN = 75, DUSK_LEN = 8, NIGHT_LEN = 55, DAWN_LEN = 7;
 
 function inHouse(x, y) { return x >= HOUSE.x && x < HOUSE.x + HOUSE.w && y >= HOUSE.y && y < HOUSE.y + HOUSE.h; }
@@ -242,28 +274,39 @@ function inSquare(x, y) { return x >= SQUARE.x && x < SQUARE.x + SQUARE.w && y >
 function has(key) { return S.built > STAGES.findIndex(s => s.key === key); }
 function nextStage() {
   if (S.built < STAGES.length) return STAGES[S.built];
-  return EXTRAS[S.extra] || null;
+  if (S.extra < EXTRAS.length) return EXTRAS[S.extra];
+  return S.gate ? RAINBOW[S.rb] || null : null;
 }
 
 function genWorld() {
   tiles = []; solid = []; trees = []; logs = []; zombies = []; fx = []; drops = []; pets = [];
-  for (let y = 0; y < MAP; y++) { tiles.push([]); solid.push([]); for (let x = 0; x < MAP; x++) { tiles[y].push(T.GRASS); solid[y].push(false); } }
+  for (let y = 0; y < MH; y++) { tiles.push([]); solid.push([]); for (let x = 0; x < MW; x++) { tiles[y].push(T.GRASS); solid[y].push(false); } }
   // a little pond
   const px = ri(4, 8), py = ri(20, 26);
   for (let y = py; y < py + 3; y++) for (let x = px; x < px + 4; x++) { tiles[y][x] = T.WATER; solid[y][x] = true; }
   // a dirt path from the house door out to the south-west edge
-  for (let y = DOOR.y + 1; y < MAP; y++) { const x = DOOR.x + ((y - DOOR.y) % 5 === 3 ? 1 : 0); if (tiles[y][x] === T.GRASS) tiles[y][x] = T.PATH; }
-  // trees everywhere except near the house, square and path
-  let tries = 0;
-  while (trees.length < 62 && tries++ < 4000) {
-    const x = ri(1, MAP - 2), y = ri(1, MAP - 2);
-    if (tiles[y][x] !== T.GRASS || solid[y][x]) continue;
-    if (x >= BARN.x - 2 && x < SQUARE.x + SQUARE.w + 2 && y >= HOUSE.y - 2 && y < HOUSE.y + HOUSE.h + 4) continue;
-    if (trees.some(t => Math.abs(t.x - x) + Math.abs(t.y - y) < 2)) continue;
-    trees.push({ x, y, hp: 3, shake: 0, stump: 0, big: Math.random() < .3, tone: rnd(.85, 1.15) });
-    solid[y][x] = true;
-  }
+  for (let y = DOOR.y + 1; y < MH; y++) { const x = DOOR.x + ((y - DOOR.y) % 5 === 3 ? 1 : 0); if (tiles[y][x] === T.GRASS) tiles[y][x] = T.PATH; }
+  layGatePath(tiles);
+  plantTrees(tiles, solid, trees, "home");
+  plantTrees(tiles, solid, trees, "rainbow");
   rebuildHouseSolids();
+}
+function layGatePath(tl) {   // a path from the wood square, through the fence gate, to the restaurant door
+  for (let x = SQUARE.x + SQUARE.w; x <= RDOOR.x; x++) if (tl[GATE.y][x] === T.GRASS) tl[GATE.y][x] = T.PATH;
+}
+function plantTrees(tl, sd, arr, area) {   // home side: a forest of 62; rainbow side: 44 candy-coloured trees
+  const rb = area === "rainbow", want = arr.length + (rb ? 44 : 62);
+  let tries = 0;
+  while (arr.length < want && tries++ < 4000) {
+    const x = rb ? ri(FENCE_X + 2, MW - 2) : ri(1, FENCE_X - 1), y = ri(1, MH - 2);
+    if (tl[y][x] !== T.GRASS || sd[y][x]) continue;
+    if (!rb && x >= BARN.x - 2 && x < SQUARE.x + SQUARE.w + 2 && y >= HOUSE.y - 2 && y < HOUSE.y + HOUSE.h + 4) continue;   // the yard
+    if (rb && x >= RESTO.x - 2 && x < SQUARE2.x + SQUARE2.w + 2 && y >= RESTO.y - 2 && y < RESTO.y + RESTO.h + 3) continue;   // the restaurant lot
+    if (Math.abs(y - GATE.y) <= 1 && x >= SQUARE.x && x <= FENCE_X + 3) continue;   // keep the lane to the gate clear
+    if (arr.some(t => Math.abs(t.x - x) + Math.abs(t.y - y) < 2)) continue;
+    arr.push({ x, y, hp: 3, shake: 0, stump: 0, big: Math.random() < .3, tone: rnd(.85, 1.15), col: rb ? pick(RB) : undefined });
+    sd[y][x] = true;
+  }
 }
 function rebuildHouseSolids() {
   for (let y = HOUSE.y; y < HOUSE.y + HOUSE.h; y++) for (let x = HOUSE.x; x < HOUSE.x + HOUSE.w; x++) {
@@ -277,12 +320,16 @@ function rebuildHouseSolids() {
   if (has("bed")) solid[BED.y][BED.x] = false;   // bed is touchable, you walk onto it
   for (let y = BARN.y; y < BARN.y + BARN.h; y++) for (let x = BARN.x; x < BARN.x + BARN.w; x++)
     solid[y][x] = onBarnRing(x, y) && hasX("barnwalls") && !(x === BARNDOOR.x && y === BARNDOOR.y);
+  for (let y = 0; y < MH; y++) solid[y][FENCE_X] = !(S.gate && y === GATE.y);   // the fence, with its gate
+  for (let y = RESTO.y; y < RESTO.y + RESTO.h; y++) for (let x = RESTO.x; x < RESTO.x + RESTO.w; x++)
+    solid[y][x] = onRestoRing(x, y) && hasR("rwalls") && !(x === RDOOR.x && y === RDOOR.y);
 }
 function blocked(x, y, zombie) {
   const tx = Math.floor(x), ty = Math.floor(y);
-  if (tx < 1 || ty < 1 || tx >= MAP - 1 || ty >= MAP - 1) return true;
+  if (tx < 1 || ty < 1 || tx >= MW - 1 || ty >= MH - 1) return true;
   if (zombie && tx === DOOR.x && ty === DOOR.y && has("door")) return true;   // the door keeps zombies out
   if (zombie && tx === BARNDOOR.x && ty === BARNDOOR.y && hasX("barnwalls")) return true;
+  if (zombie && tx === RDOOR.x && ty === RDOOR.y && hasR("rdoor")) return true;
   return solid[ty][tx];
 }
 function fits(e, x, y) {   // does the entity's little footprint sit on free tiles?
@@ -315,23 +362,23 @@ function unstick(e) {   // sealed inside a block: pop out to the nearest open ti
 // Returns tile-centre waypoints from the tile after the start to the target
 // tile, or null when the target can't be reached.
 function findPath(sx, sy, tx, ty, zombie) {
-  const s = Math.floor(sy) * MAP + Math.floor(sx), goal = Math.floor(ty) * MAP + Math.floor(tx);
+  const s = Math.floor(sy) * MW + Math.floor(sx), goal = Math.floor(ty) * MW + Math.floor(tx);
   if (s === goal) return [];
-  const prev = new Int16Array(MAP * MAP).fill(-1); prev[s] = s;
+  const prev = new Int16Array(MW * MH).fill(-1); prev[s] = s;
   const queue = [s]; let qi = 0;
   while (qi < queue.length) {
     const c = queue[qi++]; if (c === goal) break;
-    const cx = c % MAP, cy = (c - cx) / MAP;
+    const cx = c % MW, cy = (c - cx) / MW;
     for (const [nx, ny] of [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]]) {
-      if (nx < 1 || ny < 1 || nx >= MAP - 1 || ny >= MAP - 1) continue;
-      const n = ny * MAP + nx;
+      if (nx < 1 || ny < 1 || nx >= MW - 1 || ny >= MH - 1) continue;
+      const n = ny * MW + nx;
       if (prev[n] !== -1 || blocked(nx + .5, ny + .5, zombie)) continue;
       prev[n] = c; queue.push(n);
     }
   }
   if (prev[goal] === -1) return null;
   const path = [];
-  for (let c = goal; c !== s; c = prev[c]) path.push({ x: (c % MAP) + .5, y: Math.floor(c / MAP) + .5 });
+  for (let c = goal; c !== s; c = prev[c]) path.push({ x: (c % MW) + .5, y: Math.floor(c / MW) + .5 });
   return path.reverse();
 }
 // walk toward (tx,ty) along a path, re-planning every so often; falls back to
@@ -391,21 +438,22 @@ function newHelper() {   // a new blocky friend walks in from the edge of the fo
   const used = [P.name, ...helpers.map(h => h.name)];
   const h = makeChar(used);
   h.helper = true; h.state = "follow"; h.target = null; h.cool = 0; h.hp = 99; h.idx = helpers.length; h.carry = 0;
-  const side = ri(0, 3);
-  for (let i = 0; i < 40; i++) {
-    h.x = side === 0 ? 1.5 : side === 1 ? MAP - 1.5 : rnd(2, MAP - 2);
-    h.y = side === 2 ? 1.5 : side === 3 ? MAP - 1.5 : rnd(2, MAP - 2);
-    if (!blocked(h.x, h.y)) break;
-  }
+  for (let i = 0; i < 40; i++) { const e = edgeSpot(); h.x = e.x; h.y = e.y; if (!blocked(h.x, h.y)) break; }
   helpers.push(h); boom(h.x, h.y, "#ffd166", 10, 4);
   return h;
 }
 
+function edgeSpot() {   // a random spot on the edge of the land you can reach (the rainbow side only once the gate is open)
+  const x2 = S.gate ? MW - 1.5 : FENCE_X - 1.5, side = ri(0, 3);
+  if (side === 0) return { x: 1.5, y: rnd(2, MH - 2) };
+  if (side === 1) return { x: x2, y: rnd(2, MH - 2) };
+  return { x: rnd(2, x2 - .5), y: side === 2 ? 1.5 : MH - 1.5 };
+}
 function spawnLostPet() {   // a lost pet appears deep in the forest, somewhere you can walk to
   const k = PET_KINDS[pets.length % PET_KINDS.length];
   const p = Object.assign({ x: 0, y: 0, r: .2, dir: 1, walk: 0, bob: 0, swing: 0, type: "animal", pet: true, state: "lost", cry: 1, wanderT: 0, idx: pets.length }, k);
   for (let i = 0; i < 300; i++) {
-    const x = ri(2, MAP - 3) + .5, y = ri(2, MAP - 3) + .5;
+    const x = ri(2, MW - 3) + .5, y = ri(2, MH - 3) + .5;
     if (blocked(x, y) || Math.hypot(x - HOUSE.x - 2.5, y - HOUSE.y - 2.5) < 10) continue;
     if (!findPath(DOOR.x + .5, DOOR.y + 1.5, x, y)) continue;
     p.x = x; p.y = y; pets.push(p); return p;
@@ -455,6 +503,7 @@ function startGame() {
   genWorld();
   S.state = "play"; S.built = 0; S.pile = 0; S.day = 1; S.clock = 0; S.phase = "day"; S.rain = 0; S.rainT = rnd(25, 60);
   S.flash = 0; S.msgT = 0; S.prompt = null; S.fade = 0; S.won = false; S.builder = null; S.buildProg = 0; S.nightsSurvived = 0; S.bunks = 0; S.extra = 0; S.petBeds = 0; S.buildSpot = null;
+  S.gate = 0; S.gateT = 0; S.rb = 0; S.winKind = "house";
   helpers.length = 2;   // a fresh game starts with the two original helpers
   P.x = HOUSE.x + 2.5; P.y = HOUSE.y + HOUSE.h + 2.5; P.hp = P.maxHp; P.wood = 0; P.dir = 1;
   cam.x = P.x; cam.y = P.y;
@@ -477,6 +526,11 @@ function advanceClock(dt) {
   else if (S.phase === "night") { S.phase = "dawn"; S.nightsSurvived++; zombies.forEach(z => boom(z.x, z.y, "#8ab", 8)); zombies = []; SFX.wake(); say("Morning! The zombies are gone. ☀️", 4); }
   else { S.phase = "day"; S.day++; }
 }
+function openGate() {   // the whole village is done: the fence gate swings open onto rainbow land
+  S.gate = 1; S.gateT = 0; rebuildHouseSolids(); SFX.win();
+  boom(GATE.x + .5, GATE.y + .5, "#ffd166", 24, 6);
+  say("The whole village is finished! 🎉 ...and look — the fence gate is opening! 🌈", 6);
+}
 function morning() {   // after sleeping or fainting
   S.phase = "day"; S.clock = 0; S.day++; S.nightsSurvived++; zombies = []; S.rain = 0;
   P.hp = P.maxHp;
@@ -489,7 +543,7 @@ function morning() {   // after sleeping or fainting
 // is hidden or closed. Zombies, sparks and the half-built progress bar aren't
 // saved; everything else (the map, chopped trees, your crew, the pile, the
 // house, the barn, the pets, the day and the weather) comes right back.
-const SAVE_KEY = "zombieSave", SAVE_VER = 1;
+const SAVE_KEY = "zombieSave", SAVE_VER = 2;   // v1 saves (home side only) are migrated on load
 const CHAR_KEYS = ["type", "name", "label", "skin", "hair", "shirt", "pants", "hairStyle", "hat", "kind", "body", "belly", "ears", "tail", "patch", "stripes", "x", "y", "dir", "hp", "wood", "carry"];
 let SAVED = null;   // the save that was waiting when the page opened (drives the CONTINUE button)
 function charData(c) { const o = {}; for (const k of CHAR_KEYS) if (c[k] !== undefined) o[k] = c[k]; return o; }
@@ -497,9 +551,10 @@ function snapshot() {
   return {
     v: SAVE_VER, at: Date.now(),
     s: { built: S.built, pile: S.pile, day: S.day, clock: S.clock, phase: S.phase, rain: S.rain, rainT: S.rainT, thunderT: S.thunderT,
-         nightsSurvived: S.nightsSurvived, bunks: S.bunks, extra: S.extra, petBeds: S.petBeds, won: S.won },
+         nightsSurvived: S.nightsSurvived, bunks: S.bunks, extra: S.extra, petBeds: S.petBeds, won: S.won,
+         gate: S.gate, gateT: S.gateT, rb: S.rb, winKind: S.winKind },
     tiles: tiles.map(r => r.join("")).join(""),
-    trees: trees.map(t => ({ x: t.x, y: t.y, hp: t.hp, big: t.big, tone: t.tone, stump: Math.max(0, t.stump) })),
+    trees: trees.map(t => ({ x: t.x, y: t.y, hp: t.hp, big: t.big, tone: t.tone, stump: Math.max(0, t.stump), col: t.col })),
     logs: logs.map(l => ({ x: l.x, y: l.y })),
     p: charData(P), helpers: helpers.map(charData),
     pets: pets.map(p => ({ kind: p.kind, state: p.state, x: p.x, y: p.y })),
@@ -513,23 +568,26 @@ function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
 function loadSave() {
   try {
     const d = JSON.parse(localStorage.getItem(SAVE_KEY));
-    if (d && d.v === SAVE_VER && typeof d.tiles === "string" && d.tiles.length === MAP * MAP && d.p && d.p.name &&
+    const w = d && (d.v === 1 ? 34 : d.v === SAVE_VER ? MW : 0);   // a v1 save only knew the 34-wide home side
+    if (d && w && typeof d.tiles === "string" && d.tiles.length === w * MH && d.p && d.p.name &&
         Array.isArray(d.helpers) && d.helpers.length >= 2 && Array.isArray(d.trees)) return d;
   } catch (e) {}
   return null;
 }
 function restoreGame(d) {   // rebuild the whole world from a save; nothing changes unless all of it checks out
   try {
-    const nt = [], ns = [];
-    for (let y = 0; y < MAP; y++) { nt.push([]); ns.push([]); for (let x = 0; x < MAP; x++) { const v = +d.tiles[y * MAP + x]; if (!(v >= 0 && v <= 3)) throw 0; nt[y].push(v); ns[y].push(v === T.WATER); } }
+    const old = d.v === 1, ow = old ? 34 : MW, nt = [], ns = [];
+    for (let y = 0; y < MH; y++) { nt.push([]); ns.push([]); for (let x = 0; x < MW; x++) { const v = x < ow ? +d.tiles[y * ow + x] : T.GRASS; if (!(v >= 0 && v <= 3)) throw 0; nt[y].push(v); ns[y].push(v === T.WATER); } }
+    if (old) layGatePath(nt);
     const ntrees = d.trees.map(t => {
-      const x = t.x | 0, y = t.y | 0; if (x < 1 || y < 1 || x >= MAP - 1 || y >= MAP - 1) throw 0;
+      const x = t.x | 0, y = t.y | 0; if (x < 1 || y < 1 || x >= MW - 1 || y >= MH - 1) throw 0;
       const stump = Math.max(0, +t.stump || 0);
-      return { x, y, hp: stump > 0 ? 0 : clamp(t.hp | 0, 1, 3), shake: 0, stump, big: !!t.big, tone: +t.tone || 1 };
+      return { x, y, hp: stump > 0 ? 0 : clamp(t.hp | 0, 1, 3), shake: 0, stump, big: !!t.big, tone: +t.tone || 1, col: /^#[0-9a-f]{6}$/i.test(t.col) ? t.col : undefined };
     });
     for (const t of ntrees) if (t.stump <= 0) ns[t.y][t.x] = true;
+    if (old) plantTrees(nt, ns, ntrees, "rainbow");   // an older world gets its rainbow land planted now
     const base = () => ({ x: 0, y: 0, r: .28, dir: 1, walk: 0, bob: 0, hp: 5, maxHp: 5, wood: 0, swing: 0, hurtT: 0 });
-    const pos = (c, dx, dy) => { c.x = clamp(+c.x || dx, 1, MAP - 1); c.y = clamp(+c.y || dy, 1, MAP - 1); c.dir = clamp(c.dir | 0, 0, 3); };
+    const pos = (c, dx, dy) => { c.x = clamp(+c.x || dx, 1, MW - 1); c.y = clamp(+c.y || dy, 1, MH - 1); c.dir = clamp(c.dir | 0, 0, 3); };
     const np = Object.assign(base(), charData(d.p));
     if (np.type !== "kid" && np.type !== "animal") throw 0;
     pos(np, HOUSE.x + 2.5, HOUSE.y + HOUSE.h + 2.5); np.maxHp = 5; np.hp = clamp(np.hp | 0, 1, 5); np.wood = clamp(np.wood | 0, 0, 2);
@@ -543,7 +601,7 @@ function restoreGame(d) {   // rebuild the whole world from a save; nothing chan
       const c = Object.assign({ x: 0, y: 0, r: .2, dir: 1, walk: 0, bob: 0, swing: 0, type: "animal", pet: true, state: ["lost", "follow", "home"].includes(p.state) ? p.state : "home", cry: 1, wanderT: 0, idx: i }, k);
       c.x = p.x; c.y = p.y; pos(c, BARN.x + 2, BARN.y + 2); return c;
     });
-    const nlogs = (Array.isArray(d.logs) ? d.logs : []).map(l => ({ x: clamp(+l.x || 0, 1, MAP - 1), y: clamp(+l.y || 0, 1, MAP - 1), z: 0, vz: 0, bounce: 0, t: 0 }));
+    const nlogs = (Array.isArray(d.logs) ? d.logs : []).map(l => ({ x: clamp(+l.x || 0, 1, MW - 1), y: clamp(+l.y || 0, 1, MH - 1), z: 0, vz: 0, bounce: 0, t: 0 }));
     const s = d.s || {};
     // everything parsed fine — now swap it all in at once
     tiles = nt; solid = ns; trees = ntrees; logs = nlogs; zombies = []; fx = []; drops = []; pets = npets; P = np; helpers = nh;
@@ -552,6 +610,9 @@ function restoreGame(d) {   // rebuild the whole world from a save; nothing chan
     S.rain = s.rain ? 1 : 0; S.rainT = +s.rainT || rnd(25, 60); S.thunderT = +s.thunderT || rnd(2, 6);
     S.nightsSurvived = Math.max(0, s.nightsSurvived | 0); S.bunks = clamp(s.bunks | 0, 0, MAX_BUNKS); S.petBeds = Math.max(0, s.petBeds | 0);
     S.won = !!s.won && S.built >= STAGES.length; S.wonT = 0;
+    // the gate: saved as-is, or (older save) open if the village was already finished — that one gets the opening show on CONTINUE
+    S.gate = old ? (S.extra >= EXTRAS.length ? 1 : 0) : (s.gate ? 1 : 0); S.gateT = old ? 0 : Math.max(0, +s.gateT || 0);
+    S.rb = S.gate ? clamp(s.rb | 0, 0, RAINBOW.length) : 0; S.winKind = s.winKind === "resto" ? "resto" : "house";
     S.builder = null; S.buildProg = 0; S.buildSpot = null; S.prompt = null; S.msgT = 0; S.fade = 0; S.spawnT = 0; S.flash = 0; S.saveT = 8; S.savedT = 0;
     P.onBed = has("bed") && Math.floor(P.x) === BED.x && Math.floor(P.y) === BED.y;   // no surprise "sleep?" pop-up on arrival
     rebuildHouseSolids();
@@ -607,7 +668,7 @@ function hitZombie(z, dmg, by) {
   z.hp -= dmg; z.hurt = .25; SFX.whack();
   const dx = z.x - by.x, dy = z.y - by.y, m = Math.hypot(dx, dy) || 1;
   z.kx = dx / m * 6; z.ky = dy / m * 6;
-  if (z.hp <= 0) { SFX.poof(); boom(z.x, z.y, z.wolf ? "#aab" : "#6a9a4a", 14, 4); zombies.splice(zombies.indexOf(z), 1); }
+  if (z.hp <= 0) { SFX.poof(); boom(z.x, z.y, z.wolf ? "#aab" : z.candy ? "#ff8fd0" : "#6a9a4a", 14, 4); zombies.splice(zombies.indexOf(z), 1); }
 }
 
 /* ------------------------------ update ------------------------------ */
@@ -623,6 +684,11 @@ function update() {
   if (S.state !== "play") return;
   if (S.prompt) return;   // world pauses while the bed asks
   S.saveT -= dt; if (S.saveT <= 0) { S.saveT = 8; saveGame(false); }   // quiet autosave
+  if (S.gate && S.gateT < 60) {   // sparkles while the gate swings, then a nudge to go and look
+    S.gateT += dt;
+    if (S.gateT < 3 && Math.floor(S.gateT * 5) !== Math.floor((S.gateT - dt) * 5)) boom(GATE.x + .5, GATE.y + .5, pick(RB), 4, 4);
+    if (S.gateT >= 6 && S.gateT - dt < 6) say("Go through the gate → 🌈 Rainbow Land! Chop candy trees and build a RESTAURANT 🍰", 6);
+  }
   advanceClock(dt);
   updateWeather(dt);
   unstick(P); helpers.forEach(unstick); zombies.forEach(unstick); pets.forEach(unstick);
@@ -666,7 +732,7 @@ function updatePlayer(dt) {
   if (actHeld && P.swing <= 0 && nearestTree(P, 1.35)) pressAction();
   // pick up logs (max 2) and drop them in the square
   const tx = Math.floor(P.x), ty = Math.floor(P.y);
-  if (inSquare(tx, ty) && P.wood > 0) { S.pile += P.wood; SFX.drop(); boom(P.x, P.y, "#c8944a", 6, 3); say(P.wood === 2 ? "Two logs on the pile! 🪵🪵" : "One log on the pile! 🪵", 1.5); P.wood = 0; checkStage(); }
+  if (inAnySquare(tx, ty) && P.wood > 0) { S.pile += P.wood; SFX.drop(); boom(P.x, P.y, "#c8944a", 6, 3); say(P.wood === 2 ? "Two logs on the pile! 🪵🪵" : "One log on the pile! 🪵", 1.5); P.wood = 0; checkStage(); }
   if (P.wood < 2) for (let i = logs.length - 1; i >= 0; i--) { const l = logs[i]; if (l.z < .3 && Math.hypot(l.x - P.x, l.y - P.y) < .55) { logs.splice(i, 1); P.wood++; SFX.pick(); if (P.wood === 2) say("Hands full! Take it to the yellow square.", 2); break; } }
   // bed
   if (has("bed") && tx === BED.x && ty === BED.y && !P.onBed) {
@@ -676,11 +742,13 @@ function updatePlayer(dt) {
   }
   if (!(tx === BED.x && ty === BED.y)) P.onBed = false;
 }
-function buildSpot(st) {   // where the builder stands: right of the house, or right of the barn
+function buildSpot(st) {   // where the builder stands: right of the house, the barn, or the restaurant
+  if (st.site === "resto") return { x: RESTO.x + RESTO.w + .6, y: RESTO.y + 2.5 };
   return st.site === "barn" ? { x: BARN.x + BARN.w + .6, y: BARN.y + 1.5 } : { x: HOUSE.x + HOUSE.w + .6, y: HOUSE.y + 2.5 };
 }
 function checkStage() {
   const st = nextStage();
+  if (S.gate && S.gateT < 7) return;   // everyone stops to watch the gate swing open before the next build starts
   if (st && S.pile >= st.cost && !S.builder) {
     const sp = buildSpot(st);
     const h = helpers.reduce((a, b) => (Math.hypot(a.x - sp.x, a.y - sp.y) < Math.hypot(b.x - sp.x, b.y - sp.y) ? a : b));
@@ -704,17 +772,24 @@ function updateBuild(dt) {
   if (S.buildProg >= 3.2) {
     S.pile -= st.cost; SFX.built(); boom(gx - 3, gy, "#ffd166", 20, 5);
     S.builder = null; h.state = "follow"; h.hammer = 0;
+    if (S.built >= STAGES.length && S.extra >= EXTRAS.length) {   // 🌈 a restaurant stage
+      S.rb++; rebuildHouseSolids();
+      if (S.rb >= RAINBOW.length) { S.won = true; S.wonT = 0; S.winKind = "resto"; S.state = "win"; SFX.win(); boom(RESTO.x + 3, RESTO.y + 2.5, "#ff5c8a", 30, 6); }
+      else say(h.name + " built " + st.name + "! 🌈", 3);
+      saveGame(true);
+      return;
+    }
     if (S.built >= STAGES.length) {   // an extra
       S.extra++; rebuildHouseSolids();
       if (st.key === "bunk") { S.bunks++; const nh = newHelper(); say(h.name + " built a bunk bed — " + nh.name + " is coming to join you! 🛏", 4); }
       else if (st.key === "petbed") { S.petBeds++; const p = spawnLostPet(); say(h.name + " built a pet bed! " + (p ? p.label + " is lost in the forest — follow the 🐾 and find them!" : ""), 5); }
       else say(h.name + " built " + st.name + "! 🎉", 3);
-      if (!nextStage()) say("The whole village is finished! 🎉 You're amazing, " + P.name + "!", 6);
+      if (S.extra >= EXTRAS.length) openGate();
       saveGame(true);
       return;
     }
     S.built++; rebuildHouseSolids();
-    if (S.built >= STAGES.length) { S.won = true; S.wonT = 0; S.state = "win"; SFX.win(); }
+    if (S.built >= STAGES.length) { S.won = true; S.wonT = 0; S.winKind = "house"; S.state = "win"; SFX.win(); }
     else say(h.name + " built " + st.name + "! 🎉", 3);
     saveGame(true);
   }
@@ -752,7 +827,7 @@ function updateHelpers(dt) {
     }
     // 2. fetch a loose log and take it to the square
     if (h.carry > 0) {
-      const sx = SQUARE.x + 1, sy = SQUARE.y + 1;
+      const { x: sx, y: sy } = nearestSquare(h);
       if (goTo(h, sx, sy, 3.2, dt) || Math.hypot(sx - h.x, sy - h.y) < .6) { S.pile += h.carry; h.carry = 0; SFX.drop(); boom(sx, sy, "#c8944a", 5, 3); checkStage(); }
       continue;
     }
@@ -771,14 +846,14 @@ function updateZombies(dt) {
   const night = S.phase === "night" || S.phase === "dusk";
   if (night) {
     S.spawnT -= dt;
-    const cap = 3 + S.nightsSurvived + Math.floor((helpers.length - 2) / 2);
+    // once the gate is open the nights get wilder: three more zombies, coming twice as fast, some of them candy zombies
+    const cap = 3 + S.nightsSurvived + Math.floor((helpers.length - 2) / 2) + (S.gate ? 3 : 0);
     if (S.spawnT <= 0 && zombies.length < cap) {
-      S.spawnT = rnd(4, 8);
-      const side = ri(0, 3); let x, y;
-      if (side === 0) { x = 1.5; y = rnd(2, MAP - 2); } else if (side === 1) { x = MAP - 1.5; y = rnd(2, MAP - 2); }
-      else if (side === 2) { x = rnd(2, MAP - 2); y = 1.5; } else { x = rnd(2, MAP - 2); y = MAP - 1.5; }
-      const wolf = S.nightsSurvived >= 1 && Math.random() < .35;
-      zombies.push({ x, y, r: .3, zombie: true, wolf, hp: wolf ? 2 : 3, walk: 0, bob: 0, dir: 0, hurt: 0, kx: 0, ky: 0, groan: rnd(1, 4) });
+      S.spawnT = S.gate ? rnd(2.5, 5.5) : rnd(4, 8);
+      const { x, y } = edgeSpot();
+      const candy = S.gate && Math.random() < .35;   // tougher, a bit quicker, and very pink
+      const wolf = !candy && S.nightsSurvived >= 1 && Math.random() < .35;
+      zombies.push({ x, y, r: .3, zombie: true, wolf, candy, hp: wolf ? 2 : candy ? 4 : 3, walk: 0, bob: 0, dir: 0, hurt: 0, kx: 0, ky: 0, groan: rnd(1, 4) });
       if (wolf) SFX.howl(); else SFX.groan();
     }
   }
@@ -787,7 +862,7 @@ function updateZombies(dt) {
     z.groan -= dt; if (z.groan <= 0) { z.groan = rnd(3, 8); if (Math.hypot(z.x - P.x, z.y - P.y) < 9) (z.wolf ? SFX.howl : SFX.groan)(); }
     if (z.hurt > 0) z.hurt -= dt;
     if (Math.abs(z.kx) > .1 || Math.abs(z.ky) > .1) { moveEnt(z, z.kx * dt, z.ky * dt); z.kx *= .85; z.ky *= .85; continue; }
-    const sp = z.wolf ? 2.9 : 1.5;
+    const sp = z.wolf ? 2.9 : z.candy ? 1.9 : 1.5;
     goTo(z, P.x, P.y, sp, dt);
     z.walk += dt * (z.wolf ? 12 : 5);
     if (Math.hypot(z.x - P.x, z.y - P.y) < .7 && P.hurtT <= 0) {
@@ -855,7 +930,12 @@ function drawGround(x0, y0, x1, y1) {
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     const t = tiles[y][x], h = hash(x, y);
     if (t === T.WATER) { diamond(x, y, h < .5 ? "#3f8fd8" : "#4a9ae0"); if (h > .7) { diamond(x + .3, y + .4, "#8ac6f0", .25); } continue; }
-    if (t === T.PATH) { diamond(x, y, h < .5 ? "#b08a55" : "#a07f4e"); continue; }
+    if (t === T.PATH) { diamond(x, y, x > FENCE_X ? (h < .5 ? "#fff3d1" : "#f8e9c2") : (h < .5 ? "#b08a55" : "#a07f4e")); continue; }
+    if (x > FENCE_X) {   // 🌈 rainbow land: striped ground
+      if (inResto(x, y) && hasR("rfloor") && !onRestoRing(x, y)) { diamond(x, y, (x + y) % 2 ? "#fff0f5" : "#ffe4ec"); continue; }
+      if (inSquare2(x, y)) { diamond(x, y, (x + y) % 2 ? "#e9d77a" : "#e3cf6c"); continue; }
+      const c = RB_PASTEL[Math.floor((x + y) / 2) % 7]; diamond(x, y, (x + y) % 2 ? c : shade(c, .95)); continue;
+    }
     if (inHouse(x, y) && has("floor") && !onRing(x, y)) { diamond(x, y, (x + y) % 2 ? "#c69a5a" : "#b98d50"); continue; }
     if (inSquare(x, y)) { diamond(x, y, (x + y) % 2 ? "#e9d77a" : "#e3cf6c"); continue; }
     if (inBarn(x, y) && hasX("barnfloor") && !onBarnRing(x, y)) { diamond(x, y, (x + y) % 2 ? "#dcb765" : "#d2ac5c"); continue; }
@@ -863,22 +943,22 @@ function drawGround(x0, y0, x1, y1) {
     diamond(x, y, (x + y) % 2 ? "#6cbf47" : "#5fae3e");
     if (h > .82) diamond(x + .2 + h * .4, y + .3, "#7ed35a", .18);   // grass tufts
   }
-  // square outline
-  g.strokeStyle = "#ffbe0b"; g.lineWidth = 3; g.setLineDash([8, 6]);
-  const a = proj(SQUARE.x, SQUARE.y), b = proj(SQUARE.x + 2, SQUARE.y), c = proj(SQUARE.x + 2, SQUARE.y + 2), e = proj(SQUARE.x, SQUARE.y + 2);
+  // dashed outlines: the wood squares, and a building's footprint before its floor exists
+  outline(SQUARE.x, SQUARE.y, 2, 2, "#ffbe0b", [8, 6]);
+  if (!has("floor")) outline(HOUSE.x, HOUSE.y, HOUSE.w, HOUSE.h, "rgba(255,255,255,.55)", [6, 6]);
+  if (S.gate) { outline(SQUARE2.x, SQUARE2.y, 2, 2, "#ffbe0b", [8, 6]); if (!hasR("rfloor")) outline(RESTO.x, RESTO.y, RESTO.w, RESTO.h, "rgba(255,255,255,.7)", [6, 6]); }
+}
+function outline(x, y, w, h, style, dash) {
+  g.strokeStyle = style; g.lineWidth = 3; g.setLineDash(dash);
+  const a = proj(x, y), b = proj(x + w, y), c = proj(x + w, y + h), e = proj(x, y + h);
   g.beginPath(); g.moveTo(a.sx, a.sy); g.lineTo(b.sx, b.sy); g.lineTo(c.sx, c.sy); g.lineTo(e.sx, e.sy); g.closePath(); g.stroke(); g.setLineDash([]);
-  if (!has("floor")) {   // house outline before the floor exists
-    g.strokeStyle = "rgba(255,255,255,.55)"; g.setLineDash([6, 6]);
-    const a2 = proj(HOUSE.x, HOUSE.y), b2 = proj(HOUSE.x + 5, HOUSE.y), c2 = proj(HOUSE.x + 5, HOUSE.y + 5), e2 = proj(HOUSE.x, HOUSE.y + 5);
-    g.beginPath(); g.moveTo(a2.sx, a2.sy); g.lineTo(b2.sx, b2.sy); g.lineTo(c2.sx, c2.sy); g.lineTo(e2.sx, e2.sy); g.closePath(); g.stroke(); g.setLineDash([]);
-  }
 }
 function drawTree(t) {
   const sx = t.shake > 0 ? Math.sin(t.shake * 40) * .08 : 0;
   if (t.stump > 0) { cube(t.x + .3, t.y + .3, 0, .4, .4, .3, "#8a5a32"); return; }
   const H2 = t.big ? 2.2 : 1.6, lw = t.big ? 1.5 : 1.2;
   cube(t.x + .3 + sx, t.y + .3, 0, .4, .4, H2, "#7a4a28");
-  const lc = t.hp === 3 ? "#3f9e3a" : t.hp === 2 ? "#4aa842" : "#57b34a";
+  const lc = t.col ? shade(t.col, t.hp === 3 ? 1 : t.hp === 2 ? 1.1 : 1.2) : t.hp === 3 ? "#3f9e3a" : t.hp === 2 ? "#4aa842" : "#57b34a";
   cube(t.x + .5 - lw / 2 + sx, t.y + .5 - lw / 2, H2 - .3, lw, lw, lw * .8, lc);
   cube(t.x + .5 - lw / 4 + sx, t.y + .5 - lw / 4, H2 - .3 + lw * .8, lw / 2, lw / 2, .5, shade(lc, 1.08));
   if (t.big) cube(t.x + .5 - lw / 2 + .1 + sx, t.y + .5 - lw / 2 - .25, H2 + .1, .5, .5, .4, lc);
@@ -886,11 +966,12 @@ function drawTree(t) {
 function drawLog(l) {
   cube(l.x - .28, l.y - .12, l.z, .56, .24, .22, "#a86a35", { top: "#d9a56a" });
 }
-function drawPile() {
+function drawPile(sq) {   // the one magic pile shows in whichever square you look at
+  sq = sq || SQUARE;
   const n = S.pile; if (n <= 0) return;
   for (let i = 0; i < Math.min(n, 24); i++) {
     const row = Math.floor(i / 4), col = i % 4, layer = Math.floor(row / 2);
-    const x = SQUARE.x + .18 + (col % 2) * .95 + (row % 2 ? .3 : 0), y = SQUARE.y + .2 + Math.floor(col / 2) * .9;
+    const x = sq.x + .18 + (col % 2) * .95 + (row % 2 ? .3 : 0), y = sq.y + .2 + Math.floor(col / 2) * .9;
     cube(x, y, layer * .24, .7, .26, .22, "#a86a35", { top: "#d9a56a" });
   }
 }
@@ -1073,6 +1154,77 @@ function drawStairs() {
   if (!hasX("upfloor")) return;
   for (let i = 0; i < 3; i++) cube(STAIRS.x + .1, STAIRS.y + .7 - i * .3, 0, .8, .3, .65 * (i + 1), "#c69a5a");
 }
+/* ------------------------------ the fence and rainbow land ------------------------------ */
+function drawFence(y) {
+  const x = FENCE_X;
+  if (y === GATE.y) { drawGate(); return; }
+  cube(x + .38, y + .38, 0, .24, .24, 1.1, "#a8783f");                                            // post
+  cube(x + .42, y, .35, .16, 1, .1, "#c9a26b"); cube(x + .42, y, .75, .16, 1, .1, "#c9a26b");   // two rails
+}
+function drawGate() {
+  const x = FENCE_X, y = GATE.y, t = S.gate ? Math.min(1, S.gateT / 1.2) : 0;   // 0 = shut .. 1 = swung wide open
+  cube(x + .38, y - .05, 0, .24, .24, 1.3, "#8a5a32"); cube(x + .38, y + .81, 0, .24, .24, 1.3, "#8a5a32");   // gate posts
+  // two halves: shut they sit across the gap, open they swing back to the rainbow side
+  const len = .45 * (1 - t) + .14 * t, out = .16 + .8 * t;
+  cube(x + .42, y + .05, .1, out, len, 1, "#d98c2b", { top: "#f0a848" });
+  cube(x + .42, y + .95 - len, .1, out, len, 1, "#d98c2b", { top: "#f0a848" });
+  if (!S.gate) cube(x + .3, y + .3, 1.35, .4, .4, .35, "#ffd166", { top: "#fff0a0" });   // a padlock on top while shut
+}
+function drawRestoTile(x, y) {
+  if (!hasR("rwalls")) return;
+  const inside = inResto(Math.floor(P.x), Math.floor(P.y));
+  const front = x === RESTO.x + RESTO.w - 1 || y === RESTO.y + RESTO.h - 1, wa = front && inside ? .22 : undefined;
+  const col = RB[(x + y) % RB.length];
+  if (x === RDOOR.x && y === RDOOR.y) {
+    if (hasR("rdoor")) cube(x, y + .8, 0, 1, .2, 1.7, "#ff5c8a", { top: "#ff8fb0", alpha: wa });
+    cube(x, y, 1.9, 1, 1, .15, "#fff", { alpha: wa });   // beam over the doorway
+    return;
+  }
+  cube(x, y, 0, 1, 1, 2, col, { alpha: wa, line: wa ? undefined : "rgba(255,255,255,.35)" });
+  // big front windows so you can see the tables and cakes
+  if (front && ((y === RESTO.y + RESTO.h - 1 && (x === RESTO.x + 1 || x === RESTO.x + 4)) || (x === RESTO.x + RESTO.w - 1 && (y === RESTO.y + 1 || y === RESTO.y + 3))))
+    patch(x, y, 0, 1, 1, x === RESTO.x + RESTO.w - 1 ? 0 : 1, .2, .8, .6, .7, timeOfDay() > .5 ? "#ffe08a" : "#e8f6ff");
+}
+function drawRestoRoof() {
+  if (!hasR("rroof")) return;
+  const alpha = inResto(Math.floor(P.x), Math.floor(P.y)) ? .12 : 1;
+  cube(RESTO.x - .2, RESTO.y - .2, 2, RESTO.w + .4, RESTO.h + .4, .3, "#ff5c8a", { alpha });
+  cube(RESTO.x + .5, RESTO.y + .5, 2.3, RESTO.w - 1, RESTO.h - 1, .35, "#ffd60a", { alpha });
+  cube(RESTO.x + 1.2, RESTO.y + 1.2, 2.65, RESTO.w - 2.4, RESTO.h - 2.4, .35, "#3a86ff", { alpha });
+  cube(RESTO.x + 2, RESTO.y + 2, 3, RESTO.w - 4, RESTO.h - 4, .35, "#c77dff", { alpha });
+}
+function drawRestoInside() {   // counter and till, rainbow cakes, tables with chairs
+  if (hasR("counter")) {
+    cube(RESTO.x + 1, RESTO.y + 1, 0, RESTO.w - 2, .7, .9, "#f7f3ea", { top: "#ffd6e7" });
+    cube(RESTO.x + RESTO.w - 1.9, RESTO.y + 1.1, .9, .5, .4, .35, "#555", { top: "#8ad6f0" });
+  }
+  if (hasR("cakes")) for (let i = 0; i < 3; i++) {
+    const cx = RESTO.x + 1.3 + i * .8, cy = RESTO.y + 1.15;
+    for (let l = 0; l < 4; l++) cube(cx + l * .03, cy + l * .03, .9 + l * .12, .5 - l * .06, .45 - l * .06, .12, RB[(i * 2 + l) % 7]);
+    cube(cx + .2, cy + .17, 1.38, .1, .1, .18, "#ff2a5a");   // a cherry
+  }
+  if (hasR("tables")) for (const [tx, ty] of [[RESTO.x + 1.2, RESTO.y + 2.6], [RESTO.x + 3.6, RESTO.y + 2.6]]) {
+    cube(tx + .25, ty + .25, 0, .2, .2, .6, "#8a5a32"); cube(tx, ty, .6, .7, .7, .1, "#f7f3ea", { top: "#fff" });
+    cube(tx - .35, ty + .2, 0, .3, .3, .45, RB[0]); cube(tx + .75, ty + .2, 0, .3, .3, .45, RB[4]);
+  }
+}
+function drawSign() {
+  if (!hasR("sign")) return;
+  cube(SIGN.x, SIGN.y, 0, .2, .2, 2.6, "#555");
+  for (let i = 0; i < 7; i++) cube(SIGN.x - .5, SIGN.y - .05, 2.6 + i * .12, 1.2, .3, .12, RB[6 - i], { top: RB[6 - i] });
+}
+const RAINBOW_AT = { x: RESTO.x + RESTO.w / 2, y: RESTO.y - 2.5, r: 8 };   // a giant arch standing just behind the restaurant
+function drawRainbow() {   // drawn inside the scene like everything else, so trees and walls in front of it cover it
+  if (!S.gate) return;
+  const o = proj(RAINBOW_AT.x, RAINBOW_AT.y, 0), band = .55;
+  g.save();
+  g.globalAlpha = .8 * (1 - timeOfDay() * .7) * Math.min(1, S.gateT / 2);
+  g.transform(TW / 2, TH / 2, 0, -ZH, o.sx, o.sy);   // (u along the x axis, v straight up) → screen
+  g.lineWidth = band;
+  for (let i = 0; i < 7; i++) { g.strokeStyle = RB[i]; g.beginPath(); g.arc(0, 0, RAINBOW_AT.r - i * band, 0, Math.PI); g.stroke(); }
+  g.restore();
+}
+
 const ZOMBIE_KID = { type: "kid", skin: "#6fa85a", hair: "#2f4f2f", shirt: "#3b6f8f", pants: "#2f3f5f", hairStyle: "short", hat: "none", zombie: true };
 function drawZombie(z) {
   g.fillStyle = "rgba(0,0,0,.22)"; const s = proj(z.x, z.y, 0); g.beginPath(); g.ellipse(s.sx, s.sy, TW * .3, TH * .3, 0, 0, Math.PI * 2); g.fill();
@@ -1082,7 +1234,7 @@ function drawZombie(z) {
     drawAnimal(c, z.x, z.y, 0, z.dir, 0);
     if (z.dir <= 1) { const hz = .5; patch(z.x + .05, z.y - .25, hz, .5, .5, z.dir === 0 ? 0 : 1, .15, .3, .12, .12, "#ff2a2a"); patch(z.x + .05, z.y - .25, hz, .5, .5, z.dir === 0 ? 0 : 1, .33, .3, .12, .12, "#ff2a2a"); }
   } else {
-    const c = Object.assign({}, ZOMBIE_KID, { walk: z.walk }); if (hurt) c.skin = "#dfe";
+    const c = Object.assign({}, ZOMBIE_KID, { walk: z.walk }, z.candy ? { skin: "#f7a8d8", hair: "#ff5c8a", shirt: "#c77dff", pants: "#3a86ff", hairStyle: "spiky" } : {}); if (hurt) c.skin = "#dfe";
     drawKid(c, z.x, z.y, 0, z.dir, 0);
     // arms out front
     const ax = z.dir === 0 ? .3 : 0, ay = z.dir === 1 ? .3 : 0;
@@ -1098,12 +1250,23 @@ function drawScene() {
   g.translate(W / 2, H / 2); g.scale(ZOOM, ZOOM); g.translate(-c0.sx, -c0.sy);
   // visible tile range (generous)
   const span = Math.ceil(Math.max(W, H) / ZOOM / TH) + 4;
-  const x0 = clamp(Math.floor(cam.x - span), 0, MAP - 1), x1 = clamp(Math.ceil(cam.x + span), 0, MAP - 1);
-  const y0 = clamp(Math.floor(cam.y - span), 0, MAP - 1), y1 = clamp(Math.ceil(cam.y + span), 0, MAP - 1);
+  const x0 = clamp(Math.floor(cam.x - span), 0, MW - 1), x1 = clamp(Math.ceil(cam.x + span), 0, MW - 1);
+  const y0 = clamp(Math.floor(cam.y - span), 0, MH - 1), y1 = clamp(Math.ceil(cam.y + span), 0, MH - 1);
   drawGround(x0, y0, x1, y1);
   draws = [];
   // border forest (dark, untouchable)
-  for (let i = -2; i < MAP + 2; i++) { for (const [x, y] of [[i, -1], [i, MAP], [-1, i], [MAP, i]]) if (x >= x0 - 2 && x <= x1 + 2 && y >= y0 - 2 && y <= y1 + 2) q(x + y + 1, () => { cube(x + .3, y + .3, 0, .4, .4, 1.6, "#4a3520"); cube(x - .1, y - .1, 1.3, 1.2, 1.2, 1, "#2f6b2a"); }); }
+  const edge = (x, y) => { if (x >= x0 - 2 && x <= x1 + 2 && y >= y0 - 2 && y <= y1 + 2) q(x + y + 1, () => { cube(x + .3, y + .3, 0, .4, .4, 1.6, "#4a3520"); cube(x - .1, y - .1, 1.3, 1.2, 1.2, 1, "#2f6b2a"); }); };
+  for (let i = -2; i < MW + 2; i++) { edge(i, -1); edge(i, MH); }
+  for (let i = -2; i < MH + 2; i++) { edge(-1, i); edge(MW, i); }
+  // the fence down the middle, with its gate
+  for (let y = Math.max(0, y0 - 1); y <= Math.min(MH - 1, y1 + 1); y++) q(FENCE_X + y + 1, () => drawFence(y));
+  // rainbow land: the restaurant
+  for (let y = RESTO.y; y < RESTO.y + RESTO.h; y++) for (let x = RESTO.x; x < RESTO.x + RESTO.w; x++) if (onRestoRing(x, y)) q(x + y + 1, () => drawRestoTile(x, y));
+  q(RESTO.x + RESTO.y + 4, drawRestoInside);
+  q(RESTO.x + RESTO.y + RESTO.w + RESTO.h + .5, drawRestoRoof);
+  q(SIGN.x + SIGN.y + 1, drawSign);
+  q(RAINBOW_AT.x + RAINBOW_AT.y + 1, drawRainbow);
+  if (S.gate) q(SQUARE2.x + SQUARE2.y + 2, () => drawPile(SQUARE2));
   for (const t of trees) if (t.x >= x0 - 1 && t.x <= x1 + 1 && t.y >= y0 - 1 && t.y <= y1 + 1) q(t.x + t.y + 1 + (t.stump > 0 ? 0 : .3), () => drawTree(t));
   for (let y = HOUSE.y; y < HOUSE.y + HOUSE.h; y++) for (let x = HOUSE.x; x < HOUSE.x + HOUSE.w; x++) if (onRing(x, y)) q(x + y + 1, () => drawHouseTile(x, y));
   q(BED.x + BED.y + 1.2, drawBed);
@@ -1127,6 +1290,7 @@ function drawScene() {
   // name tags
   g.font = "bold 13px 'Avenir Next','Trebuchet MS',Arial"; g.textAlign = "center";
   for (const h of helpers) { const p = proj(h.x, h.y, 2.1); g.fillStyle = "rgba(0,0,0,.45)"; g.fillRect(p.sx - 26, p.sy - 9, 52, 16); g.fillStyle = "#fff"; g.fillText(h.name, p.sx, p.sy + 4); }
+  if (hasR("sign")) { const p = proj(SIGN.x + .1, SIGN.y + .1, 3.9); g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(p.sx - 92, p.sy - 10, 184, 20); g.fillStyle = "#fff"; g.fillText("🌈 RAINBOW RESTAURANT 🍰", p.sx, p.sy + 5); }
   g.restore();
 }
 
@@ -1142,6 +1306,9 @@ function drawWeather() {
     if (has("lantern")) lights.push({ e: { x: HOUSE.x + HOUSE.w + .3, y: HOUSE.y + HOUSE.h - .5 }, r: 7 });
     if (has("floor")) lights.push({ e: { x: HOUSE.x + 2.5, y: HOUSE.y + 2.5 }, r: 3 });
     if (hasX("barnroof")) lights.push({ e: { x: BARN.x + 2, y: BARN.y + 2 }, r: 3.5 });
+    if (S.gate) lights.push({ e: { x: GATE.x + .5, y: GATE.y + .5 }, r: 2.5 });
+    if (hasR("rwalls")) lights.push({ e: { x: RESTO.x + 3, y: RESTO.y + 2.5 }, r: 4.5 });
+    if (hasR("sign")) lights.push({ e: SIGN, r: 5 });
     for (const p of pets) if (p.state === "lost") lights.push({ e: p, r: 1.6 });
     for (const l of lights) { const p = screenOf(l.e.x, l.e.y, .5), R = l.r * TW * .5 * ZOOM; const gr = dg.createRadialGradient(p.x, p.y, 0, p.x, p.y, R); gr.addColorStop(0, "rgba(0,0,0,.95)"); gr.addColorStop(.6, "rgba(0,0,0,.5)"); gr.addColorStop(1, "rgba(0,0,0,0)"); dg.fillStyle = gr; dg.beginPath(); dg.arc(p.x, p.y, R, 0, Math.PI * 2); dg.fill(); }
     dg.globalCompositeOperation = "source-over";
@@ -1183,7 +1350,7 @@ function drawHUD() {
     }
   }
   const st = nextStage();
-  row(["🪵 " + P.wood + "/2 carrying", "pile: " + S.pile, st ? "next: " + (st.short || st.name) + " (" + st.cost + ")" : "🏆 the whole village is finished!"]);
+  row(["🪵 " + P.wood + "/2 carrying", "pile: " + S.pile, st ? "next: " + (st.short || st.name) + " (" + st.cost + ")" : S.gate ? "🏆 everything is built — keep everyone safe!" : "🏆 the whole village is finished!"]);
   const ph = S.phase === "day" ? "☀️ Day " + S.day : S.phase === "dusk" ? "🌇 Evening" : S.phase === "night" ? "🌙 Night " + S.day : "🌅 Dawn";
   row([ph + (S.rain ? "  ⛈" : ""), "you are " + P.label]);
   // house progress bar
@@ -1193,6 +1360,7 @@ function drawHUD() {
   y = py + 22;
   g.font = "bold 12px 'Avenir Next','Trebuchet MS',Arial";
   if (S.built >= STAGES.length) { g.fillStyle = "#fff"; g.fillText("🛏 bunks " + S.bunks + "/" + MAX_BUNKS + "   👫 helpers " + helpers.length + "   🐾 pets home " + pets.filter(p => p.state === "home").length + "/" + PET_KINDS.length, px, y + 6, maxW); y += 18; }
+  if (S.gate) { g.fillStyle = "#fff"; g.fillText("🌈 restaurant " + S.rb + "/" + RAINBOW.length + (S.rb >= RAINBOW.length ? " — OPEN! 🍰" : ""), px, y + 6, maxW); y += 18; }
   const lost = pets.find(p => p.state !== "home");
   if (lost) { g.fillStyle = "#ffd166"; g.fillText(lost.state === "lost" ? "🐾 " + lost.label + " is lost in the forest! Follow the paw prints" : "🐾 bring " + lost.name + " to the barn!", px, y + 6, maxW); y += 18; }
   if (S.builder) { g.fillStyle = "#fff"; g.fillText("🔨 " + S.builder.name + " is building… stand close + 🪓 to help", px, y + 6, maxW); }
@@ -1203,16 +1371,9 @@ function drawHUD() {
     g.fillStyle = "rgba(0,0,0,.55)"; roundRect(W / 2 - mw / 2, H - 150, mw, 34, 12); g.fill(); g.fillStyle = "#ffe";
     g.fillText(S.msg, W / 2, H - 133, W - 40);
   }
-  // paw-print pointer toward a lost pet when it's off screen
-  if (lost && lost.state === "lost") {
-    const sp = screenOf(lost.x, lost.y, .5), cx = W / 2, cy = H / 2, dx = sp.x - cx, dy = sp.y - cy;
-    if (sp.x < 30 || sp.x > W - 30 || sp.y < 120 || sp.y > H - 120) {
-      const m = Math.max(Math.abs(dx) / (W / 2 - 40), Math.abs(dy) / (H / 2 - 130)), ex = cx + dx / m, ey = cy + dy / m;
-      g.font = "bold 30px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-      g.fillStyle = "rgba(0,0,0,.45)"; g.beginPath(); g.arc(ex, ey, 24, 0, Math.PI * 2); g.fill();
-      g.fillStyle = "#fff"; g.fillText("🐾", ex, ey + 2);
-    }
-  }
+  // edge pointers: paw prints toward a lost pet, a rainbow toward the open gate until the restaurant is started
+  if (lost && lost.state === "lost") edgePointer(lost.x, lost.y, "🐾");
+  if (S.gate && S.rb === 0 && P.x < FENCE_X) edgePointer(GATE.x + .5, GATE.y + .5, "🌈");
   // "💾 saved" flash after a big-moment autosave
   if (S.savedT > 0) {
     g.globalAlpha = Math.min(1, S.savedT); g.font = "bold 13px 'Avenir Next','Trebuchet MS',Arial"; g.textAlign = "left";
@@ -1229,6 +1390,14 @@ function drawHUD() {
     g.fillStyle = "rgba(255,255,255,.7)"; g.beginPath(); g.arc(joy.ox + joy.dx * 46, joy.oy + joy.dy * 46, 24, 0, Math.PI * 2); g.fill();
   } else if (S.t < 20) { g.font = "bold 14px 'Avenir Next','Trebuchet MS',Arial"; g.fillStyle = "rgba(255,255,255,.8)"; g.textAlign = "left"; g.fillText("👆 drag anywhere to walk · arrows/WASD + space on a keyboard", 14, H - 24); }
   g.textBaseline = "alphabetic";
+}
+function edgePointer(wx, wy, emoji) {   // a round badge on the screen edge pointing at something off screen
+  const sp = screenOf(wx, wy, .5), cx = W / 2, cy = H / 2, dx = sp.x - cx, dy = sp.y - cy;
+  if (!(sp.x < 30 || sp.x > W - 30 || sp.y < 120 || sp.y > H - 120)) return;
+  const m = Math.max(Math.abs(dx) / (W / 2 - 40), Math.abs(dy) / (H / 2 - 130)), ex = cx + dx / m, ey = cy + dy / m;
+  g.font = "bold 30px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "rgba(0,0,0,.45)"; g.beginPath(); g.arc(ex, ey, 24, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#fff"; g.fillText(emoji, ex, ey + 2);
 }
 function drawPrompt() {
   if (!S.prompt) return;
@@ -1247,10 +1416,11 @@ function drawWin() {
   const t = S.wonT;
   g.fillStyle = `rgba(0,0,0,${Math.min(.5, t)})`; g.fillRect(0, 0, W, H);
   for (let i = 0; i < 80; i++) { const hx = hash(i, 1), hs = hash(i, 2); const y = ((t * (60 + hs * 120) + hx * H) % (H + 40)) - 20; g.fillStyle = ["#ffbe0b", "#fb5607", "#ff006e", "#8338ec", "#3a86ff", "#06d6a0"][i % 6]; g.fillRect(hx * W, y, 8, 12); }
-  g.fillStyle = "#fff"; g.textAlign = "center"; g.font = "bold 44px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("🏠 YOU BUILT THE HOUSE! 🎉", W / 2, H / 2 - 30, W - 30);
-  g.font = "bold 22px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(P.name + " and the helpers did it!", W / 2, H / 2 + 14);
+  const resto = S.winKind === "resto";
+  g.fillStyle = "#fff"; g.textAlign = "center"; g.font = "bold 44px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(resto ? "🌈 THE RAINBOW RESTAURANT IS OPEN! 🍰" : "🏠 YOU BUILT THE HOUSE! 🎉", W / 2, H / 2 - 30, W - 30);
+  g.font = "bold 22px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(resto ? P.name + " and the crew built a whole rainbow land!" : P.name + " and the helpers did it!", W / 2, H / 2 + 14, W - 30);
   if (t > 1.2) { g.fillStyle = "#ffd166"; g.font = "bold 20px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("Tap to keep playing!", W / 2, H / 2 + 60, W - 30);
-    g.fillStyle = "#fff"; g.font = "bold 16px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("Next: bunk beds, a barn for lost pets, and an upstairs! 🛏🐾🏠", W / 2, H / 2 + 90, W - 30); }
+    g.fillStyle = "#fff"; g.font = "bold 16px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(resto ? "More zombies come every night now — keep everyone safe! 🧟🧟" : "Next: bunk beds, a barn for lost pets, and an upstairs! 🛏🐾🏠", W / 2, H / 2 + 90, W - 30); }
 }
 
 /* ------------------------------ title ------------------------------ */
@@ -1281,7 +1451,7 @@ function drawTitle() {
 }
 function dismissWin() {
   if (S.wonT < 1.2) return;
-  S.state = "play"; say("Keep bringing wood — bunk beds, a barn, lost pets and an upstairs are next! 🛏🐾", 5);
+  S.state = "play"; say(S.winKind === "resto" ? "Everything is built! 🌈 Keep chopping and keep fighting — the zombies keep coming! 🧟" : "Keep bringing wood — bunk beds, a barn, lost pets and an upstairs are next! 🛏🐾", 5);
 }
 function titleBtns() {
   const x = W / 2 - 110, y = H * .8;
