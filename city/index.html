@@ -53,7 +53,7 @@
   #editor .card { display:flex; gap:14px; }
   #edPrev { width:150px; height:260px; flex:0 0 150px; border-radius:16px; background:linear-gradient(#bde0ff,#ffd9f5); }
   #edOpts { flex:1; min-width:0; overflow:auto; max-height:min(80vh,640px); }
-  @media (max-width:520px) { #editor .card { flex-direction:column; align-items:center; } #edPrev { width:200px; height:210px; flex:none; } #edOpts { width:100%; max-height:45vh; } }
+  @media (max-width:520px) { #editor .card { flex-direction:column; align-items:center; } #edPrev { width:200px; height:210px; flex:none; } #edOpts { width:100%; max-height:none; overflow:visible; } }
   /* ---- phone ---- */
   #phone { z-index:50; }
   #phoneBody { width:min(330px, 92vw); height:min(640px, 88vh); background:#111; border-radius:38px; padding:12px; box-sizing:border-box;
@@ -221,7 +221,7 @@ const SFX = {
 const keys = {};
 window.addEventListener("keydown", e => { keys[e.key.toLowerCase()] = true; if (["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase())) e.preventDefault(); if (e.key === "Enter" || e.key === " ") { if (!ACT.hidden) doAction(); } });
 window.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
-document.addEventListener("touchmove", e => { if (e.touches.length < 2) e.preventDefault(); }, { passive: false });
+document.addEventListener("touchmove", e => { if (e.touches.length < 2 && e.target === cv) e.preventDefault(); }, { passive: false });   // cards and the phone still scroll
 const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0 };
 const taps = [];
 cv.addEventListener("pointerdown", e => {
@@ -342,6 +342,7 @@ function drawTeen(c, x, y, z, dir, walk) {
   const bands = [[A.hairTop, .3], [A.hairMid, .35], [A.hairTip, .35]];
   const hairSlabs = (slabs) => { let top = hz0 + .36; const totalL = A.hairStyle === "long" ? 1.0 : .6; for (const [hc, frac] of bands) { const bh = totalL * frac; top -= bh; for (const [sx, sy, sw2, sd] of slabs) cube(sx, sy, top, sw2, sd, bh, hc); } };
   if (A.hairStyle === "long") hairSlabs([[x - .29, y - .25, .12, .46], [x - .25, y - .29, .46, .12]]);
+  else if (A.hairStyle === "short") { cube(x - .29, y - .25, hz0 + .12, .12, .5, .3, A.hairTop); cube(x - .25, y - .29, hz0 + .12, .5, .12, .3, A.hairTop); }
   else if (A.hairStyle === "pony") hairSlabs([[x - .1 + (dir === 0 ? -.35 : dir === 2 ? .35 : 0), y - .1 + (dir === 1 ? -.35 : dir === 3 ? .35 : 0), .2, .2]]);
   // legs + boots (boots are the bottom .3 of each leg)
   for (const [lx, s] of [[x - .2, step], [x + .02, -step]]) {
@@ -397,7 +398,6 @@ function drawTeen(c, x, y, z, dir, walk) {
   cube(x - .27, y - .27, hz + .36, .54, .54, .18, A.hairTop);
   if (A.hairStyle === "long" && dir === 2) hairSlabs([[x + .17, y - .25, .12, .46]]);
   if (A.hairStyle === "long" && dir === 3) hairSlabs([[x - .25, y + .17, .46, .12]]);
-  if (A.hairStyle === "short") { cube(x - .29, y - .27, hz + .15, .12, .56, .25, A.hairTop); cube(x - .27, y - .29, hz + .15, .56, .12, .25, A.hairTop); }
   // accessories
   if (A.acc === "ears") { cube(x - .24, y - .2, hz + .52, .14, .14, .18, "#ff8fc7"); cube(x + .1, y - .2, hz + .52, .14, .14, .18, "#ff8fc7"); }
   else if (A.acc === "crown") { cube(x - .22, y - .22, hz + .52, .44, .44, .1, "#ffd166"); for (let i = 0; i < 3; i++) cube(x - .2 + i * .17, y - .2, hz + .62, .1, .1, .12, "#ffd166"); }
@@ -1111,7 +1111,7 @@ const SKINS = ["#f8ddc2", "#f3cba5", "#e0ac69", "#c68642", "#8d5524", "#5c3a1e"]
 const CLOTH = ["#ffffff", "#151515", "#7b3fe4", "#3a86ff", "#ff70a6", "#ffd166", "#2ec4b6", "#ff3b5c", "#a066ff", "#4cc9f0", "#57b34a", "#ff9f1c"];
 const edCv = $("edPrev"), edCtx = edCv.getContext("2d");
 let edOpen = false, edFirst = false;
-function swatches(key, cols) { return `<div class="swatches">${cols.map(c => `<div class="sw ${AV[key] === c ? "on" : ""}" data-k="${key}" data-v="${c}" style="background:${c}"></div>`).join("")}</div>`; }
+function swatches(key, cols) { return `<div class="swatches">${cols.map(c => `<div class="sw ${AV[key] === c ? "on" : ""}" data-k="${key}" data-v="${c}" style="background:${c === "none" ? "#f4f2ff" : c};text-align:center;line-height:34px;font-weight:800;color:#999">${c === "none" ? "✕" : ""}</div>`).join("")}</div>`; }
 function choice(key, opts) { return `<div class="row" style="margin:4px 0">${opts.map(o => `<button class="btn ${AV[key] === o[0] ? "" : "alt"}" data-k="${key}" data-v="${o[0]}" style="padding:8px 12px;font-size:13px">${o[1]}</button>`).join("")}</div>`; }
 function toggle(key, label) { return `<button class="btn ${AV[key] ? "ok" : "alt"}" data-k="${key}" data-v="${AV[key] ? "0" : "1"}" data-bool="1" style="padding:8px 12px;font-size:13px">${AV[key] ? "✓ " : ""}${label}</button>`; }
 function openEditor(first) {
