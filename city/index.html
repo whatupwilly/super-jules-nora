@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Jules City — by Jules</title>
+<style>
+  :root { --sat: env(safe-area-inset-top, 10px); --sab: env(safe-area-inset-bottom, 10px); --font:"Avenir Next","Trebuchet MS",Arial,sans-serif; }
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#7cc4ff; font-family:var(--font);
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; touch-action:none; }
+  canvas#game { display:block; width:100vw; height:100vh; touch-action:none; }
+  button { font-family:var(--font); cursor:pointer; }
+  /* ---- on-screen buttons ---- */
+  #phoneBtn { position:fixed; right:14px; bottom:max(14px, var(--sab)); z-index:20; width:66px; height:66px; border-radius:22px;
+    border:3px solid #fff; background:linear-gradient(160deg,#a066ff,#4f8cff); color:#fff; font-size:32px; box-shadow:0 8px 20px rgba(0,0,0,.3); }
+  #phoneBtn .badge { position:absolute; top:-8px; right:-8px; min-width:24px; height:24px; border-radius:12px; background:#ff3b5c; color:#fff;
+    font:800 13px var(--font); line-height:24px; padding:0 6px; border:2px solid #fff; }
+  #phoneBtn .badge[hidden] { display:none; }
+  #phoneBtn.ring { animation:ring .5s infinite; }
+  @keyframes ring { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-12deg)} 75%{transform:rotate(12deg)} }
+  #act { position:fixed; right:14px; bottom:calc(max(14px, var(--sab)) + 80px); z-index:20; border-radius:999px; border:3px solid #fff;
+    background:#ffd166; color:#5a3b00; font:800 16px var(--font); padding:12px 18px; box-shadow:0 8px 20px rgba(0,0,0,.3); max-width:60vw; }
+  #act[hidden] { display:none; }
+  /* ---- overlays ---- */
+  .ov { position:fixed; inset:0; z-index:40; background:rgba(20,10,50,.55); display:flex; align-items:center; justify-content:center; padding:10px; }
+  .ov[hidden] { display:none; }
+  .card { background:#fff; border-radius:22px; width:min(440px, 96vw); max-height:min(88vh, 720px); overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,.4);
+    padding:18px; box-sizing:border-box; color:#2a2a3a; }
+  .card h2 { margin:0 0 6px; font-size:22px; }
+  .card p { margin:6px 0; font-size:15px; line-height:1.35; }
+  .card .row { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .btn { border:0; border-radius:14px; padding:12px 16px; font:800 15px var(--font); background:#a066ff; color:#fff; box-shadow:0 4px 0 #7a44d6; }
+  .btn:active { transform:translateY(3px); box-shadow:none; }
+  .btn.alt { background:#e9e6ff; color:#5a3aa8; box-shadow:0 4px 0 #cfc8ff; }
+  .btn.ok { background:#2ec4b6; box-shadow:0 4px 0 #1e9c90; }
+  .btn.warn { background:#ff5c8a; box-shadow:0 4px 0 #d13a68; }
+  .btn:disabled { opacity:.5; box-shadow:none; transform:none; }
+  .big { font-size:52px; text-align:center; margin:6px 0; }
+  .shop { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:8px; }
+  .item { background:#f6f2ff; border-radius:14px; padding:8px; text-align:center; border:2px solid transparent; }
+  .item.own { border-color:#2ec4b6; }
+  .item .ic { font-size:34px; }
+  .item .nm { font-weight:800; font-size:12px; margin:2px 0; }
+  .item .pr { font-size:12px; color:#7a44d6; font-weight:800; }
+  .stage { position:relative; height:220px; border-radius:16px; overflow:hidden; background:#101020; }
+  .screenLines { color:#fff; font-size:22px; text-align:center; padding:14px; line-height:1.5; }
+  .swatches { display:flex; flex-wrap:wrap; gap:6px; }
+  .sw { width:34px; height:34px; border-radius:10px; border:3px solid #fff; box-shadow:0 0 0 2px #ddd; }
+  .sw.on { box-shadow:0 0 0 3px #a066ff; }
+  .lbl { font-weight:800; font-size:13px; color:#6a6a8a; margin:10px 0 4px; text-transform:uppercase; letter-spacing:.06em; }
+  input.txt { font:800 18px var(--font); border:2px solid #cfc8ff; border-radius:12px; padding:8px 10px; width:120px; text-transform:uppercase; }
+  #editor .card { display:flex; gap:14px; }
+  #edPrev { width:150px; height:260px; flex:0 0 150px; border-radius:16px; background:linear-gradient(#bde0ff,#ffd9f5); }
+  #edOpts { flex:1; min-width:0; overflow:auto; max-height:min(80vh,640px); }
+  @media (max-width:520px) { #editor .card { flex-direction:column; align-items:center; } #edPrev { width:200px; height:210px; flex:none; } #edOpts { width:100%; max-height:45vh; } }
+  /* ---- phone ---- */
+  #phone { z-index:50; }
+  #phoneBody { width:min(330px, 92vw); height:min(640px, 88vh); background:#111; border-radius:38px; padding:12px; box-sizing:border-box;
+    box-shadow:0 20px 60px rgba(0,0,0,.5); display:flex; flex-direction:column; }
+  #screen { flex:1; background:#f4f2ff; border-radius:28px; overflow:hidden; display:flex; flex-direction:column; position:relative; }
+  #status { display:flex; justify-content:space-between; padding:8px 18px 0; font:800 12px var(--font); color:#333; }
+  .app { display:none; flex:1; flex-direction:column; overflow:hidden; }
+  .app.on { display:flex; }
+  .appTop { display:flex; align-items:center; gap:8px; padding:8px 12px; font:800 17px var(--font); background:#fff; border-bottom:1px solid #e6e2ff; }
+  .appTop button { border:0; background:#eee9ff; color:#5a3aa8; border-radius:10px; padding:6px 10px; font:800 14px var(--font); }
+  .appBody { flex:1; overflow:auto; padding:10px; -webkit-overflow-scrolling:touch; }
+  #home .appBody { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; align-content:start; padding:18px 14px; }
+  .icon { text-align:center; font-size:12px; font-weight:800; color:#333; position:relative; }
+  .icon .ic { width:60px; height:60px; margin:0 auto 4px; border-radius:18px; font-size:32px; line-height:60px; color:#fff; box-shadow:0 4px 10px rgba(0,0,0,.15); }
+  .icon .badge { position:absolute; top:-6px; right:10px; min-width:20px; height:20px; border-radius:10px; background:#ff3b5c; color:#fff; font-size:12px; line-height:20px; padding:0 5px; }
+  .icon .badge[hidden] { display:none; }
+  .list .li { display:flex; align-items:center; gap:10px; padding:10px; background:#fff; border-radius:14px; margin-bottom:8px; }
+  .list .li .av { width:44px; height:44px; border-radius:22px; background:#e9e6ff; font-size:26px; line-height:44px; text-align:center; flex:none; }
+  .list .li .t { flex:1; min-width:0; } .list .li .n { font-weight:800; font-size:15px; } .list .li .s { font-size:12px; color:#777; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .list .li .dot { width:12px; height:12px; border-radius:6px; background:#ff3b5c; }
+  .chat { display:flex; flex-direction:column; gap:6px; }
+  .bub { max-width:80%; padding:8px 12px; border-radius:16px; font-size:14px; line-height:1.3; }
+  .bub.them { background:#fff; align-self:flex-start; border-bottom-left-radius:4px; }
+  .bub.me { background:#4f8cff; color:#fff; align-self:flex-end; border-bottom-right-radius:4px; }
+  .bub.sys { align-self:center; background:none; color:#999; font-size:12px; }
+  .bub.typing span { display:inline-block; width:7px; height:7px; border-radius:4px; background:#aaa; margin:0 2px; animation:blink 1s infinite; }
+  .bub.typing span:nth-child(2){animation-delay:.2s} .bub.typing span:nth-child(3){animation-delay:.4s}
+  @keyframes blink { 0%,100%{opacity:.3} 50%{opacity:1} }
+  .replies { padding:8px; background:#fff; border-top:1px solid #e6e2ff; display:flex; flex-direction:column; gap:6px; }
+  .replies button { border:0; background:#eef; color:#334; border-radius:14px; padding:10px; font:700 14px var(--font); text-align:left; }
+  .callScr { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:linear-gradient(#5a3aa8,#2a1a58); color:#fff; text-align:center; padding:16px; }
+  .callScr .face { font-size:70px; }
+  .callScr .line { font-size:15px; background:rgba(255,255,255,.12); border-radius:14px; padding:8px 12px; }
+  .callBtns { display:flex; gap:14px; margin-top:10px; }
+  .round { width:64px; height:64px; border-radius:32px; border:0; font-size:28px; color:#fff; }
+  .photos { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .photos img { width:100%; border-radius:12px; background:#ddd; }
+  #mapCv { width:100%; border-radius:14px; background:#7dbb61; touch-action:manipulation; }
+  .song { display:flex; align-items:center; gap:10px; background:#fff; border-radius:14px; padding:10px; margin-bottom:8px; }
+  .song.playing { background:#e9e6ff; }
+  #toast { position:fixed; left:50%; top:calc(var(--sat) + 52px); transform:translateX(-50%); z-index:60; background:rgba(30,20,60,.92); color:#fff;
+    border-radius:16px; padding:10px 16px; font:700 14px var(--font); max-width:86vw; box-shadow:0 8px 24px rgba(0,0,0,.3); transition:opacity .3s; pointer-events:none; }
+  #toast[hidden] { display:none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="verlink">
+  <button id="gamesBtn" type="button">🎮 Games</button>
+  <nav id="gamesMenu" hidden>
+    <b>Super Young Sisters</b>
+    <a href="../">🕹 Classic</a><a href="../hd/">✨ HD</a><a href="../fortnite/">⚡ Battle</a><a href="../realistic/">🌿 Real</a>
+    <b>More magic</b>
+    <a href="../magic/">🌈 Magic Heroes</a><a href="../bubble/">🫧 Bubble</a><a href="../life/">🏡 Magic Life</a><a href="../kart/">🏎 Magic Kart</a><a href="../tennis/">🎾 Magic Tennis</a>
+    <b>Jules's city</b>
+    <a class="here" href="./">🏙 Jules City</a>
+    <b>Nora's new world</b>
+    <a href="../zombie/">🧟 Zombie Night</a>
+    <b>Dad's work</b>
+    <a href="../faceplant/">🍔 Face Plant</a>
+  </nav>
+</div>
+<style>
+  #verlink { position:fixed; right:10px; top:max(10px, env(safe-area-inset-top)); z-index:30; font-family:var(--font); }
+  #gamesBtn { font:800 14px var(--font); color:#fff; background:rgba(40,50,70,.55); border:2px solid rgba(255,255,255,.55);
+    border-radius:999px; padding:7px 14px; -webkit-user-select:none; user-select:none; }
+  #gamesMenu[hidden] { display:none; }
+  #gamesMenu { position:absolute; right:0; top:calc(100% + 6px); background:#ffffff; border-radius:14px; padding:8px; min-width:176px;
+    box-shadow:0 10px 28px rgba(0,0,0,.28); display:flex; flex-direction:column; gap:2px; }
+  #gamesMenu b { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#8a94a6; margin:6px 8px 2px; font-weight:800; }
+  #gamesMenu a { display:block; padding:7px 10px; border-radius:9px; color:#2a3a55; text-decoration:none; font-weight:700; font-size:14px; }
+  #gamesMenu a:hover, #gamesMenu a:active { background:#eef3fb; }
+  #gamesMenu a.here { background:#ffd166; color:#7a4b12; }
+</style>
+
+<button id="act" type="button" hidden>🚪 Go in</button>
+<button id="phoneBtn" type="button" hidden>📱<span class="badge" id="phoneBadge" hidden>1</span></button>
+<div id="toast" hidden></div>
+
+<!-- generic activity card -->
+<div id="modal" class="ov" hidden><div class="card" id="modalCard"></div></div>
+
+<!-- avatar editor -->
+<div id="editor" class="ov" hidden><div class="card">
+  <canvas id="edPrev" width="300" height="520"></canvas>
+  <div id="edOpts"></div>
+</div></div>
+
+<!-- the phone -->
+<div id="phone" class="ov" hidden><div id="phoneBody"><div id="screen">
+  <div id="status"><span id="stTime">9:41</span><span>📶 🔋</span></div>
+  <div class="app on" id="home"><div class="appBody" id="homeGrid"></div></div>
+  <div class="app" id="msgs"><div class="appTop"><button data-back>‹ Back</button><span>💬 Messages</span></div><div class="appBody list" id="msgList"></div></div>
+  <div class="app" id="chat"><div class="appTop"><button data-to="msgs">‹ Back</button><span id="chatName"></span></div><div class="appBody chat" id="chatBody"></div><div class="replies" id="chatReplies"></div></div>
+  <div class="app" id="calls"><div class="appTop"><button data-back>‹ Back</button><span>📞 Phone</span></div><div class="appBody list" id="callList"></div></div>
+  <div class="app" id="call"><div class="callScr" id="callScr"></div></div>
+  <div class="app" id="camera"><div class="appTop"><button data-back>‹ Back</button><span>📷 Camera</span></div><div class="appBody" id="camBody"></div></div>
+  <div class="app" id="photos"><div class="appTop"><button data-back>‹ Back</button><span>🖼 Photos</span></div><div class="appBody photos" id="photoGrid"></div></div>
+  <div class="app" id="map"><div class="appTop"><button data-back>‹ Back</button><span>🗺 City Map</span></div><div class="appBody" id="mapBody"><canvas id="mapCv" width="300" height="300"></canvas><p style="font-size:13px;color:#666;text-align:center;margin:8px 0 0">Tap a place to set a marker ⭐</p></div></div>
+  <div class="app" id="wallet"><div class="appTop"><button data-back>‹ Back</button><span>💰 Wallet</span></div><div class="appBody" id="walletBody"></div></div>
+  <div class="app" id="music"><div class="appTop"><button data-back>‹ Back</button><span>🎵 Music</span></div><div class="appBody" id="musicBody"></div></div>
+</div></div></div>
+
+<script>
+"use strict";
+/* JULES CITY — Jules's game. A Roblox-style blocky city seen from above at a
+   corner. You make your own teen avatar (Jules's look is the default: long
+   blue/black/purple hair, TTYL shirt, gem jacket, glitter skirt, purple boots),
+   then walk around a whole city: movies, theater, school, mall, boba cafe,
+   arcade, pizza, pet shop, salon, bank, and houses you can buy and furnish.
+   The 📱 phone has Messages (fake friends who text you back), a Phone app for
+   calls, Camera, Photos, a Map, a Wallet and Music. */
+
+/* ------------------------------ canvas ------------------------------ */
+const cv = document.getElementById("game");
+const g  = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1, ZOOM = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  ZOOM = Math.max(.62, Math.min(1.15, Math.min(W, H * 1.4) / 820));
+  dark.width = cv.width; dark.height = cv.height;
+}
+const dark = document.createElement("canvas"), dg = dark.getContext("2d");
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 200));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", () => setTimeout(resize, 50));
+resize();
+
+/* ------------------------------ audio ------------------------------ */
+let AC = null;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (AC && AC.state === "suspended") AC.resume();
+}
+function tone(freq, dur, type, vol, slide, delay) {
+  if (!AC) return;
+  const o = AC.createOscillator(), gn = AC.createGain(), t = AC.currentTime + (delay || 0);
+  o.type = type || "square"; o.frequency.setValueAtTime(freq, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
+  gn.gain.setValueAtTime(vol || .12, t);
+  gn.gain.exponentialRampToValueAtTime(.001, t + dur);
+  o.connect(gn).connect(AC.destination); o.start(t); o.stop(t + dur + .02);
+}
+const SFX = {
+  tap:    () => tone(660, .06, "square", .06, 200),
+  coin:   () => { tone(988, .08, "square", .08); tone(1319, .18, "square", .08, 0, .08); },
+  buy:    () => { [523, 659, 784].forEach((f, i) => tone(f, .12, "triangle", .1, 0, i * .08)); },
+  nope:   () => { tone(220, .18, "sawtooth", .08, -80); },
+  msg:    () => { tone(1568, .07, "sine", .1); tone(2093, .12, "sine", .1, 0, .09); },
+  ring:   () => { for (let i = 0; i < 4; i++) tone(1200, .08, "square", .06, 0, i * .12); },
+  door:   () => { tone(300, .1, "triangle", .1, 150); tone(500, .12, "triangle", .08, 100, .1); },
+  yay:    () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, .18, "square", .09, 0, i * .09)); },
+  clap:   () => { for (let i = 0; i < 6; i++) tone(200 + Math.random() * 300, .04, "square", .05, 0, i * .07); },
+  honk:   () => { tone(330, .18, "sawtooth", .09); tone(415, .18, "sawtooth", .09); },
+  step:   () => tone(150, .03, "triangle", .03),
+  shutter:() => { tone(1400, .03, "square", .08); tone(700, .05, "square", .06, 0, .05); },
+  bark:   () => { tone(500, .08, "square", .08, -200); tone(450, .08, "square", .08, -200, .12); },
+  pop:    () => tone(880, .05, "sine", .08, 400),
+};
+
+/* ------------------------------ input ------------------------------ */
+const keys = {};
+window.addEventListener("keydown", e => { keys[e.key.toLowerCase()] = true; if (["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase())) e.preventDefault(); if (e.key === "Enter" || e.key === " ") { if (!ACT.hidden) doAction(); } });
+window.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+document.addEventListener("touchmove", e => { if (e.touches.length < 2) e.preventDefault(); }, { passive: false });
+const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0 };
+const taps = [];
+cv.addEventListener("pointerdown", e => {
+  e.preventDefault(); audio();
+  const x = e.clientX, y = e.clientY;
+  if (S.state !== "play") { taps.push({ x, y }); return; }
+  taps.push({ x, y });
+  if (joy.id === null) { joy.id = e.pointerId; joy.ox = joy.x = x; joy.oy = joy.y = y; joy.dx = joy.dy = 0; }
+});
+cv.addEventListener("pointermove", e => {
+  if (e.pointerId === joy.id) {
+    joy.x = e.clientX; joy.y = e.clientY;
+    let dx = joy.x - joy.ox, dy = joy.y - joy.oy, m = Math.hypot(dx, dy), R = 46;
+    if (m > R) { dx *= R / m; dy *= R / m; m = R; }
+    joy.dx = dx / R; joy.dy = dy / R;
+  }
+});
+function endPtr(e) { if (e.pointerId === joy.id) { joy.id = null; joy.dx = joy.dy = 0; } }
+cv.addEventListener("pointerup", endPtr); cv.addEventListener("pointercancel", endPtr);
+cv.addEventListener("contextmenu", e => e.preventDefault());
+
+/* ------------------------------ helpers ------------------------------ */
+const rnd = (a, b) => a + Math.random() * (b - a);
+const ri = (a, b) => Math.floor(rnd(a, b + 1));
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const $ = id => document.getElementById(id);
+function shade(col, k) {
+  let r, gg, b;
+  if (col[0] === "#") { let h = col.slice(1); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; const n = parseInt(h, 16); r = (n >> 16) & 255; gg = (n >> 8) & 255; b = n & 255; }
+  else { const m = col.match(/\d+/g); r = +m[0]; gg = +m[1]; b = +m[2]; }
+  r = clamp(Math.round(r * k), 0, 255); gg = clamp(Math.round(gg * k), 0, 255); b = clamp(Math.round(b * k), 0, 255);
+  return `rgb(${r},${gg},${b})`;
+}
+function roundRect(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function hash(x, y) { let n = (x * 374761393 + y * 668265263) | 0; n = (n ^ (n >> 13)) * 1274126177; return ((n ^ (n >> 16)) & 1023) / 1023; }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+/* ------------------------------ iso renderer ------------------------------ */
+const TW = 64, TH = 32, ZH = 34;
+let ctx = g;   // the renderer draws into ctx so the editor/camera can reuse it
+function proj(x, y, z) { return { sx: (x - y) * TW / 2, sy: (x + y) * TH / 2 - (z || 0) * ZH }; }
+let draws = [];
+function q(key, fn) { draws.push({ key, fn }); }
+function cube(x, y, z, w, d, h, col, opts) {
+  opts = opts || {};
+  const a = proj(x, y, z), b = proj(x + w, y, z), c = proj(x + w, y + d, z), e = proj(x, y + d, z);
+  const up = h * ZH;
+  if (opts.alpha !== undefined) ctx.globalAlpha = opts.alpha;
+  ctx.fillStyle = opts.top || shade(col, 1.18);
+  ctx.beginPath(); ctx.moveTo(a.sx, a.sy - up); ctx.lineTo(b.sx, b.sy - up); ctx.lineTo(c.sx, c.sy - up); ctx.lineTo(e.sx, e.sy - up); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = opts.left || shade(col, .82);
+  ctx.beginPath(); ctx.moveTo(e.sx, e.sy - up); ctx.lineTo(c.sx, c.sy - up); ctx.lineTo(c.sx, c.sy); ctx.lineTo(e.sx, e.sy); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = opts.right || shade(col, .64);
+  ctx.beginPath(); ctx.moveTo(b.sx, b.sy - up); ctx.lineTo(c.sx, c.sy - up); ctx.lineTo(c.sx, c.sy); ctx.lineTo(b.sx, b.sy); ctx.closePath(); ctx.fill();
+  if (opts.alpha !== undefined) ctx.globalAlpha = 1;
+}
+// a square patch on a cube's face: side 0 = +x face, 1 = +y face. u across, v up
+function patch(x, y, z, w, d, side, u, v, s, sv, col) {
+  const p0 = side === 0 ? proj(x + w, y + u, z + v) : proj(x + u, y + d, z + v);
+  const p1 = side === 0 ? proj(x + w, y + u + s, z + v) : proj(x + u + s, y + d, z + v);
+  const h = (sv || s) * ZH;
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(p0.sx, p0.sy); ctx.lineTo(p1.sx, p1.sy); ctx.lineTo(p1.sx, p1.sy - h); ctx.lineTo(p0.sx, p0.sy - h); ctx.closePath(); ctx.fill();
+}
+// text painted flat onto a cube face (side 0 = +x, side 1 = +y), centred on the face
+function faceText(x, y, z, w, d, side, v, txt, col, size) {
+  const o = side === 0 ? proj(x + w, y + d / 2, z + v) : proj(x + w / 2, y + d, z + v);
+  ctx.save();
+  // face-space basis: "across" runs along the face edge, "up" is straight up on screen
+  // one face-pixel across = 1/TW world units along the face edge, one up = 1/ZH world units of height
+  if (side === 0) ctx.transform(-.5, .25, 0, 1, o.sx, o.sy);   // across = +y direction (screen goes left+down)
+  else ctx.transform(.5, .25, 0, 1, o.sx, o.sy);               // across = +x direction (screen goes right+down)
+  ctx.fillStyle = col; ctx.font = `900 ${size}px ${"'Avenir Next','Trebuchet MS',Arial"}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(txt, 0, 0);
+  ctx.restore();
+}
+function diamond(x, y, col, w, d) {
+  const a = proj(x, y), b = proj(x + (w || 1), y), c = proj(x + (w || 1), y + (d || w || 1)), e = proj(x, y + (d || w || 1));
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy); ctx.lineTo(c.sx, c.sy); ctx.lineTo(e.sx, e.sy); ctx.closePath(); ctx.fill();
+}
+function eyes(x, y, z, w, d, dir, col, z0) {
+  if (dir > 1) return;
+  const s = .11, v = z0 !== undefined ? z0 : .45, side = dir === 0 ? 0 : 1;
+  patch(x, y, z, w, d, side, .09, v, s, s, col || "#111");
+  patch(x, y, z, w, d, side, w - .09 - s, v, s, s, col || "#111");
+  patch(x, y, z, w, d, side, .12, v + .06, .04, .04, "#fff");
+  patch(x, y, z, w, d, side, w - .09 - s + .03, v + .06, .04, .04, "#fff");
+}
+function smile(x, y, z, w, d, dir, col) {
+  if (dir > 1) return; const side = dir === 0 ? 0 : 1;
+  patch(x, y, z, w, d, side, .17, .24, .03, .04, col); patch(x, y, z, w, d, side, .2, .2, w - .4, .04, col); patch(x, y, z, w, d, side, w - .2, .24, .03, .04, col);
+}
+function sparkles(x, y, z, w, d, side, n, seed, t) {   // twinkly white dots on a face
+  for (let i = 0; i < n; i++) {
+    const h1 = hash(seed + i, 7), h2 = hash(seed + i, 13), tw = Math.sin(t * 6 + i * 1.7) > .2;
+    if (!tw) continue;
+    patch(x, y, z, w, d, side, .04 + h1 * ((side === 0 ? d : w) - .12), .04 + h2 * .8, .05, .05, "#fff");
+  }
+}
+
+/* ------------------------------ the avatar ------------------------------ */
+const JULES = {   // the default look is exactly what Jules described
+  skin: "#f3cba5", hairStyle: "long", hairTop: "#2f6bff", hairMid: "#151527", hairTip: "#8a2be2",
+  shirt: "#ffffff", shirtText: "TTYL", textCol: "#222", jacket: "#151515", gems: true, gemCol: "#ff4fd8",
+  skirt: "tri", skirtA: "#7b3fe4", skirtB: "#3a86ff", skirtC: "#ffffff", glitter: true,
+  boots: "#8a3ffc", bootGlitter: true, necklace: true, neckGem: "#ff4fd8", acc: "none", wings: false, name: "Jules",
+};
+const AV = Object.assign({}, JULES);
+let animT = 0;
+function drawTeen(c, x, y, z, dir, walk) {
+  const A = c.av || AV, t = animT;
+  const step = Math.sin(walk || 0) * .12;
+  const legH = .5, bodyH = .55;
+  const hz0 = z + legH + bodyH;
+  // long hair hangs down the BACK of the head (the -x / -y sides, which are behind
+  // everything on screen) so those slabs are drawn first; the front slab that shows
+  // when she faces away is drawn after the head
+  const bands = [[A.hairTop, .3], [A.hairMid, .35], [A.hairTip, .35]];
+  const hairSlabs = (slabs) => { let top = hz0 + .36; const totalL = A.hairStyle === "long" ? 1.0 : .6; for (const [hc, frac] of bands) { const bh = totalL * frac; top -= bh; for (const [sx, sy, sw2, sd] of slabs) cube(sx, sy, top, sw2, sd, bh, hc); } };
+  if (A.hairStyle === "long") hairSlabs([[x - .29, y - .25, .12, .46], [x - .25, y - .29, .46, .12]]);
+  else if (A.hairStyle === "pony") hairSlabs([[x - .1 + (dir === 0 ? -.35 : dir === 2 ? .35 : 0), y - .1 + (dir === 1 ? -.35 : dir === 3 ? .35 : 0), .2, .2]]);
+  // legs + boots (boots are the bottom .3 of each leg)
+  for (const [lx, s] of [[x - .2, step], [x + .02, -step]]) {
+    const lz = z + Math.max(0, s);
+    cube(lx, y - .1, lz, .18, .2, legH, A.skin);
+    cube(lx - .01, y - .11, lz, .2, .22, .3, A.boots);
+    if (A.bootGlitter) { sparkles(lx - .01, y - .11, lz, .2, .22, 0, 2, 40 + lx * 10, t); sparkles(lx - .01, y - .11, lz, .2, .22, 1, 2, 60 + lx * 10, t); }
+  }
+  // skirt
+  const sz = z + legH - .08;
+  if (A.skirt === "tri") {
+    cube(x - .3, y - .18, sz, .6, .36, .22, A.skirtA);
+    for (const side of [0, 1]) {
+      const span = side === 0 ? .36 : .6;
+      patch(x - .3, y - .18, sz, .6, .36, side, 0, 0, span / 3, .22, A.skirtA);
+      patch(x - .3, y - .18, sz, .6, .36, side, span / 3, 0, span / 3, .22, A.skirtB);
+      patch(x - .3, y - .18, sz, .6, .36, side, 2 * span / 3, 0, span / 3, .22, A.skirtC);
+      if (A.glitter) sparkles(x - .3, y - .18, sz, .6, .36, side, 5, 90 + side * 7, t);
+    }
+  } else if (A.skirt === "pants") { /* nothing, the legs show */ }
+  else { cube(x - .3, y - .18, sz, .6, .36, .22, A.skirtA); if (A.glitter) { sparkles(x - .3, y - .18, sz, .6, .36, 0, 4, 90, t); sparkles(x - .3, y - .18, sz, .6, .36, 1, 5, 97, t); } }
+  // torso: shirt in the middle, jacket panels on the outside
+  const bz = z + legH;
+  cube(x - .24, y - .14, bz, .48, .28, bodyH, A.shirt);
+  if (A.jacket !== "none") {
+    cube(x - .26, y - .15, bz, .12, .3, bodyH + .02, A.jacket);    // -x panel
+    cube(x + .14, y - .15, bz, .12, .3, bodyH + .02, A.jacket);    // +x panel
+    cube(x - .26, y - .15, bz, .52, .1, bodyH + .02, A.jacket);    // back
+    if (A.gems) for (let i = 0; i < 4; i++) {
+      const gc = i % 2 ? A.gemCol : "#7df9ff";
+      patch(x + .14, y - .15, bz, .12, .3, 0, .08 + i * .001, .08 + i * .12, .07, .07, gc);
+      patch(x - .26, y - .15, bz, .12, .3, 1, .02, .08 + i * .12, .07, .07, gc);
+      patch(x + .14, y - .15, bz, .12, .3, 1, .02, .08 + i * .12, .07, .07, gc);
+    }
+  }
+  // shirt text on whichever face we can see
+  if (dir <= 1 && A.shirtText) faceText(x - .24, y - .14, bz, .48, .28, dir === 0 ? 0 : 1, .3, A.shirtText, A.textCol, 7);
+  // necklace
+  if (A.necklace && dir <= 1) { const side = dir === 0 ? 0 : 1, span = side === 0 ? .28 : .48; patch(x - .24, y - .14, bz, .48, .28, side, .03, bodyH - .1, span - .06, .02, "#ffd700"); patch(x - .24, y - .14, bz, .48, .28, side, span / 2 - .04, bodyH - .18, .08, .08, A.neckGem); }
+  // arms
+  const sw = Math.sin(walk || 0) * .1;
+  cube(x - .38, y - .1, bz + .1 + sw, .13, .2, .45, A.jacket !== "none" ? A.jacket : A.shirt); cube(x - .38, y - .1, bz + .1 + sw, .13, .2, .12, A.skin);
+  cube(x + .25, y - .1, bz + .1 - sw, .13, .2, .45, A.jacket !== "none" ? A.jacket : A.shirt); cube(x + .25, y - .1, bz + .1 - sw, .13, .2, .12, A.skin);
+  // wings (from the mall)
+  if (A.wings) { const f = Math.sin(t * 5) * .1; cube(x - .55, y - .05, bz + .2, .3, .06, .35 + f, "#ffffff", { alpha: .85 }); cube(x + .25, y - .05, bz + .2, .3, .06, .35 + f, "#ffffff", { alpha: .85 }); }
+  // head
+  const hz = bz + bodyH, hs = .5;
+  cube(x - .25, y - .25, hz, hs, hs, hs, A.skin);
+  eyes(x - .25, y - .25, hz, hs, hs, dir, "#1a1a2a", .24);
+  smile(x - .25, y - .25, hz, hs, hs, dir, "#c4506a");
+  if (dir <= 1) { const side = dir === 0 ? 0 : 1; patch(x - .25, y - .25, hz, hs, hs, side, .07, .16, .09, .05, "#f7a1b0"); patch(x - .25, y - .25, hz, hs, hs, side, hs - .16, .16, .09, .05, "#f7a1b0"); }
+  // hair cap on top, plus the front-facing slab when she faces away from us
+  cube(x - .27, y - .27, hz + .36, .54, .54, .18, A.hairTop);
+  if (A.hairStyle === "long" && dir === 2) hairSlabs([[x + .17, y - .25, .12, .46]]);
+  if (A.hairStyle === "long" && dir === 3) hairSlabs([[x - .25, y + .17, .46, .12]]);
+  if (A.hairStyle === "short") { cube(x - .29, y - .27, hz + .15, .12, .56, .25, A.hairTop); cube(x - .27, y - .29, hz + .15, .56, .12, .25, A.hairTop); }
+  // accessories
+  if (A.acc === "ears") { cube(x - .24, y - .2, hz + .52, .14, .14, .18, "#ff8fc7"); cube(x + .1, y - .2, hz + .52, .14, .14, .18, "#ff8fc7"); }
+  else if (A.acc === "crown") { cube(x - .22, y - .22, hz + .52, .44, .44, .1, "#ffd166"); for (let i = 0; i < 3; i++) cube(x - .2 + i * .17, y - .2, hz + .62, .1, .1, .12, "#ffd166"); }
+  else if (A.acc === "bow") { cube(x + .12, y - .3, hz + .5, .16, .16, .14, "#ff4fd8"); cube(x + .3, y - .3, hz + .5, .16, .16, .14, "#ff4fd8"); }
+  else if (A.acc === "headphones") { cube(x - .3, y - .05, hz + .12, .08, .16, .2, "#ff4fd8"); cube(x + .22, y - .05, hz + .12, .08, .16, .2, "#ff4fd8"); cube(x - .3, y - .05, hz + .48, .6, .1, .08, "#ff4fd8"); }
+  else if (A.acc === "shades" && dir <= 1) { const side = dir === 0 ? 0 : 1; patch(x - .25, y - .25, hz, hs, hs, side, .1, .22, hs - .2, .13, "#1b1b2f"); }
+  else if (A.acc === "beanie") cube(x - .28, y - .28, hz + .4, .56, .56, .22, "#8a3ffc");
+}
+function drawBlocky(c, x, y, z, dir, walk) {   // a plain townsperson
+  const step = Math.sin(walk || 0) * .12;
+  cube(x - .2, y - .1, z + Math.max(0, step), .18, .2, .38, c.pants);
+  cube(x + .02, y - .1, z + Math.max(0, -step), .18, .2, .38, c.pants);
+  cube(x - .24, y - .14, z + .38, .48, .28, .5, c.shirt);
+  cube(x - .38, y - .1, z + .48, .13, .2, .42, c.skin); cube(x + .25, y - .1, z + .48, .13, .2, .42, c.skin);
+  const hz = z + .88; cube(x - .25, y - .25, hz, .5, .5, .5, c.skin); eyes(x - .25, y - .25, hz, .5, .5, dir, "#111", .24);
+  if (c.hair === "long") { cube(x - .27, y - .27, hz + .2, .54, .54, .34, c.hairCol); cube(x - .29, y - .27, hz - .1, .12, .56, .4, c.hairCol); cube(x - .27, y - .29, hz - .1, .56, .12, .4, c.hairCol); }
+  else if (c.hair === "bun") { cube(x - .27, y - .27, hz + .38, .54, .54, .16, c.hairCol); cube(x - .1, y - .1, hz + .54, .2, .2, .18, c.hairCol); }
+  else cube(x - .27, y - .27, hz + .36, .54, .54, .16, c.hairCol);
+  if (c.hat) cube(x - .28, y - .28, hz + .45, .56, .56, .14, c.hat);
+}
+function drawPet(p, x, y, z, dir, walk) {
+  const s = .55, step = Math.sin(walk || 0) * .08, col = p.col;
+  cube(x - .16, y - .12, z + Math.max(0, step), .1, .1, .16, col); cube(x + .06, y - .12, z + Math.max(0, -step), .1, .1, .16, col);
+  cube(x - .16, y + .04, z + Math.max(0, -step), .1, .1, .16, col); cube(x + .06, y + .04, z + Math.max(0, step), .1, .1, .16, col);
+  cube(x - .2, y - .14, z + .15, .4, .3, .22, col);
+  cube(x - .02, y - .14, z + .3, .28, .28, .28, col);
+  eyes(x - .02, y - .14, z + .3, .28, .28, dir, "#111", .12);
+  if (p.kind === "bunny") { cube(x + .02, y - .1, z + .58, .07, .07, .22, col); cube(x + .17, y - .1, z + .58, .07, .07, .22, col); }
+  else if (p.kind === "kitten") { cube(x + .0, y - .12, z + .58, .08, .08, .1, col); cube(x + .18, y - .12, z + .58, .08, .08, .1, col); }
+  else { cube(x - .04, y - .1, z + .4, .06, .12, .14, shade(col, .8)); cube(x + .24, y - .1, z + .4, .06, .12, .14, shade(col, .8)); }
+  cube(x - .28, y - .02, z + .3, .1, .06, .16, col);   // tail
+}
+
+/* ------------------------------ state ------------------------------ */
+const S = { state: "title", money: 100, time: 40, day: 1, house: null, furniture: [], pet: null, owned: [], marker: null,
+  place: "Downtown", scene: "city", unread: 0, photos: [], bankDay: 0, quests: [], stats: { movies: 0, grades: 0, shows: 0, boba: 0 } };
+const SAVE_KEY = "julescity.v1";
+function save() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ money: S.money, house: S.house, furniture: S.furniture, pet: S.pet, owned: S.owned, av: AV, day: S.day, bankDay: S.bankDay, stats: S.stats, photos: S.photos.slice(0, 6) })); } catch (e) {}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); if (!d) return false;
+    S.money = d.money ?? 100; S.house = d.house ?? null; S.furniture = d.furniture || []; S.pet = d.pet || null; S.owned = d.owned || [];
+    S.day = d.day || 1; S.bankDay = d.bankDay || 0; S.stats = Object.assign(S.stats, d.stats || {}); S.photos = d.photos || [];
+    if (d.av) Object.assign(AV, JULES, d.av);
+    return true;
+  } catch (e) { return false; }
+}
+const hasSave = load();
+
+/* ------------------------------ the city ------------------------------ */
+const MAP = 44;
+const T = { GRASS: 0, ROAD: 1, WALK: 2, WATER: 3, PLAZA: 4, SAND: 5 };
+const tiles = []; for (let y = 0; y < MAP; y++) { tiles.push(new Array(MAP).fill(T.GRASS)); }
+const ROADS = [10, 22, 34];
+const isRoad = (x, y) => ROADS.some(r => (x === r || x === r + 1) || (y === r || y === r + 1));
+for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
+  if (isRoad(x, y)) tiles[y][x] = T.ROAD;
+  else if (isRoad(x - 1, y) || isRoad(x + 1, y) || isRoad(x, y - 1) || isRoad(x, y + 1)) tiles[y][x] = T.WALK;
+}
+// the park (0..9, 24..33): a plaza cross with a pond; the lake (0..9, 36..43)
+for (let y = 24; y <= 33; y++) for (let x = 0; x <= 9; x++) { if (x === 4 || x === 5 || y === 28 || y === 29) tiles[y][x] = T.PLAZA; }
+for (let y = 25; y <= 27; y++) for (let x = 6; x <= 8; x++) tiles[y][x] = T.WATER;
+for (let y = 37; y <= 43; y++) for (let x = 0; x <= 9; x++) tiles[y][x] = (y === 37 || x === 9) ? T.SAND : T.WATER;
+const BUILDINGS = [
+  { id: "cinema",  name: "Star Cinema",     icon: "🎬", x: 13, y: 2,  w: 7, d: 5, h: 2.6, col: "#e63946" },
+  { id: "theater", name: "Grand Theater",   icon: "🎭", x: 25, y: 2,  w: 7, d: 5, h: 3,   col: "#9d4edd" },
+  { id: "house1",  name: "Cozy Cottage",    icon: "🏠", x: 37, y: 3,  w: 5, d: 4, h: 1.5, col: "#f9c74f", price: 300, house: true },
+  { id: "icecream",name: "Scoops Ice Cream",icon: "🍦", x: 2,  y: 3,  w: 5, d: 4, h: 1.6, col: "#ffb5e8" },
+  { id: "school",  name: "Jules High",      icon: "🏫", x: 1,  y: 13, w: 8, d: 6, h: 2.2, col: "#f4a261" },
+  { id: "mall",    name: "Glitter Mall",    icon: "🛍", x: 13, y: 13, w: 8, d: 6, h: 2.4, col: "#ff70a6" },
+  { id: "cafe",    name: "Boba Cafe",       icon: "🧋", x: 26, y: 14, w: 5, d: 4, h: 1.8, col: "#8ecae6" },
+  { id: "house2",  name: "Dream House",     icon: "🏡", x: 37, y: 14, w: 6, d: 5, h: 2.2, col: "#b5e48c", price: 800, house: true },
+  { id: "petshop", name: "Pet Shop",        icon: "🐶", x: 14, y: 26, w: 5, d: 4, h: 1.8, col: "#ffd6a5" },
+  { id: "salon",   name: "Sparkle Salon",   icon: "💇", x: 26, y: 26, w: 5, d: 4, h: 1.8, col: "#cdb4db" },
+  { id: "house3",  name: "Purple Mansion",  icon: "🏰", x: 37, y: 26, w: 6, d: 5, h: 3.2, col: "#c77dff", price: 2000, house: true },
+  { id: "arcade",  name: "Neon Arcade",     icon: "🕹", x: 13, y: 38, w: 6, d: 4, h: 2.2, col: "#5390d9" },
+  { id: "pizza",   name: "Pizza Planet",    icon: "🍕", x: 25, y: 38, w: 6, d: 4, h: 2,   col: "#f94144" },
+  { id: "bank",    name: "City Bank",       icon: "🏦", x: 37, y: 38, w: 5, d: 4, h: 2.4, col: "#adb5bd" },
+  // decorative apartments (no door)
+  { id: "apt1", name: "Apartments", icon: "🏢", x: 21, y: 26, w: 0, d: 0, h: 0, col: "#ddd", deco: true },
+];
+for (const b of BUILDINGS) { b.door = { x: b.x + Math.floor(b.w / 2) + .5, y: b.y + b.d + .5 }; }
+const byId = id => BUILDINGS.find(b => b.id === id);
+function inBuilding(x, y) { for (const b of BUILDINGS) if (!b.deco && x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.d) return b; return null; }
+const trees = [], lamps = [], flowers = [], benches = [];
+function blockedTile(x, y) {
+  if (x < 0 || y < 0 || x >= MAP || y >= MAP) return true;
+  const t = tiles[y][x]; if (t === T.WATER) return true;
+  if (inBuilding(x, y)) return true;
+  return false;
+}
+(function decorate() {
+  for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
+    if (tiles[y][x] !== T.GRASS || inBuilding(x, y)) continue;
+    // keep the front of each door clear
+    if (BUILDINGS.some(b => !b.deco && x >= b.x - 1 && x <= b.x + b.w && y >= b.y - 1 && y <= b.y + b.d + 1)) { if (hash(x, y) > .8) flowers.push({ x, y, col: pick(["#ff5c8a", "#ffd166", "#a066ff", "#4cc9f0"]) }); continue; }
+    const h = hash(x, y);
+    if (h > .82) trees.push({ x, y, big: h > .93 });
+    else if (h > .74) flowers.push({ x, y, col: pick(["#ff5c8a", "#ffd166", "#a066ff", "#4cc9f0", "#ff9f1c"]) });
+  }
+  // lamps and benches at sidewalk corners
+  for (const r of ROADS) for (const c of ROADS) { lamps.push({ x: r - 1, y: c - 1 }); lamps.push({ x: r + 2, y: c + 2 }); }
+  benches.push({ x: 2, y: 30 }, { x: 7, y: 31 }, { x: 2, y: 26 }, { x: 8, y: 33 });
+})();
+const treeAt = (x, y) => trees.some(t => t.x === x && t.y === y);
+function blocked(x, y) { const tx = Math.floor(x), ty = Math.floor(y); return blockedTile(tx, ty) || treeAt(tx, ty) || (S.scene === "city" && tx >= 6 && tx <= 8 && ty >= 25 && ty <= 27); }
+
+/* --- the inside of your house: a small room --- */
+const ROOM = { w: 9, d: 7, exit: { x: 4.5, y: 7.2 } };
+const FURNITURE = [
+  { id: "bed",   name: "Glitter Bed",  icon: "🛏", price: 120, x: 1, y: 1, w: 1.4, d: 2, h: .5, col: "#a066ff" },
+  { id: "couch", name: "Cozy Couch",   icon: "🛋", price: 90,  x: 5, y: 1, w: 2, d: 1, h: .55, col: "#ff70a6" },
+  { id: "tv",    name: "Big TV",       icon: "📺", price: 150, x: 5.3, y: 0, w: 1.4, d: .3, h: 1, col: "#222" },
+  { id: "rug",   name: "Star Rug",     icon: "⭐", price: 40,  x: 3, y: 3, w: 2.6, d: 2, h: .04, col: "#ffd166" },
+  { id: "plant", name: "Plant",        icon: "🪴", price: 30,  x: 0, y: 5, w: .6, d: .6, h: 1.1, col: "#57b34a" },
+  { id: "lamp",  name: "Lava Lamp",    icon: "💡", price: 60,  x: 8, y: 1, w: .4, d: .4, h: 1.2, col: "#ff9f1c" },
+  { id: "desk",  name: "Study Desk",   icon: "🖥", price: 110, x: 1, y: 5, w: 1.8, d: .8, h: .7, col: "#c69a5a" },
+  { id: "petbed",name: "Pet Bed",      icon: "🐾", price: 50,  x: 7, y: 5, w: 1, d: 1, h: .3, col: "#4cc9f0" },
+  { id: "piano", name: "Piano",        icon: "🎹", price: 300, x: 6.6, y: 3, w: 1.6, d: .9, h: .9, col: "#111" },
+  { id: "pool",  name: "Mini Pool",    icon: "🏊", price: 400, x: 3, y: 5.2, w: 2.4, d: 1.6, h: .35, col: "#4cc9f0" },
+];
+function roomBlocked(x, y) {
+  if (x < .3 || y < .3 || x > ROOM.w - .3) return true;
+  if (y > ROOM.d - .3 && !(x > 3.6 && x < 5.4)) return true;
+  if (y > ROOM.d + .5) return true;
+  for (const f of FURNITURE) if (S.furniture.includes(f.id) && f.h > .1 && x > f.x - .1 && x < f.x + f.w + .1 && y > f.y - .1 && y < f.y + f.d + .1) return true;
+  return false;
+}
+
+/* ------------------------------ people ------------------------------ */
+const FRIENDS = [
+  { id: "mia",   name: "Mia",   emoji: "🦄", shirt: "#ff70a6", pants: "#4f8cff", skin: "#f3cba5", hair: "long", hairCol: "#f7d774" },
+  { id: "zoe",   name: "Zoe",   emoji: "🌸", shirt: "#2ec4b6", pants: "#333",    skin: "#c68642", hair: "bun",  hairCol: "#3b2314" },
+  { id: "lily",  name: "Lily",  emoji: "🎀", shirt: "#ffd166", pants: "#7b3fe4", skin: "#f8ddc2", hair: "long", hairCol: "#d64c2a" },
+  { id: "ava",   name: "Ava",   emoji: "🐱", shirt: "#4cc9f0", pants: "#222",    skin: "#e0ac69", hair: "short", hairCol: "#111" },
+  { id: "sofia", name: "Sofia", emoji: "⭐", shirt: "#a066ff", pants: "#ff9f1c", skin: "#8d5524", hair: "long", hairCol: "#1a1a1a" },
+  { id: "nora",  name: "Nora",  emoji: "🧟", shirt: "#57b34a", pants: "#333",    skin: "#f3cba5", hair: "bun",  hairCol: "#5a3a1a", sister: true },
+];
+const npcs = [];
+function randomWalkTile() { for (let i = 0; i < 200; i++) { const x = ri(0, MAP - 1), y = ri(0, MAP - 1); if (tiles[y][x] === T.WALK || tiles[y][x] === T.PLAZA) return { x: x + .5, y: y + .5 }; } return { x: 12.5, y: 12.5 }; }
+for (const f of FRIENDS) { const p = randomWalkTile(); npcs.push(Object.assign({ x: p.x, y: p.y, dir: 1, walk: 0, tgt: null, wait: rnd(0, 3), friend: true }, f)); }
+const CITIZEN_COLS = ["#e63946", "#f4a261", "#2a9d8f", "#264653", "#ffb703", "#8338ec", "#3a86ff", "#fb5607"];
+for (let i = 0; i < 9; i++) { const p = randomWalkTile(); npcs.push({ x: p.x, y: p.y, dir: 1, walk: 0, tgt: null, wait: rnd(0, 3), name: "", shirt: pick(CITIZEN_COLS), pants: pick(["#333", "#4f8cff", "#777"]), skin: pick(["#f3cba5", "#c68642", "#8d5524", "#f8ddc2"]), hair: pick(["short", "long", "bun"]), hairCol: pick(["#111", "#5a3a1a", "#f7d774", "#d64c2a"]), hat: Math.random() < .3 ? pick(["#d62828", "#3a86ff"]) : null }); }
+const cars = [
+  { x: 2, y: 10.5, vx: 3, vy: 0, col: "#ff5c8a" }, { x: 40, y: 23.5, vx: -2.6, vy: 0, col: "#4cc9f0" }, { x: 20, y: 35.5, vx: 3.4, vy: 0, col: "#ffd166" },
+  { x: 11.5, y: 5, vx: 0, vy: 2.8, col: "#a066ff" }, { x: 34.5, y: 30, vx: 0, vy: -3, col: "#2ec4b6" }, { x: 22.5, y: 40, vx: 0, vy: -2.4, col: "#f94144" },
+];
+const P = { x: 24.5, y: 25.5, dir: 1, walk: 0, av: AV, stepT: 0 };
+const pet = { x: 24.5, y: 26.5, dir: 1, walk: 0 };
+const cam = { x: P.x, y: P.y };
+const fx = [];
+function boom(x, y, col, n) { for (let i = 0; i < n; i++) fx.push({ x, y, z: .5, vx: rnd(-1.5, 1.5), vy: rnd(-1.5, 1.5), vz: rnd(1, 3), col, t: rnd(.4, .8) }); }
+
+/* ------------------------------ moving ------------------------------ */
+function tryMove(e, dx, dy, blockFn) {
+  const nx = e.x + dx, ny = e.y + dy;
+  if (!blockFn(nx, e.y)) e.x = nx;
+  if (!blockFn(e.x, ny)) e.y = ny;
+}
+function updatePlayer(dt) {
+  let dx = 0, dy = 0;
+  if (keys["arrowleft"] || keys["a"]) { dx -= 1; dy += 1; }
+  if (keys["arrowright"] || keys["d"]) { dx += 1; dy -= 1; }
+  if (keys["arrowup"] || keys["w"]) { dx -= 1; dy -= 1; }
+  if (keys["arrowdown"] || keys["s"]) { dx += 1; dy += 1; }
+  if (joy.id !== null) { dx += (joy.dx + joy.dy); dy += (joy.dy - joy.dx); }
+  const m = Math.hypot(dx, dy);
+  if (m > .01) {
+    const sp = 4 * Math.min(1, m); dx /= m; dy /= m;
+    tryMove(P, dx * sp * dt, dy * sp * dt, S.scene === "city" ? blocked : roomBlocked);
+    P.walk += dt * 10;
+    P.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 0 : 2) : (dy > 0 ? 1 : 3);
+    P.stepT -= dt; if (P.stepT <= 0) { P.stepT = .28; SFX.step(); }
+  } else P.walk = 0;
+  if (S.scene === "house" && P.y > ROOM.d + .3) leaveHouse();
+  // the pet trots after you
+  if (S.pet) {
+    const d = Math.hypot(P.x - pet.x, P.y - pet.y);
+    if (d > 1.1) { const vx = (P.x - pet.x) / d, vy = (P.y - pet.y) / d; pet.x += vx * 3.6 * dt; pet.y += vy * 3.6 * dt; pet.walk += dt * 12; pet.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 0 : 2) : (vy > 0 ? 1 : 3); }
+    else pet.walk = 0;
+  }
+  // where are we?
+  if (S.scene === "city") {
+    let near = null;
+    for (const b of BUILDINGS) if (!b.deco && Math.hypot(P.x - b.door.x, P.y - b.door.y) < 1.1) near = b;
+    const place = near ? near.name : (P.x < 10 && P.y >= 24 && P.y < 34) ? "Sunny Park" : (P.y >= 36 && P.x < 10) ? "The Lake" : "Downtown";
+    if (place !== S.place) { S.place = place; }
+    action.near = near; action.npc = null;
+    if (!near) for (const n of npcs) if (n.friend && Math.hypot(P.x - n.x, P.y - n.y) < 1.3) { action.npc = n; break; }
+  } else { action.near = null; action.npc = null; }
+}
+const action = { near: null, npc: null };
+const ACT = $("act");
+function updateAction() {
+  if (S.state !== "play") { ACT.hidden = true; return; }
+  if (S.scene === "house") { ACT.hidden = false; ACT.textContent = "🛋 Decorate"; return; }
+  if (action.near) {
+    const b = action.near;
+    ACT.hidden = false;
+    ACT.textContent = b.house ? (S.house === b.id ? "🏠 Go home" : `🏷 For sale $${b.price}`) : `${b.icon} ${b.name}`;
+  } else if (action.npc) { ACT.hidden = false; ACT.textContent = `💬 Talk to ${action.npc.name}`; }
+  else ACT.hidden = true;
+}
+function doAction() {
+  audio();
+  if (S.scene === "house") { openFurnitureShop(); return; }
+  if (action.near) enterPlace(action.near);
+  else if (action.npc) talkTo(action.npc);
+}
+ACT.addEventListener("click", doAction);
+function updateNpcs(dt) {
+  for (const n of npcs) {
+    if (n.goal) {   // walking to a meet-up spot
+      const d = Math.hypot(n.goal.x - n.x, n.goal.y - n.y);
+      if (d < .4) { n.goal = null; n.wait = 99; }
+      else { const vx = (n.goal.x - n.x) / d, vy = (n.goal.y - n.y) / d; n.x += vx * 3 * dt; n.y += vy * 3 * dt; n.walk += dt * 9; n.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 0 : 2) : (vy > 0 ? 1 : 3); }
+      continue;
+    }
+    if (n.wait > 0) { n.wait -= dt; n.walk = 0; continue; }
+    if (!n.tgt) { const t = randomWalkTile(); if (Math.hypot(t.x - n.x, t.y - n.y) < 14) n.tgt = t; continue; }
+    const d = Math.hypot(n.tgt.x - n.x, n.tgt.y - n.y);
+    if (d < .3) { n.tgt = null; n.wait = rnd(1, 5); continue; }
+    const vx = (n.tgt.x - n.x) / d, vy = (n.tgt.y - n.y) / d, ox = n.x, oy = n.y;
+    tryMove(n, vx * 1.6 * dt, vy * 1.6 * dt, blocked);
+    if (Math.hypot(n.x - ox, n.y - oy) < .001) { n.tgt = null; n.wait = .5; }
+    n.walk += dt * 8; n.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 0 : 2) : (vy > 0 ? 1 : 3);
+  }
+}
+function updateCars(dt) {
+  for (const c of cars) {
+    c.x += c.vx * dt; c.y += c.vy * dt;
+    if (c.x > MAP + 2) c.x = -2; if (c.x < -2) c.x = MAP + 2; if (c.y > MAP + 2) c.y = -2; if (c.y < -2) c.y = MAP + 2;
+    const d = Math.hypot(c.x - P.x, c.y - P.y);
+    if (d < 1.6) { if (!c.honked) { SFX.honk(); c.honked = true; } const px = (P.x - c.x) / d, py = (P.y - c.y) / d; tryMove(P, px * 6 * dt, py * 6 * dt, blocked); }
+    else if (d > 4) c.honked = false;
+  }
+}
+const DAY_LEN = 240;   // seconds per in-game day
+function dayFrac() { return (S.time % DAY_LEN) / DAY_LEN; }
+function nightAmount() { const f = dayFrac(); return clamp(-Math.cos((f - .25) * Math.PI * 2) * 1.2 - .1, 0, .78); }   // the day starts at 6 AM: bright by 7:30, dusk after 6 PM, darkest at midnight
+function clockText() { const f = dayFrac(); let h = Math.floor(6 + f * 24) % 24, m = Math.floor(((6 + f * 24) % 1) * 60); const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return `${h}:${String(m).padStart(2, "0")} ${ap}`; }
+
+/* ------------------------------ drawing the city ------------------------------ */
+function drawGround(x0, y0, x1, y1) {
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const t = tiles[y][x], h = hash(x, y);
+    if (t === T.ROAD) { diamond(x, y, h < .5 ? "#4a4a58" : "#45454f"); if (ROADS.some(r => x === r + 1) && (y % 2 === 0) && !ROADS.some(r => y === r || y === r + 1)) diamond(x - .05, y + .35, "#f2d43c", .12, .3); if (ROADS.some(r => y === r + 1) && (x % 2 === 0) && !ROADS.some(r => x === r || x === r + 1)) diamond(x + .35, y - .05, "#f2d43c", .3, .12); continue; }
+    if (t === T.WALK) { diamond(x, y, (x + y) % 2 ? "#d8d5cc" : "#cfccc2"); continue; }
+    if (t === T.WATER) { diamond(x, y, h < .5 ? "#3f8fd8" : "#4a9ae0"); if ((h + Math.sin(animT + x * 2) * .2) > .7) diamond(x + .3, y + .4, "#8ac6f0", .25); continue; }
+    if (t === T.PLAZA) { diamond(x, y, (x + y) % 2 ? "#e9c9a1" : "#e0bf95"); continue; }
+    if (t === T.SAND) { diamond(x, y, h < .5 ? "#f2dda4" : "#ead39a"); continue; }
+    const b = inBuilding(x, y);
+    if (b) { diamond(x, y, "#8a8a92"); continue; }
+    diamond(x, y, (x + y) % 2 ? "#6cbf47" : "#5fae3e");
+    if (h > .86 && !treeAt(x, y)) diamond(x + .2 + h * .4, y + .3, "#7ed35a", .18);
+  }
+  for (const f of flowers) if (f.x >= x0 && f.x <= x1 && f.y >= y0 && f.y <= y1) { diamond(f.x + .3, f.y + .3, f.col, .22); diamond(f.x + .6, f.y + .55, f.col, .16); }
+  // door mats
+  for (const b of BUILDINGS) if (!b.deco) diamond(b.door.x - .5, b.door.y - .5, b.house && S.house === b.id ? "#ffd166" : "#f0e9d8", 1);
+}
+function drawBuilding(b) {
+  if (b.deco) { cube(20.5, 26, 0, 3, 3, 4.2, "#c9c9d4"); cube(20.5, 30, 0, 3, 2.5, 3.4, "#b8b8c8"); for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { patch(20.5, 26, 0, 3, 3, 0, .6 + j * 1.2, .5 + i * .9, .5, .5, nightAmount() > .3 && hash(i, j) > .4 ? "#ffe9a0" : "#5a7fa8"); patch(20.5, 26, 0, 3, 3, 1, .6 + j * 1.2, .5 + i * .9, .5, .5, nightAmount() > .3 && hash(j, i) > .4 ? "#ffe9a0" : "#5a7fa8"); } return; }
+  const mine = b.house && S.house === b.id;
+  cube(b.x, b.y, 0, b.w, b.d, b.h, b.col);
+  // windows on both visible faces
+  const glow = nightAmount() > .3 ? "#ffe9a0" : "#bfe6ff";
+  for (let i = 0; i < Math.floor(b.d / 1.2); i++) patch(b.x, b.y, 0, b.w, b.d, 0, .35 + i * 1.2, b.h * .45, .5, .45, glow);
+  for (let i = 0; i < Math.floor(b.w / 1.2); i++) if (Math.abs(b.x + .35 + i * 1.2 + .25 - b.door.x) > .7) patch(b.x, b.y, 0, b.w, b.d, 1, .35 + i * 1.2, b.h * .45, .5, .45, glow);
+  // door on the +y face
+  patch(b.x, b.y, 0, b.w, b.d, 1, b.door.x - .45 - b.x, 0, .9, 1.1, mine ? "#7a44d6" : "#6b4a2b");
+  patch(b.x, b.y, 0, b.w, b.d, 1, b.door.x + .2 - b.x, .5, .1, .1, "#ffd166");
+  // roof / sign
+  if (b.house) { cube(b.x - .15, b.y - .15, b.h, b.w + .3, b.d + .3, .25, shade(b.col, .7)); cube(b.x + b.w * .25, b.y + b.d * .25, b.h + .25, b.w * .5, b.d * .5, .5, shade(b.col, .85)); if (!mine) { cube(b.door.x + 1.3, b.door.y - .1, 0, .08, .08, .9, "#8a5a32"); cube(b.door.x + .95, b.door.y - .14, .7, .8, .1, .45, "#fff"); faceText(b.door.x + .95, b.door.y - .14, .7, .8, .1, 1, .12, "$" + b.price, "#d62828", 9); } }
+  else { cube(b.x - .1, b.y - .1, b.h, b.w + .2, b.d + .2, .18, shade(b.col, .75)); }
+  // awning + big sign over the door
+  cube(b.x, b.y + b.d - .05, b.h - .35, b.w, .5, .1, "#fff", { alpha: .9 });
+  const sp = proj(b.x + b.w / 2, b.y + b.d + .3, b.h + .55);
+  ctx.font = "800 13px 'Avenir Next','Trebuchet MS',Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const label = `${b.icon} ${mine ? "My House" : b.name}`, tw = ctx.measureText(label).width + 16;
+  ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.beginPath(); ctx.roundRect(sp.sx - tw / 2, sp.sy - 11, tw, 22, 8); ctx.fill();
+  ctx.fillStyle = "#2a2a3a"; ctx.fillText(label, sp.sx, sp.sy + 1);
+}
+function drawTree(t) {
+  const H2 = t.big ? 2.2 : 1.6, lw = t.big ? 1.5 : 1.2, lc = t.big ? "#3f9e3a" : "#4aa842";
+  cube(t.x + .3, t.y + .3, 0, .4, .4, H2, "#7a4a28");
+  cube(t.x + .5 - lw / 2, t.y + .5 - lw / 2, H2 - .3, lw, lw, lw * .8, lc);
+  cube(t.x + .5 - lw / 4, t.y + .5 - lw / 4, H2 - .3 + lw * .8, lw / 2, lw / 2, .5, shade(lc, 1.08));
+}
+function drawLamp(l) { cube(l.x + .4, l.y + .4, 0, .12, .12, 2, "#555"); cube(l.x + .3, l.y + .3, 2, .32, .32, .3, nightAmount() > .3 ? "#fff0a0" : "#ddd"); }
+function drawBench(b) { cube(b.x + .1, b.y + .3, .25, .8, .4, .1, "#a86a35"); cube(b.x + .1, b.y + .3, .35, .8, .1, .35, "#a86a35"); cube(b.x + .15, b.y + .35, 0, .1, .3, .25, "#555"); cube(b.x + .75, b.y + .35, 0, .1, .3, .25, "#555"); }
+function drawFountain() { cube(5.9, 24.9, 0, 3.2, 3.2, .3, "#c9c9d4"); cube(7.2, 26.2, .3, .6, .6, .9, "#b8b8c8"); const j = .3 + Math.abs(Math.sin(animT * 4)) * .3; cube(7.35, 26.35, 1.2, .3, .3, j, "#8ac6f0", { alpha: .8 }); }
+function drawCar(c) {
+  const horiz = c.vx !== 0, w = horiz ? 1.3 : .7, d = horiz ? .7 : 1.3;
+  cube(c.x - w / 2, c.y - d / 2, .15, w, d, .35, c.col);
+  cube(c.x - w / 2 + (horiz ? .3 : .08), c.y - d / 2 + (horiz ? .08 : .3), .5, horiz ? .7 : .54, horiz ? .54 : .7, .3, "#bfe6ff", { top: shade(c.col, 1.1) });
+  for (const [ox, oy] of horiz ? [[-.4, -.3], [.3, -.3], [-.4, .25], [.3, .25]] : [[-.3, -.4], [.25, -.4], [-.3, .3], [.25, .3]]) cube(c.x + ox, c.y + oy, 0, .16, .16, .18, "#222");
+}
+function drawPlayer() {
+  const s = proj(P.x, P.y, 0); ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.beginPath(); ctx.ellipse(s.sx, s.sy, TW * .3, TH * .3, 0, 0, Math.PI * 2); ctx.fill();
+  drawTeen(P, P.x, P.y, 0, P.dir, P.walk);
+}
+function drawNpc(n) {
+  const s = proj(n.x, n.y, 0); ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(s.sx, s.sy, TW * .28, TH * .28, 0, 0, Math.PI * 2); ctx.fill();
+  drawBlocky(n, n.x, n.y, 0, n.dir, n.walk);
+}
+function drawRoom() {
+  for (let y = 0; y < ROOM.d; y++) for (let x = 0; x < ROOM.w; x++) diamond(x, y, (x + y) % 2 ? "#e8d3b5" : "#dfc6a3");
+  diamond(3.6, ROOM.d, "#c9a97a", 1.8, .6);   // doormat by the exit
+  cube(-.3, -.3, 0, ROOM.w + .6, .3, 2.2, "#f0d9ff");   // back wall (-y side)
+  cube(-.3, -.3, 0, .3, ROOM.d + .3, 2.2, "#f0d9ff");   // side wall (-x side)
+  patch(-.3, -.3, 0, ROOM.w + .6, .3, 1, 2.2, .9, 1.2, .9, "#bfe6ff"); patch(-.3, -.3, 0, ROOM.w + .6, .3, 1, 6.5, .9, 1.2, .9, "#bfe6ff");   // windows
+  patch(-.3, -.3, 0, .3, ROOM.d + .3, 0, 2.5, .9, 1.2, .9, "#bfe6ff");
+  for (const f of FURNITURE) {
+    if (!S.furniture.includes(f.id)) continue;
+    q(f.x + f.y + f.w / 2 + f.d / 2, () => {
+      if (f.id === "bed") { cube(f.x, f.y, 0, f.w, f.d, .45, "#c69a5a"); cube(f.x + .05, f.y + .05, .45, f.w - .1, f.d - .1, .18, f.col); cube(f.x + .15, f.y + .1, .63, f.w - .3, .45, .14, "#fff"); sparkles(f.x + .05, f.y + .05, .45, f.w - .1, f.d - .1, 1, 4, 300, animT); }
+      else if (f.id === "couch") { cube(f.x, f.y, 0, f.w, f.d, .4, f.col); cube(f.x, f.y, .4, f.w, .3, .35, f.col); cube(f.x, f.y, .4, .2, f.d, .3, f.col); cube(f.x + f.w - .2, f.y, .4, .2, f.d, .3, f.col); }
+      else if (f.id === "tv") { cube(f.x + .5, f.y, 0, .4, .3, .5, "#333"); cube(f.x, f.y, .5, f.w, .12, .8, "#111"); patch(f.x, f.y, .5, f.w, .12, 1, .08, .08, f.w - .16, .64, ["#4cc9f0", "#ff70a6", "#ffd166", "#a066ff"][Math.floor(animT * 2) % 4]); }
+      else if (f.id === "rug") { diamond(f.x, f.y, f.col, f.w, f.d); diamond(f.x + .3, f.y + .3, "#ff70a6", f.w - .6, f.d - .6); }
+      else if (f.id === "plant") { cube(f.x + .1, f.y + .1, 0, .4, .4, .4, "#c8663a"); cube(f.x, f.y, .4, .6, .6, .5, f.col); cube(f.x + .15, f.y + .15, .9, .3, .3, .3, shade(f.col, 1.1)); }
+      else if (f.id === "lamp") { cube(f.x + .1, f.y + .1, 0, .2, .2, .9, "#555"); const gl = ["#ff9f1c", "#ff5c8a", "#a066ff"][Math.floor(animT) % 3]; cube(f.x, f.y, .9, .4, .4, .5, gl, { alpha: .9 }); }
+      else if (f.id === "desk") { cube(f.x, f.y, .55, f.w, f.d, .12, f.col); cube(f.x + .05, f.y + .05, 0, .12, .12, .55, f.col); cube(f.x + f.w - .17, f.y + .05, 0, .12, .12, .55, f.col); cube(f.x + .6, f.y + .25, .67, .5, .1, .45, "#222"); patch(f.x + .6, f.y + .25, .67, .5, .1, 1, .05, .05, .4, .35, "#4cc9f0"); }
+      else if (f.id === "petbed") { cube(f.x, f.y, 0, f.w, f.d, .3, f.col); cube(f.x + .15, f.y + .15, .1, f.w - .3, f.d - .3, .1, "#fff"); }
+      else if (f.id === "piano") { cube(f.x, f.y, 0, f.w, f.d, .9, f.col); cube(f.x, f.y + f.d - .15, .6, f.w, .3, .08, "#fff"); for (let i = 0; i < 7; i++) cube(f.x + .1 + i * .21, f.y + f.d - .1, .68, .1, .15, .04, "#111"); }
+      else if (f.id === "pool") { cube(f.x, f.y, 0, f.w, f.d, .35, "#c9c9d4"); diamond(f.x + .15, f.y + .15, "#4cc9f0", f.w - .3, f.d - .3); const a = proj(f.x + .15, f.y + .15, .33); ctx.save(); ctx.translate(0, -0.33 * ZH); diamond(f.x + .15, f.y + .15, "rgba(76,201,240,.95)", f.w - .3, f.d - .3); ctx.restore(); }
+    });
+  }
+}
+function drawScene() {
+  cam.x += (P.x - cam.x) * .12; cam.y += (P.y - cam.y) * .12;
+  const c0 = proj(cam.x, cam.y);
+  ctx.save();
+  ctx.translate(W / 2, H / 2 + 40); ctx.scale(ZOOM, ZOOM); ctx.translate(-c0.sx, -c0.sy);
+  draws = [];
+  if (S.scene === "house") {
+    drawRoom();
+    q(P.x + P.y + .6, drawPlayer);
+    if (S.pet) q(pet.x + pet.y + .5, () => drawPet(S.pet, pet.x, pet.y, 0, pet.dir, pet.walk));
+  } else {
+    const span = Math.ceil(Math.max(W, H) / ZOOM / TH) + 4;
+    const x0 = clamp(Math.floor(cam.x - span), 0, MAP - 1), x1 = clamp(Math.ceil(cam.x + span), 0, MAP - 1);
+    const y0 = clamp(Math.floor(cam.y - span), 0, MAP - 1), y1 = clamp(Math.ceil(cam.y + span), 0, MAP - 1);
+    drawGround(x0, y0, x1, y1);
+    const vis = (x, y) => x >= x0 - 2 && x <= x1 + 2 && y >= y0 - 2 && y <= y1 + 2;
+    for (const t of trees) if (vis(t.x, t.y)) q(t.x + t.y + 1.3, () => drawTree(t));
+    for (const l of lamps) if (vis(l.x, l.y)) q(l.x + l.y + 1, () => drawLamp(l));
+    for (const b of benches) if (vis(b.x, b.y)) q(b.x + b.y + 1, () => drawBench(b));
+    if (vis(7, 26)) q(6 + 25 + 3.2, drawFountain);
+    for (const b of BUILDINGS) { const bx = b.deco ? 20.5 : b.x, by = b.deco ? 26 : b.y; if (vis(bx, by) || vis(bx + (b.w || 3), by + (b.d || 3))) q(bx + by + (b.w || 3) + (b.d || 3), () => drawBuilding(b)); }
+    for (const c of cars) if (vis(c.x, c.y)) q(c.x + c.y + .8, () => drawCar(c));
+    for (const n of npcs) if (vis(n.x, n.y)) q(n.x + n.y + .6, () => drawNpc(n));
+    q(P.x + P.y + .6, drawPlayer);
+    if (S.pet) q(pet.x + pet.y + .5, () => drawPet(S.pet, pet.x, pet.y, 0, pet.dir, pet.walk));
+    if (S.marker) { const m = S.marker; q(m.x + m.y + 5, () => { const bob = Math.sin(animT * 4) * .15; cube(m.x - .2, m.y - .2, 2.6 + bob, .4, .4, .4, "#ffd166"); cube(m.x - .06, m.y - .06, 1.8 + bob, .12, .12, .8, "#ffd166"); }); }
+  }
+  for (const f of fx) q(f.x + f.y + .6, () => cube(f.x - .08, f.y - .08, f.z, .16, .16, .16, f.col));
+  draws.sort((a, b) => a.key - b.key);
+  for (const d of draws) d.fn();
+  // name tags
+  ctx.font = "bold 12px 'Avenir Next','Trebuchet MS',Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const tag = (x, y, z, name, col) => { const p = proj(x, y, z); const w = ctx.measureText(name).width + 14; ctx.fillStyle = col || "rgba(0,0,0,.45)"; ctx.beginPath(); ctx.roundRect(p.sx - w / 2, p.sy - 9, w, 18, 7); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillText(name, p.sx, p.sy + 1); };
+  if (S.scene === "city") for (const n of npcs) if (n.friend && Math.abs(n.x - cam.x) < 16 && Math.abs(n.y - cam.y) < 16) tag(n.x, n.y, 2.15, n.emoji + " " + n.name);
+  tag(P.x, P.y, 2.5, "⭐ " + (AV.name || "Me"), "rgba(122,68,214,.85)");
+  if (S.pet) tag(pet.x, pet.y, 1.1, S.pet.name, "rgba(0,0,0,.35)");
+  for (const s of speech) { const p = proj(s.x, s.y, 2.7); ctx.font = "700 13px 'Avenir Next','Trebuchet MS',Arial"; const w = ctx.measureText(s.text).width + 18; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.roundRect(p.sx - w / 2, p.sy - 24, w, 26, 10); ctx.fill(); ctx.fillStyle = "#2a2a3a"; ctx.fillText(s.text, p.sx, p.sy - 11); }
+  ctx.restore();
+}
+const speech = [];
+function sayAt(e, text, dur) { speech.push({ x: e.x, y: e.y, text, t: dur || 2.5, e }); }
+function drawNight() {
+  const n = S.scene === "city" ? nightAmount() : 0;
+  if (n < .02) return;
+  dg.setTransform(DPR, 0, 0, DPR, 0, 0); dg.clearRect(0, 0, W, H);
+  dg.fillStyle = `rgba(10,12,60,${n})`; dg.fillRect(0, 0, W, H);
+  dg.globalCompositeOperation = "destination-out";
+  const c0 = proj(cam.x, cam.y);
+  const hole = (x, y, z, r) => { const p = proj(x, y, z); const sx = W / 2 + (p.sx - c0.sx) * ZOOM, sy = H / 2 + 40 + (p.sy - c0.sy) * ZOOM; const gr = dg.createRadialGradient(sx, sy, 0, sx, sy, r * ZOOM); gr.addColorStop(0, "rgba(0,0,0,.9)"); gr.addColorStop(1, "rgba(0,0,0,0)"); dg.fillStyle = gr; dg.beginPath(); dg.arc(sx, sy, r * ZOOM, 0, Math.PI * 2); dg.fill(); };
+  for (const l of lamps) hole(l.x + .5, l.y + .5, 1.5, 120);
+  for (const b of BUILDINGS) if (!b.deco) hole(b.door.x, b.door.y, .8, 90);
+  for (const c of cars) hole(c.x + (c.vx > 0 ? .8 : c.vx < 0 ? -.8 : 0), c.y + (c.vy > 0 ? .8 : c.vy < 0 ? -.8 : 0), .3, 70);
+  hole(P.x, P.y, .8, 80);
+  dg.globalCompositeOperation = "source-over";
+  g.drawImage(dark, 0, 0, W, H);
+}
+function drawHUD() {
+  const top = Math.max(10, parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sat")) || 10);
+  g.font = "800 17px 'Avenir Next','Trebuchet MS',Arial"; g.textAlign = "left"; g.textBaseline = "middle";
+  const money = `💵 $${S.money}`, mw = g.measureText(money).width + 22;
+  g.fillStyle = "rgba(0,0,0,.42)"; roundRect(10, top, mw, 32, 12); g.fill(); g.fillStyle = "#fff"; g.fillText(money, 21, top + 17);
+  g.font = "700 13px 'Avenir Next','Trebuchet MS',Arial";
+  const info = `📍 ${S.scene === "house" ? "My House" : S.place}  ·  🕒 ${clockText()}  ·  Day ${S.day}`, iw = g.measureText(info).width + 20;
+  g.fillStyle = "rgba(0,0,0,.42)"; roundRect(10, top + 38, iw, 26, 10); g.fill(); g.fillStyle = "#fff"; g.fillText(info, 20, top + 52);
+  // joystick
+  if (joy.id !== null) {
+    g.fillStyle = "rgba(255,255,255,.18)"; g.beginPath(); g.arc(joy.ox, joy.oy, 52, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "rgba(255,255,255,.55)"; g.beginPath(); g.arc(joy.ox + joy.dx * 46, joy.oy + joy.dy * 46, 24, 0, Math.PI * 2); g.fill();
+  } else if (S.scene === "city" && S.time < 12) {
+    g.fillStyle = "rgba(255,255,255,.75)"; g.font = "800 15px 'Avenir Next','Trebuchet MS',Arial"; g.textAlign = "center";
+    g.fillText("👆 drag anywhere to walk · 📱 opens your phone", W / 2, H - Math.max(24, parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sab")) + 14));
+  }
+  // marker arrow
+  if (S.marker && S.scene === "city") {
+    const dx = S.marker.x - P.x, dy = S.marker.y - P.y, d = Math.hypot(dx, dy);
+    if (d > 2) { const a = Math.atan2((dx + dy) * TH / 2, (dx - dy) * TW / 2); const cx = W / 2, cy = 70 + top; g.save(); g.translate(cx, cy); g.rotate(a); g.fillStyle = "#ffd166"; g.beginPath(); g.moveTo(22, 0); g.lineTo(-10, -12); g.lineTo(-4, 0); g.lineTo(-10, 12); g.closePath(); g.fill(); g.restore(); g.fillStyle = "#fff"; g.font = "800 12px 'Avenir Next','Trebuchet MS',Arial"; g.textAlign = "center"; g.fillText(S.marker.name, cx, cy + 26); }
+    else { S.marker = null; toast("⭐ You made it!"); }
+  }
+}
+
+/* ------------------------------ modal + toast ------------------------------ */
+const MODAL = $("modal"), MCARD = $("modalCard");
+let modalTimer = null;
+function modal(html) { MCARD.innerHTML = html; MODAL.hidden = false; joy.id = null; joy.dx = joy.dy = 0; }
+function closeModal() { MODAL.hidden = true; if (modalTimer) { clearInterval(modalTimer); modalTimer = null; } updateAction(); }
+MCARD.addEventListener("click", e => { const b = e.target.closest("[data-act]"); if (!b) return; audio(); const fn = ACTS[b.dataset.act]; if (fn) fn(b.dataset, b); });
+const ACTS = { close: closeModal };
+let toastT = null;
+function toast(text, ms) { const t = $("toast"); t.textContent = text; t.hidden = false; t.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => { t.style.opacity = 0; setTimeout(() => t.hidden = true, 300); }, ms || 2200); }
+function pay(n) { if (S.money < n) { SFX.nope(); toast(`You need $${n} — you have $${S.money}. Try a job! 💼`); return false; } S.money -= n; SFX.buy(); save(); return true; }
+function earn(n, why) { S.money += n; SFX.coin(); boom(P.x, P.y, "#ffd166", 8); toast(`+$${n} ${why || ""}`); save(); }
+
+/* ------------------------------ places ------------------------------ */
+function enterPlace(b) {
+  SFX.door(); checkQuest(b);
+  if (b.house) { if (S.house === b.id) enterHouse(b); else offerHouse(b); return; }
+  ({ cinema: openCinema, theater: openTheater, school: openSchool, mall: openMall, cafe: openCafe, petshop: openPetShop, salon: openSalon, arcade: openArcade, pizza: openPizza, bank: openBank, icecream: openIceCream })[b.id]();
+}
+const head = (b, extra) => `<h2>${b.icon} ${b.name}</h2>${extra || ""}`;
+
+/* --- houses --- */
+function offerHouse(b) {
+  const owned = S.house ? byId(S.house) : null;
+  modal(head(b, `<div class="big">${b.icon}</div><p><b>For sale: $${b.price}</b></p><p>${owned ? `You live at ${owned.name} right now. Moving here keeps all your furniture!` : "Buy it and it's YOUR house. Go inside, decorate it, invite your pet!"}</p>
+    <div class="row"><button class="btn ok" data-act="buyHouse" data-id="${b.id}">🔑 Buy for $${b.price}</button><button class="btn alt" data-act="close">Not now</button></div>`));
+}
+ACTS.buyHouse = d => { const b = byId(d.id); if (!pay(b.price)) return; S.house = b.id; save(); SFX.yay(); boom(P.x, P.y, "#ff70a6", 20); closeModal(); toast(`🎉 You bought ${b.name}! Welcome home!`, 3000); friendText("mia", `OMG u got a house?? 🏠 can I come over??`); };
+let cityPos = null;
+function enterHouse(b) { cityPos = { x: P.x, y: P.y }; S.scene = "house"; P.x = 4.5; P.y = 6.2; P.dir = 3; cam.x = 4.5; cam.y = 3; if (S.pet) { pet.x = 4; pet.y = 6.5; } toast("🏠 Home sweet home. Walk out the door to leave."); }
+function leaveHouse() { S.scene = "city"; const b = byId(S.house); P.x = b.door.x; P.y = b.door.y + .6; P.dir = 1; cam.x = P.x; cam.y = P.y; if (S.pet) { pet.x = P.x - .8; pet.y = P.y + .4; } SFX.door(); }
+function openFurnitureShop() {
+  modal(`<h2>🛋 Decorate</h2><p>Tap something to buy it — it appears in your room right away.</p><div class="shop">${FURNITURE.map(f => `<div class="item ${S.furniture.includes(f.id) ? "own" : ""}" data-act="buyFurn" data-id="${f.id}"><div class="ic">${f.icon}</div><div class="nm">${f.name}</div><div class="pr">${S.furniture.includes(f.id) ? "✓ yours" : "$" + f.price}</div></div>`).join("")}</div>
+    <div class="row"><button class="btn alt" data-act="close">Done</button></div>`);
+}
+ACTS.buyFurn = d => { const f = FURNITURE.find(x => x.id === d.id); if (S.furniture.includes(f.id)) { toast("You already have that ✓"); return; } if (!pay(f.price)) return; S.furniture.push(f.id); save(); boom(f.x + f.w / 2, f.y + f.d / 2, "#ff70a6", 10); openFurnitureShop(); toast(`${f.icon} ${f.name} — so cute!`); };
+
+/* --- school --- */
+const WORDS = [["glitter", "glittr", "gliter"], ["purple", "perple", "purpel"], ["friend", "freind", "frend"], ["beautiful", "beutiful", "beautifull"], ["necklace", "neckless", "necklase"], ["theater", "theeter", "theator"], ["because", "becuase", "becaus"], ["jacket", "jaket", "jackit"]];
+const TRIVIA = [["How many legs does a spider have?", "8", ["6", "10"]], ["Blue + red makes…", "purple", ["green", "orange"]], ["The biggest planet is…", "Jupiter", ["Mars", "Earth"]], ["How many days are in a week?", "7", ["5", "10"]], ["A baby cat is a…", "kitten", ["puppy", "calf"]], ["Water freezes into…", "ice", ["steam", "sand"]], ["Which is a fruit?", "mango", ["carrot", "broccoli"]], ["How many minutes in an hour?", "60", ["100", "30"]]];
+function makeQ() {
+  const k = ri(0, 2);
+  if (k === 0) { const a = ri(3, 12), b = ri(2, 12), op = pick(["+", "-", "×"]); const ans = op === "+" ? a + b : op === "-" ? Math.max(a, b) - Math.min(a, b) : a * b; const q = op === "-" ? `${Math.max(a, b)} − ${Math.min(a, b)} = ?` : `${a} ${op} ${b} = ?`; return { q, a: String(ans), w: [String(ans + ri(1, 4)), String(Math.max(0, ans - ri(1, 4)))] }; }
+  if (k === 1) { const w = pick(WORDS); return { q: "Which word is spelled right?", a: w[0], w: [w[1], w[2]] }; }
+  const t = pick(TRIVIA); return { q: t[0], a: t[1], w: t[2] };
+}
+let quiz = null;
+function openSchool() { quiz = { i: 0, right: 0, qs: [] }; for (let i = 0; i < 5; i++) quiz.qs.push(makeQ()); modal(head(byId("school"), `<div class="big">📚</div><p>Class time! 5 questions. <b>$15</b> for each right answer, and a bonus if you ace it.</p><div class="row"><button class="btn" data-act="quizQ">✏️ Start</button><button class="btn alt" data-act="close">Skip school</button></div>`)); }
+ACTS.quizQ = () => {
+  if (quiz.i >= 5) { const bonus = quiz.right === 5 ? 25 : 0; const total = quiz.right * 15 + bonus; S.stats.grades++; if (total) earn(total, "from school 🎓"); modal(head(byId("school"), `<div class="big">${quiz.right === 5 ? "🏆" : quiz.right >= 3 ? "⭐" : "📝"}</div><p>You got <b>${quiz.right} / 5</b>. ${quiz.right === 5 ? "A+! Bonus $25!" : quiz.right >= 3 ? "Nice work!" : "Keep practicing!"}</p><p>Earned <b>$${total}</b></p><div class="row"><button class="btn" data-act="close">Yay!</button></div>`)); if (quiz.right === 5) friendText("zoe", "heard u aced the test 🤓 teach me pls"); return; }
+  const Q = quiz.qs[quiz.i], opts = [Q.a, ...Q.w].sort(() => Math.random() - .5);
+  modal(head(byId("school"), `<p style="color:#888">Question ${quiz.i + 1} of 5</p><p style="font-size:20px;font-weight:800">${Q.q}</p><div class="row">${opts.map(o => `<button class="btn alt" data-act="quizA" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>`));
+};
+ACTS.quizA = d => { const Q = quiz.qs[quiz.i]; if (d.v === Q.a) { quiz.right++; SFX.coin(); toast("✅ Correct!", 900); } else { SFX.nope(); toast(`❌ It was "${Q.a}"`, 1400); } quiz.i++; setTimeout(ACTS.quizQ, 500); };
+
+/* --- cinema --- */
+const MOVIES = [
+  { t: "Glitter Girls 2", e: "💃", scenes: ["🏙️ Three best friends…", "💎 …find a magic necklace…", "🐉 …a dragon wants it back!", "🛹 Epic skateboard chase!", "🎤 Big concert finale!", "💜 Friends forever."] },
+  { t: "The Purple Dragon", e: "🐲", scenes: ["🌋 A lonely dragon…", "🎨 …paints itself purple…", "👑 …and meets a princess…", "⚔️ Knights attack! 😱", "🤝 They become friends.", "🎆 Fireworks over the castle."] },
+  { t: "Space Puppies", e: "🐶", scenes: ["🚀 Puppies steal a rocket…", "🌙 …land on the moon…", "🧀 …the moon is CHEESE!", "👾 Aliens want the cheese!", "🐕 Puppies vs aliens!", "🏆 Puppies win, obviously."] },
+  { t: "Boba Ninja", e: "🥷", scenes: ["🧋 A boba shop by day…", "🥷 …a ninja by night…", "🦹 A villain steals the tapioca!", "🏃‍♀️ Rooftop chase!", "🥋 Ninja kick! 💥", "🧋 Free boba for everyone."] },
+];
+function openCinema() { modal(head(byId("cinema"), `<p>Now showing! Tickets are <b>$12</b>.</p><div class="shop">${MOVIES.map((m, i) => `<div class="item" data-act="watch" data-i="${i}"><div class="ic">${m.e}</div><div class="nm">${m.t}</div><div class="pr">$12</div></div>`).join("")}</div><div class="row"><button class="btn alt" data-act="close">Leave</button></div>`)); }
+ACTS.watch = d => {
+  if (!pay(12)) return; const m = MOVIES[+d.i]; let i = 0; S.stats.movies++;
+  modal(head(byId("cinema"), `<div class="stage"><div class="screenLines" id="screenLines">${m.e}<br>${m.t}</div><div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;font-size:24px">🪑🪑🪑🪑🪑🪑</div></div><div class="row"><button class="btn alt" data-act="popcorn">🍿 Popcorn $4</button></div>`));
+  modalTimer = setInterval(() => { const el = $("screenLines"); if (!el) { clearInterval(modalTimer); return; } if (i < m.scenes.length) { el.innerHTML = m.scenes[i++]; SFX.pop(); } else { clearInterval(modalTimer); modalTimer = null; el.innerHTML = "🎬 The End 🎬"; SFX.clap(); MCARD.insertAdjacentHTML("beforeend", `<p>How was it?</p><div class="row"><button class="btn" data-act="rate" data-s="5">⭐⭐⭐⭐⭐</button><button class="btn alt" data-act="rate" data-s="2">⭐⭐</button></div>`); } }, 1600);
+};
+ACTS.popcorn = () => { if (pay(4)) toast("🍿 Crunch crunch!"); };
+ACTS.rate = d => { closeModal(); friendText(pick(["mia", "lily", "sofia"]), d.s === "5" ? "did u see a movie?? which one, was it good 👀" : "heard that movie was meh lol 😅"); };
+
+/* --- theater: a rhythm show --- */
+let show = null;
+function openTheater() { modal(head(byId("theater"), `<div class="big">🎭</div><p>You're the star tonight! Tap <b>🎤 SING</b> when the star is inside the ring. 8 notes — the audience pays for a great show!</p><div class="row"><button class="btn" data-act="showStart">🌟 Take the stage</button><button class="btn alt" data-act="close">Stage fright</button></div>`)); }
+ACTS.showStart = () => {
+  show = { n: 0, score: 0, t0: performance.now(), hit: false };
+  modal(head(byId("theater"), `<div class="stage" id="stage" style="background:linear-gradient(#2a1a58,#101020)"><div id="ring" style="position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;border:4px solid #ffd166;border-radius:50%"></div><div id="star" style="position:absolute;top:50%;left:0;margin-top:-18px;font-size:36px">⭐</div><div id="cheer" style="position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#fff;font-weight:800"></div></div>
+    <div class="row"><button class="btn ok" data-act="sing" style="width:100%;font-size:20px">🎤 SING!</button></div><p id="showScore" style="text-align:center;font-weight:800">Note 1 of 8</p>`));
+  const stage = $("stage"), star = $("star");
+  function tick() { if (!show || !stage.isConnected) return; const el = (performance.now() - show.t0) / 1400; const p = el % 1; star.style.left = `calc(${p * 100}% - 18px)`; const n = Math.floor(el); if (n !== show.n) { if (!show.hit) $("cheer").textContent = "😬 missed"; show.n = n; show.hit = false; if (n >= 8) { finishShow(); return; } $("showScore").textContent = `Note ${n + 1} of 8`; } requestAnimationFrame(tick); }
+  requestAnimationFrame(tick);
+};
+ACTS.sing = () => { if (!show || show.hit) return; const el = (performance.now() - show.t0) / 1400, p = el % 1, off = Math.abs(p - .5); show.hit = true; const pts = off < .06 ? 5 : off < .13 ? 3 : 0; show.score += pts; $("cheer").textContent = pts === 5 ? "🌟 PERFECT!" : pts ? "👏 nice!" : "😅 off beat"; if (pts) tone(523 + pts * 60, .15, "triangle", .1); else SFX.nope(); };
+function finishShow() { const s = show.score; show = null; S.stats.shows++; SFX.clap(); if (s) earn(s, "from the show 🎭"); modal(head(byId("theater"), `<div class="big">${s >= 32 ? "🌹🌹🌹" : s >= 18 ? "👏👏" : "🦗"}</div><p>${s >= 32 ? "STANDING OVATION! The crowd threw roses!" : s >= 18 ? "Great show! The crowd loved it." : "Tough crowd… practice makes perfect!"}</p><p>You earned <b>$${s}</b></p><div class="row"><button class="btn" data-act="close">Take a bow</button></div>`)); if (s >= 32) friendText("sofia", "I WAS IN THE AUDIENCE 😭 u were amazing!!"); }
+
+/* --- mall --- */
+const SHOP = [
+  { id: "ears", name: "Cat Ears", icon: "🐱", price: 40, acc: "ears" }, { id: "shades", name: "Sunglasses", icon: "🕶", price: 30, acc: "shades" },
+  { id: "bow", name: "Pink Bow", icon: "🎀", price: 25, acc: "bow" }, { id: "headphones", name: "Headphones", icon: "🎧", price: 50, acc: "headphones" },
+  { id: "beanie", name: "Beanie", icon: "🧢", price: 35, acc: "beanie" }, { id: "crown", name: "Crown", icon: "👑", price: 120, acc: "crown" },
+  { id: "wings", name: "Fairy Wings", icon: "🧚", price: 150, wings: true }, { id: "pants", name: "Pants Outfit", icon: "👖", price: 60, skirt: "pants" },
+  { id: "gemsRainbow", name: "Rainbow Gems", icon: "🌈", price: 80, gemCol: "#7df9ff" }, { id: "phonecase", name: "Phone Case", icon: "📱", price: 20 },
+];
+function openMall() { modal(head(byId("mall"), `<p>Ooh, everything sparkles ✨ Tap to buy — it goes on right away. Change outfits any time in 📱 › Avatar.</p><div class="shop">${SHOP.map(i => `<div class="item ${S.owned.includes(i.id) ? "own" : ""}" data-act="buyItem" data-id="${i.id}"><div class="ic">${i.icon}</div><div class="nm">${i.name}</div><div class="pr">${S.owned.includes(i.id) ? "✓ yours" : "$" + i.price}</div></div>`).join("")}</div><div class="row"><button class="btn alt" data-act="close">Done shopping</button></div>`)); }
+ACTS.buyItem = d => { const it = SHOP.find(x => x.id === d.id); if (!S.owned.includes(it.id)) { if (!pay(it.price)) return; S.owned.push(it.id); toast(`${it.icon} ${it.name} is yours!`); } else toast(`${it.icon} put on`); if (it.acc) AV.acc = it.acc; if (it.wings) AV.wings = true; if (it.skirt) AV.skirt = it.skirt; if (it.gemCol) { AV.gemCol = it.gemCol; AV.gems = true; } save(); openMall(); };
+
+/* --- boba cafe: a job --- */
+const DRINKS = [["🧋", "Milk Tea"], ["🍓", "Strawberry"], ["🍵", "Matcha"], ["🥭", "Mango"]];
+let job = null;
+function openCafe() { modal(head(byId("cafe"), `<div class="big">🧋</div><p><b>Work a shift:</b> 8 customers order, you tap the right drink. <b>$6</b> each!</p><p>Or just grab a boba for $5 🥤</p><div class="row"><button class="btn ok" data-act="shift">💼 Work a shift</button><button class="btn alt" data-act="boba">🧋 Buy a boba $5</button><button class="btn alt" data-act="close">Leave</button></div>`)); }
+ACTS.boba = () => { if (pay(5)) { S.stats.boba++; toast("🧋 Sluuurp. So good."); boom(P.x, P.y, "#ff70a6", 6); } };
+ACTS.shift = () => { job = { i: 0, made: 0 }; nextOrder(); };
+function nextOrder() {
+  if (job.i >= 8) { const t = job.made * 6; if (t) earn(t, "tips + wages 🧋"); modal(head(byId("cafe"), `<div class="big">${job.made >= 7 ? "🌟" : "🧋"}</div><p>Shift over! You made <b>${job.made} / 8</b> drinks right and earned <b>$${t}</b>.</p><div class="row"><button class="btn" data-act="close">Nice!</button></div>`)); return; }
+  const want = pick(DRINKS), who = pick(npcs.filter(n => n.friend)); job.want = want[0];
+  modal(head(byId("cafe"), `<p style="color:#888">Customer ${job.i + 1} of 8</p><p style="font-size:18px"><b>${who.emoji} ${who.name}:</b> "One <b>${want[1]} ${want[0]}</b> please!"</p><div class="row">${DRINKS.map(d => `<button class="btn alt" data-act="serve" data-v="${d[0]}" style="font-size:28px">${d[0]}</button>`).join("")}</div>`));
+}
+ACTS.serve = d => { if (d.v === job.want) { job.made++; SFX.coin(); toast("✅ Perfect drink!", 700); } else { SFX.nope(); toast("😬 Wrong drink!", 900); } job.i++; setTimeout(nextOrder, 350); };
+
+/* --- pet shop --- */
+const PETS = [{ kind: "puppy", name: "Puppy", icon: "🐶", price: 150, col: "#c8944a" }, { kind: "kitten", name: "Kitten", icon: "🐱", price: 150, col: "#f4a261" }, { kind: "bunny", name: "Bunny", icon: "🐰", price: 120, col: "#f2f2f2" }, { kind: "puppy", name: "Pug", icon: "🐕", price: 180, col: "#e8d2a6" }];
+function openPetShop() { modal(head(byId("petshop"), `<p>They all want to go home with you 🥺 Your pet follows you everywhere.</p><div class="shop">${PETS.map((p, i) => `<div class="item ${S.pet && S.pet.name === p.name ? "own" : ""}" data-act="petPick" data-i="${i}"><div class="ic">${p.icon}</div><div class="nm">${p.name}</div><div class="pr">$${p.price}</div></div>`).join("")}</div><div class="row"><button class="btn alt" data-act="close">Just looking</button></div>`)); }
+ACTS.petPick = d => { const p = PETS[+d.i]; modal(head(byId("petshop"), `<div class="big">${p.icon}</div><p>Name your ${p.name.toLowerCase()}:</p><input class="txt" id="petName" value="${pick(["Peach", "Mochi", "Luna", "Sparkle", "Biscuit"])}" maxlength="10" style="text-transform:none"><div class="row"><button class="btn ok" data-act="petBuy" data-i="${d.i}">Adopt for $${p.price}</button><button class="btn alt" data-act="close">Back</button></div>`)); };
+ACTS.petBuy = d => { const p = PETS[+d.i]; if (!pay(p.price)) return; S.pet = { kind: p.kind, col: p.col, name: ($("petName").value.trim() || p.name).slice(0, 10), icon: p.icon }; pet.x = P.x - .8; pet.y = P.y + .5; save(); SFX.bark(); closeModal(); toast(`${p.icon} ${S.pet.name} is coming home with you!`, 3000); friendText("ava", `u got a ${p.name.toLowerCase()}?!?! 😍 name?? pics??`); };
+
+/* --- salon, arcade, pizza, bank, ice cream --- */
+function openSalon() { modal(head(byId("salon"), `<div class="big">💇‍♀️</div><p>New hair, new you! Pick any colors — the salon is free for regulars ✨</p><div class="row"><button class="btn" data-act="salonGo">💜 Change my look</button><button class="btn alt" data-act="close">Leave</button></div>`)); }
+ACTS.salonGo = () => { closeModal(); openEditor(false); };
+let arc = null;
+function openArcade() { modal(head(byId("arcade"), `<div class="big">🕹</div><p><b>Glow Tap:</b> tiles light up — tap them fast! 20 seconds, every hit is a ticket, tickets turn into cash 💵</p><p>Play for <b>$5</b></p><div class="row"><button class="btn ok" data-act="arcStart">▶ Play</button><button class="btn alt" data-act="close">Leave</button></div>`)); }
+ACTS.arcStart = () => {
+  if (!pay(5)) return; arc = { score: 0, lit: -1, end: performance.now() + 20000 };
+  modal(head(byId("arcade"), `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="arcGrid">${[...Array(9)].map((_, i) => `<button class="btn alt" data-act="arcTap" data-i="${i}" style="height:64px;font-size:26px;background:#22223a;box-shadow:none"></button>`).join("")}</div><p style="text-align:center;font-weight:800" id="arcInfo">Tickets: 0 · 20s</p>`));
+  const light = () => { if (!arc) return; const grid = $("arcGrid"); if (!grid) return; const btns = grid.children; if (arc.lit >= 0) { btns[arc.lit].style.background = "#22223a"; btns[arc.lit].textContent = ""; } arc.lit = ri(0, 8); btns[arc.lit].style.background = pick(["#ff70a6", "#4cc9f0", "#ffd166", "#a066ff"]); btns[arc.lit].textContent = "✨"; };
+  light();
+  modalTimer = setInterval(() => { if (!arc) return; const left = Math.max(0, (arc.end - performance.now()) / 1000); const info = $("arcInfo"); if (info) info.textContent = `Tickets: ${arc.score} · ${Math.ceil(left)}s`; if (left <= 0) { const s = arc.score; arc = null; clearInterval(modalTimer); modalTimer = null; if (s) earn(s, "from arcade tickets 🎟"); modal(head(byId("arcade"), `<div class="big">🎟</div><p>Time! You won <b>${s} tickets</b> = <b>$${s}</b></p><div class="row"><button class="btn" data-act="arcStart">Again ($5)</button><button class="btn alt" data-act="close">Done</button></div>`)); } }, 200);
+  arc.light = light;
+};
+ACTS.arcTap = d => { if (!arc) return; if (+d.i === arc.lit) { arc.score++; SFX.pop(); arc.light(); } else SFX.nope(); };
+function openPizza() { modal(head(byId("pizza"), `<div class="big">🍕</div><p>Mmm, smells amazing.</p><div class="row"><button class="btn alt" data-act="slice">🍕 A slice $6</button><button class="btn" data-act="party">🎉 Pizza party $25</button><button class="btn alt" data-act="close">Leave</button></div>`)); }
+ACTS.slice = () => { if (pay(6)) { toast("🍕 Yum!"); boom(P.x, P.y, "#f94144", 6); } };
+ACTS.party = () => { if (!pay(25)) return; closeModal(); SFX.yay(); toast("🎉 PIZZA PARTY! Everyone's coming!", 3000); for (const n of npcs) if (n.friend) { n.goal = { x: byId("pizza").door.x + rnd(-2, 2), y: byId("pizza").door.y + rnd(.5, 2) }; } friendText("lily", "PIZZA PARTY?? omw 🍕🏃‍♀️"); friendText("nora", "save me a slice!!! 🍕"); };
+function openBank() { const can = S.bankDay !== S.day; modal(head(byId("bank"), `<div class="big">🏦</div><p>Balance: <b>$${S.money}</b></p><p>Allowance: <b>$60</b> once every day. ${can ? "It's ready! 💸" : "Come back tomorrow (a day is 4 minutes)."}</p><div class="row"><button class="btn ok" data-act="allowance" ${can ? "" : "disabled"}>💸 Collect $60</button><button class="btn alt" data-act="close">Leave</button></div>`)); }
+ACTS.allowance = () => { if (S.bankDay === S.day) return; S.bankDay = S.day; earn(60, "allowance 🏦"); openBank(); };
+function openIceCream() { modal(head(byId("icecream"), `<div class="big">🍦</div><p>One scoop is <b>$3</b>. Pick a flavor!</p><div class="row">${["🍓 Strawberry", "🍫 Chocolate", "🫐 Blueberry", "🍪 Cookie Dough", "🌈 Unicorn Swirl"].map(f => `<button class="btn alt" data-act="scoop" data-v="${f}">${f}</button>`).join("")}</div><div class="row"><button class="btn alt" data-act="close">Leave</button></div>`)); }
+ACTS.scoop = d => { if (pay(3)) { toast(`${d.v} — brain freeze! 🥶`); boom(P.x, P.y, "#ffb5e8", 6); } };
+
+/* ------------------------------ friends & conversations ------------------------------ */
+// A topic: the friend says `them`, you pick a reply, they answer. `invite` topics make
+// the friend walk to that place and give you a bonus when you meet them there.
+const CLOSERS = [["lol 😂", "😂😂😂", "end"], ["ttyl 💜", "ttyl!! 💜✨", "end"], ["brb, walking around the city 🏙", "ok!! send pics 📸", "end"], ["ok byeee 👋", "byeeee 👋💕", "end"]];
+const TOPICS = {
+  any: [
+    { them: "hey!! what are u doing rn?", replies: [["walking around the city 🏙", "omg fun, wave if u see me 👋"], ["at home 🏠", "cozy!! ok"], ["shopping at the mall 🛍", "GET ME SOMETHING SPARKLY ✨"]] },
+    { them: "what's ur favorite color? mine is purple 💜", replies: [["purple too!! 💜", "TWINS 💜💜"], ["blue 💙", "ooo pretty"], ["glitter is a color right ✨", "lol YES it is"]] },
+    { them: "do u want to hang out at the movies? 🎬", invite: "cinema", replies: [["YES 🎬🍿", "yay!! meet me at Star Cinema, I'm walking there now 🏃‍♀️"], ["can't rn 😢", "aww ok next time!"]] },
+    { them: "boba after school?? 🧋", invite: "cafe", replies: [["obviously 🧋", "omw to Boba Cafe!! get the mango one"], ["I'm broke lol 💸", "get a job at the cafe lol 💼"]] },
+    { them: "I'm bored 😩", replies: [["same 😩", "let's do something 🎉"], ["go to the arcade! 🕹", "ooo good idea!!"], ["pizza party?? 🍕", "YESSSS I'll bring everyone"]] },
+    { them: "what should I wear tmrw 👗", replies: [["something sparkly ✨", "always sparkly ✨✨"], ["a purple jacket 🖤", "ooo with gems on the side?? yes"], ["boots!! 👢", "I LOVE ur boots btw"]] },
+    { them: "guess what 👀", replies: [["what?!", "I got a new pet!!! 🐶 it's so tiny"], ["u got a house??", "no lol I wish 😭"], ["tell meeee", "ok ok… the arcade got a new game 🕹"]] },
+    { them: "selfie plsss 📸", replies: [["send selfie 📸", "SO CUTE 😍😍", "selfie"], ["later, bad hair day lol", "ur hair is literally perfect 💙🖤💜"]] },
+    { them: "wanna see a show at the theater? 🎭", invite: "theater", replies: [["let's go 🎭", "yesss meet me at the Grand Theater ✨"], ["I'd rather be IN the show 🎤", "haha ok superstar"]] },
+  ],
+  mia:   [{ them: "🦄🦄🦄 unicorns are real right", replies: [["100% 🦄", "I KNEW IT"], ["hmm… 🤔", "don't crush my dreams 😭"]] }, { them: "I saw a purple car today, thought of u 💜", replies: [["awww 💜", "😊"], ["was it glittery", "sadly no ✨"]] }],
+  zoe:   [{ them: "did u know octopuses have 3 hearts 🐙", replies: [["what?!", "yes!! and blue blood"], ["I have 1 heart and it's tired lol", "😂😂 same"]] }, { them: "study group at the school? 📚", invite: "school", replies: [["ok 🤓", "meet u at Jules High!"], ["nooo homework 😭", "fine lol"]] }],
+  lily:  [{ them: "ur skirt is ICONIC ✨", replies: [["thank uuu 💜", "purple blue white?? genius"], ["I know 😌", "the confidence 😂"]] }, { them: "mall trip?? 🛍", invite: "mall", replies: [["yesss 🛍", "meet at Glitter Mall!! 💖"], ["no money 💸", "window shopping then lol"]] }],
+  ava:   [{ them: "my cat sat on my phone again 🐱", replies: [["lol classic", "she's the boss"], ["send a pic!!", "🐱 (she's asleep)"]] }, { them: "pet shop has bunnies rn 🐰", invite: "petshop", replies: [["omw!!! 🐰", "meet me there 🐰🐰"], ["I can't take another pet lol", "one more won't hurt 😏"]] }],
+  sofia: [{ them: "I'm singing at the theater tonight 🎤", invite: "theater", replies: [["I'm coming!! 🎭", "front row for u ✨"], ["break a leg!", "🩵 thank u"]] }, { them: "what's ur go-to karaoke song 🎶", replies: [["anything sparkly ✨", "lol a whole vibe"], ["I don't sing 🙈", "u totally do"]] }],
+  nora:  [{ them: "JULES come play zombie night with me 🧟", replies: [["later!! 🧟", "ok but LATER later or later?"], ["ur game is scary lol", "that's the POINT"]] }, { them: "can I borrow ur boots 👢", replies: [["no lol", "😤 fine"], ["only if u don't get them muddy", "…no promises 🧟"]] }],
+};
+const chats = {}; for (const f of FRIENDS) chats[f.id] = { log: [], pending: null, unread: false };
+const fr = id => FRIENDS.find(f => f.id === id);
+function badge() { const n = Object.values(chats).filter(c => c.unread).length + (incomingCall ? 1 : 0); S.unread = n; const b = $("phoneBadge"); b.hidden = n === 0; b.textContent = n; const mb = $("badgeMsgs"); if (mb) { mb.hidden = n === 0; mb.textContent = n; } }
+function friendText(id, text, replies) {
+  const c = chats[id]; c.log.push({ who: "them", text }); c.unread = true;
+  c.pending = replies || CLOSERS.map(x => x);
+  SFX.msg(); badge(); const f = fr(id);
+  if ($("phone").hidden || !$("chat").classList.contains("on") || curChat !== id) toast(`💬 ${f.emoji} ${f.name}: ${text}`, 2600);
+  if (curChat === id && $("chat").classList.contains("on")) renderChat();
+}
+function startTopic(id) {
+  const pool = TOPICS.any.concat(TOPICS[id] || []); const t = pick(pool);
+  const c = chats[id]; c.topic = t; friendText(id, t.them, t.replies);
+}
+function acceptInvite(id, place) {
+  const b = byId(place), f = npcs.find(n => n.id === id);
+  f.goal = { x: b.door.x + rnd(-1.5, 1.5), y: b.door.y + rnd(.6, 1.8) }; f.tgt = null;
+  S.quests.push({ id, place }); S.marker = { x: b.door.x, y: b.door.y, name: `${b.icon} meet ${fr(id).name}` };
+}
+function checkQuest(b) {
+  for (let i = S.quests.length - 1; i >= 0; i--) { const qst = S.quests[i]; if (qst.place !== b.id) continue; const n = npcs.find(x => x.id === qst.id); if (Math.hypot(n.x - P.x, n.y - P.y) < 5) { S.quests.splice(i, 1); n.goal = null; n.wait = 6; sayAt(n, "you came!! 🎉", 3); earn(20, `hanging out with ${n.name} 💜`); setTimeout(() => friendText(qst.id, "that was so fun 😭💜 again soon??"), 8000); if (S.marker && S.marker.name.includes(n.name)) S.marker = null; } }
+}
+let curChat = null;
+function renderMsgList() {
+  $("msgList").innerHTML = FRIENDS.map(f => { const c = chats[f.id], last = c.log[c.log.length - 1]; return `<div class="li" data-chat="${f.id}"><div class="av">${f.emoji}</div><div class="t"><div class="n">${f.name}${f.sister ? " (sister)" : ""}</div><div class="s">${last ? esc(last.text) : "Say hi! 👋"}</div></div>${c.unread ? '<div class="dot"></div>' : ""}</div>`; }).join("");
+}
+$("msgList").addEventListener("click", e => { const li = e.target.closest("[data-chat]"); if (li) openChat(li.dataset.chat); });
+function openChat(id) { curChat = id; chats[id].unread = false; badge(); $("chatName").textContent = `${fr(id).emoji} ${fr(id).name}`; showApp("chat"); renderChat(); }
+function renderChat() {
+  const c = chats[curChat], body = $("chatBody");
+  body.innerHTML = (c.log.length ? "" : `<div class="bub sys">Start of your chat with ${fr(curChat).name} 💬</div>`) + c.log.map(m => m.who === "img" ? `<img src="${m.text}" style="width:120px;border-radius:12px;align-self:flex-end">` : `<div class="bub ${m.who}">${esc(m.text)}</div>`).join("") + (c.typing ? '<div class="bub them typing"><span></span><span></span><span></span></div>' : "");
+  body.scrollTop = body.scrollHeight;
+  const R = $("chatReplies");
+  if (c.typing) { R.innerHTML = ""; return; }
+  const opts = c.pending || [["hey! what's up? 👋", null, "start"], ["wanna hang out? 🎉", null, "start"], ["send selfie 📸", "SO CUTE 😍😍", "selfie"], ["I love ur outfit today 💖", "omg thank u!! yours is better tho ✨"]];
+  R.innerHTML = opts.map((o, i) => `<button data-r="${i}">${esc(o[0])}</button>`).join("");
+  R.onclick = e => { const b = e.target.closest("[data-r]"); if (!b) return; audio(); SFX.tap(); sendReply(opts[+b.dataset.r]); };
+}
+function sendReply(o) {
+  const c = chats[curChat], id = curChat; c.log.push({ who: "me", text: o[0] });
+  if (o[2] === "selfie") { if (S.photos.length) c.log.push({ who: "img", text: S.photos[0] }); else c.log.push({ who: "me", text: "(wait I need to take one first 📷)" }); }
+  c.pending = null; c.typing = true; renderChat();
+  const t = c.topic; c.topic = null;
+  setTimeout(() => {
+    c.typing = false;
+    if (o[2] === "start") { const pool = TOPICS.any.concat(TOPICS[id] || []); const tp = pick(pool); c.topic = tp; c.log.push({ who: "them", text: tp.them }); c.pending = tp.replies; }
+    else if (o[1]) { c.log.push({ who: "them", text: o[1] }); c.pending = o[2] === "end" ? null : CLOSERS; if (t && t.invite && /yes|obviously|let's|omw|ok 🤓|coming|going|go/i.test(o[0])) acceptInvite(id, t.invite); }
+    else { c.pending = null; }
+    SFX.msg(); if (curChat === id && $("chat").classList.contains("on")) renderChat();
+  }, 900 + Math.random() * 800);
+}
+
+/* --- calls --- */
+let incomingCall = null, callTimer = null;
+const CALL_LINES = { hello: ["heyyy!! 📞", "omg hi!!", "JULES! hi!", "hello?? oh hi 😄"], q: [["what are u doing?", "walking around the city!", "just shopping lol", "nothing, u?"], ["want to hang out later?", "yes!! 🎉", "maybe tomorrow", "I'm busy being famous 🎭"], ["ok I gotta go, bye!!", "bye!! 💜", "ttyl!", "call me later!"]] };
+function renderCallList() { $("callList").innerHTML = FRIENDS.map(f => `<div class="li" data-call="${f.id}"><div class="av">${f.emoji}</div><div class="t"><div class="n">${f.name}</div><div class="s">📞 tap to call</div></div></div>`).join(""); }
+$("callList").addEventListener("click", e => { const li = e.target.closest("[data-call]"); if (li) startCall(li.dataset.call, false); });
+function startCall(id, incoming) {
+  const f = fr(id); showApp("call"); clearTimeout(callTimer);
+  const scr = $("callScr");
+  if (incoming) { scr.innerHTML = `<div class="face">${f.emoji}</div><div style="font-size:22px;font-weight:800">${f.name}</div><div>incoming call…</div><div class="callBtns"><button class="round" style="background:#2ec4b6" data-ans="1">📞</button><button class="round" style="background:#ff3b5c" data-ans="0">📵</button></div>`; scr.onclick = e => { const b = e.target.closest("[data-ans]"); if (!b) return; incomingCall = null; badge(); $("phoneBtn").classList.remove("ring"); if (b.dataset.ans === "1") talkOnCall(f, 0); else showApp("home"); }; return; }
+  scr.innerHTML = `<div class="face">${f.emoji}</div><div style="font-size:22px;font-weight:800">${f.name}</div><div id="callState">calling…</div><div class="callBtns"><button class="round" style="background:#ff3b5c" data-hang>📵</button></div>`;
+  scr.onclick = e => { if (e.target.closest("[data-hang]")) { clearTimeout(callTimer); showApp("calls"); } };
+  let rings = 0; const ring = () => { SFX.ring(); rings++; const st = $("callState"); if (st) st.textContent = "ringing" + ".".repeat(rings % 4); if (rings >= 3) talkOnCall(f, 0); else callTimer = setTimeout(ring, 1200); }; ring();
+}
+function talkOnCall(f, step) {
+  const scr = $("callScr");
+  if (step >= CALL_LINES.q.length) { scr.innerHTML = `<div class="face">${f.emoji}</div><div style="font-size:22px;font-weight:800">${f.name}</div><div>call ended 💜</div><div class="callBtns"><button class="round" style="background:#5a3aa8" data-done>✓</button></div>`; scr.onclick = () => showApp("home"); return; }
+  const q = CALL_LINES.q[step];
+  scr.innerHTML = `<div class="face">${f.emoji}</div><div style="font-size:22px;font-weight:800">${f.name}</div><div class="line">"${step === 0 ? pick(CALL_LINES.hello) + " " : ""}${q[0]}"</div><div style="display:flex;flex-direction:column;gap:6px;width:100%">${q.slice(1).map((r, i) => `<button class="btn alt" data-say="${i}">${r}</button>`).join("")}</div><div class="callBtns"><button class="round" style="background:#ff3b5c" data-hang>📵</button></div>`;
+  scr.onclick = e => { if (e.target.closest("[data-hang]")) { showApp("home"); return; } const b = e.target.closest("[data-say]"); if (!b) return; audio(); tone(600 + Math.random() * 300, .12, "sine", .06); setTimeout(() => talkOnCall(f, step + 1), 600); };
+}
+function ringIncoming() { if (incomingCall || !$("phone").hidden) return; incomingCall = pick(FRIENDS).id; badge(); $("phoneBtn").classList.add("ring"); SFX.ring(); toast(`📞 ${fr(incomingCall).emoji} ${fr(incomingCall).name} is calling!`, 3000); let n = 0; const rr = setInterval(() => { if (!incomingCall) { clearInterval(rr); return; } SFX.ring(); if (++n > 8) { clearInterval(rr); incomingCall = null; badge(); $("phoneBtn").classList.remove("ring"); toast("📵 missed call"); } }, 1500); }
+
+/* --- camera & photos --- */
+const BGS = [["#bde0ff", "#ffd9f5"], ["#2a1a58", "#a066ff"], ["#ffd166", "#ff70a6"], ["#0b132b", "#3a506b"], ["#57b34a", "#bde0ff"]];
+let camBg = 0;
+function renderCamera() {
+  $("camBody").innerHTML = `<canvas id="camCv" width="260" height="300" style="width:100%;border-radius:16px;display:block"></canvas><div class="row" style="justify-content:center"><button class="btn ok" id="snap">📸 Snap</button><button class="btn alt" id="camFilter">🎨 Background</button></div>`;
+  drawSelfie($("camCv").getContext("2d"), 260, 300);
+  $("snap").onclick = () => { audio(); SFX.shutter(); const c = document.createElement("canvas"); c.width = 180; c.height = 208; drawSelfie(c.getContext("2d"), 180, 208); S.photos.unshift(c.toDataURL("image/jpeg", .7)); S.photos = S.photos.slice(0, 8); save(); toast("📸 Saved to Photos!"); $("camBody").style.background = "#fff"; setTimeout(() => $("camBody").style.background = "", 120); };
+  $("camFilter").onclick = () => { camBg = (camBg + 1) % BGS.length; drawSelfie($("camCv").getContext("2d"), 260, 300); };
+}
+function drawSelfie(c2, w, h) {
+  const gr = c2.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, BGS[camBg][0]); gr.addColorStop(1, BGS[camBg][1]); c2.fillStyle = gr; c2.fillRect(0, 0, w, h);
+  c2.font = `${w / 5}px serif`; c2.globalAlpha = .35; c2.fillText("✨", w * .08, h * .3); c2.fillText("💜", w * .68, h * .2); c2.fillText("⭐", w * .7, h * .85); c2.globalAlpha = 1;
+  const old = ctx; ctx = c2; c2.save(); c2.translate(w / 2, h * .82); c2.scale(w / 110, w / 110); drawTeen(P, 0, 0, 0, 1, 0); if (S.pet) drawPet(S.pet, .9, .3, 0, 1, 0); c2.restore(); ctx = old;
+  c2.fillStyle = "rgba(255,255,255,.85)"; c2.font = `800 ${w / 16}px 'Avenir Next','Trebuchet MS',Arial`; c2.textAlign = "center"; c2.fillText(`📍 ${S.scene === "house" ? "My House" : S.place}`, w / 2, h - 10);
+}
+function renderPhotos() { $("photoGrid").innerHTML = S.photos.length ? S.photos.map(p => `<img src="${p}">`).join("") : `<p style="grid-column:1/-1;text-align:center;color:#888">No photos yet — take a selfie in 📷 Camera!</p>`; }
+
+/* --- map --- */
+function renderMap() {
+  const c2 = $("mapCv").getContext("2d"), s = 300 / MAP;
+  for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) { const t = tiles[y][x]; c2.fillStyle = t === T.ROAD ? "#4a4a58" : t === T.WALK ? "#d8d5cc" : t === T.WATER ? "#4a9ae0" : t === T.PLAZA ? "#e9c9a1" : t === T.SAND ? "#f2dda4" : "#6cbf47"; c2.fillRect(x * s, y * s, s + .5, s + .5); }
+  c2.font = "14px serif"; c2.textAlign = "center"; c2.textBaseline = "middle";
+  for (const b of BUILDINGS) { if (b.deco) continue; c2.fillStyle = b.col; c2.fillRect(b.x * s, b.y * s, b.w * s, b.d * s); c2.fillText(b.icon, (b.x + b.w / 2) * s, (b.y + b.d / 2) * s); }
+  for (const n of npcs) if (n.friend) { c2.fillStyle = "#ff3b5c"; c2.beginPath(); c2.arc(n.x * s, n.y * s, 3, 0, Math.PI * 2); c2.fill(); }
+  if (S.scene === "city") { c2.fillStyle = "#fff"; c2.beginPath(); c2.arc(P.x * s, P.y * s, 6, 0, Math.PI * 2); c2.fill(); c2.fillStyle = "#7a44d6"; c2.beginPath(); c2.arc(P.x * s, P.y * s, 4, 0, Math.PI * 2); c2.fill(); }
+  if (S.marker) c2.fillText("⭐", S.marker.x * s, (S.marker.y - 1) * s);
+}
+$("mapCv").addEventListener("pointerdown", e => { const r = $("mapCv").getBoundingClientRect(); const x = (e.clientX - r.left) / r.width * MAP, y = (e.clientY - r.top) / r.height * MAP; let best = null, bd = 6; for (const b of BUILDINGS) { if (b.deco) continue; const d = Math.hypot(b.x + b.w / 2 - x, b.y + b.d / 2 - y); if (d < bd) { bd = d; best = b; } } if (best) { S.marker = { x: best.door.x, y: best.door.y, name: `${best.icon} ${best.name}` }; SFX.tap(); toast(`⭐ Marker set: ${best.name}`); renderMap(); } });
+
+/* --- wallet & music --- */
+function renderWallet() {
+  const h = S.house ? byId(S.house) : null;
+  $("walletBody").innerHTML = `<div class="big">💵</div><p style="text-align:center;font-size:30px;font-weight:900">$${S.money}</p>
+    <p>🏠 Home: <b>${h ? h.name : "none yet — houses are for sale!"}</b></p><p>🐾 Pet: <b>${S.pet ? S.pet.icon + " " + S.pet.name : "none yet"}</b></p><p>🛍 Items: <b>${S.owned.length}</b> · 🛋 Furniture: <b>${S.furniture.length}</b></p>
+    <p>🎬 Movies seen: ${S.stats.movies} · 🎓 Classes: ${S.stats.grades} · 🎭 Shows: ${S.stats.shows} · 🧋 Bobas: ${S.stats.boba}</p>
+    <p style="color:#888;font-size:13px">Earn money at school 🏫, the theater 🎭, the boba cafe 🧋, the arcade 🕹 and the bank 🏦.</p>`;
+}
+const SONGS = [{ n: "Glitter Dreams", a: "Jules", notes: [523, 659, 784, 659, 880, 784, 659, 523], bpm: 150 }, { n: "TTYL", a: "The Sparkles", notes: [440, 440, 554, 659, 554, 440, 330, 440], bpm: 170 }, { n: "Purple Boots", a: "Mia & Zoe", notes: [392, 494, 587, 494, 392, 330, 392, 494], bpm: 130 }, { n: "Zombie Night (remix)", a: "Nora", notes: [220, 220, 262, 220, 196, 220, 262, 294], bpm: 110 }];
+let songTimer = null, playing = -1;
+function renderMusic() { $("musicBody").innerHTML = SONGS.map((s, i) => `<div class="song ${playing === i ? "playing" : ""}" data-song="${i}"><div style="font-size:28px">${playing === i ? "🎶" : "🎵"}</div><div style="flex:1"><div style="font-weight:800">${s.n}</div><div style="font-size:12px;color:#777">${s.a}</div></div><div>${playing === i ? "⏸" : "▶"}</div></div>`).join(""); }
+$("musicBody").addEventListener("click", e => { const el = e.target.closest("[data-song]"); if (!el) return; audio(); const i = +el.dataset.song; if (playing === i) stopMusic(); else playSong(i); renderMusic(); });
+function playSong(i) { stopMusic(); playing = i; const s = SONGS[i]; let k = 0; const step = () => { tone(s.notes[k % s.notes.length], .18, "triangle", .08); if (k % 2 === 0) tone(s.notes[k % s.notes.length] / 2, .3, "sine", .05); k++; }; step(); songTimer = setInterval(step, 60000 / s.bpm); }
+function stopMusic() { clearInterval(songTimer); songTimer = null; playing = -1; }
+
+/* --- the phone shell --- */
+const APPS = [["msgs", "💬", "Messages", "#2ec4b6"], ["calls", "📞", "Phone", "#57b34a"], ["camera", "📷", "Camera", "#555"], ["photos", "🖼", "Photos", "#ff9f1c"], ["map", "🗺", "Map", "#4f8cff"], ["wallet", "💰", "Wallet", "#ffd166"], ["music", "🎵", "Music", "#ff3b5c"], ["avatar", "👗", "Avatar", "#a066ff"], ["close", "🏙", "City", "#7a44d6"]];
+$("homeGrid").innerHTML = APPS.map(a => `<div class="icon" data-app="${a[0]}"><div class="ic" style="background:${a[3]}">${a[1]}</div>${a[2]}${a[0] === "msgs" ? '<span class="badge" id="badgeMsgs" hidden></span>' : ""}</div>`).join("");
+$("homeGrid").addEventListener("click", e => { const el = e.target.closest("[data-app]"); if (!el) return; audio(); SFX.tap(); const a = el.dataset.app; if (a === "close") closePhone(); else if (a === "avatar") { closePhone(); openEditor(false); } else showApp(a); });
+function showApp(id) {
+  document.querySelectorAll(".app").forEach(a => a.classList.toggle("on", a.id === id));
+  if (id === "msgs") renderMsgList(); if (id === "calls") renderCallList(); if (id === "camera") renderCamera(); if (id === "photos") renderPhotos(); if (id === "map") renderMap(); if (id === "wallet") renderWallet(); if (id === "music") renderMusic();
+}
+document.querySelectorAll("[data-back]").forEach(b => b.addEventListener("click", () => { SFX.tap(); showApp("home"); }));
+document.querySelectorAll("[data-to]").forEach(b => b.addEventListener("click", () => { SFX.tap(); showApp(b.dataset.to); }));
+function openPhone() { audio(); $("phone").hidden = false; joy.id = null; joy.dx = joy.dy = 0; $("phoneBtn").classList.remove("ring"); if (incomingCall) startCall(incomingCall, true); else showApp("home"); }
+function closePhone() { $("phone").hidden = true; }
+$("phoneBtn").addEventListener("click", openPhone);
+$("phone").addEventListener("pointerdown", e => { if (e.target === $("phone")) closePhone(); });
+function talkTo(n) {
+  P.dir = n.x > P.x ? 0 : n.x < P.x ? 2 : (n.y > P.y ? 1 : 3); n.wait = 8; n.walk = 0;
+  sayAt(n, pick(["hiii Jules! 👋", "omg hey! 💜", "ur outfit!! ✨", "wanna text later? 📱"]), 3);
+  openPhone(); openChat(n.id); if (!chats[n.id].pending) { chats[n.id].typing = true; renderChat(); setTimeout(() => { chats[n.id].typing = false; startTopic(n.id); }, 700); }
+}
+
+/* ------------------------------ avatar editor ------------------------------ */
+const HAIR_COLS = ["#2f6bff", "#151527", "#8a2be2", "#ff4fd8", "#f7d774", "#d64c2a", "#5a3a1a", "#2ec4b6", "#ffffff", "#ff3b5c", "#57b34a", "#ff9f1c"];
+const SKINS = ["#f8ddc2", "#f3cba5", "#e0ac69", "#c68642", "#8d5524", "#5c3a1e"];
+const CLOTH = ["#ffffff", "#151515", "#7b3fe4", "#3a86ff", "#ff70a6", "#ffd166", "#2ec4b6", "#ff3b5c", "#a066ff", "#4cc9f0", "#57b34a", "#ff9f1c"];
+const edCv = $("edPrev"), edCtx = edCv.getContext("2d");
+let edOpen = false, edFirst = false;
+function swatches(key, cols) { return `<div class="swatches">${cols.map(c => `<div class="sw ${AV[key] === c ? "on" : ""}" data-k="${key}" data-v="${c}" style="background:${c}"></div>`).join("")}</div>`; }
+function choice(key, opts) { return `<div class="row" style="margin:4px 0">${opts.map(o => `<button class="btn ${AV[key] === o[0] ? "" : "alt"}" data-k="${key}" data-v="${o[0]}" style="padding:8px 12px;font-size:13px">${o[1]}</button>`).join("")}</div>`; }
+function toggle(key, label) { return `<button class="btn ${AV[key] ? "ok" : "alt"}" data-k="${key}" data-v="${AV[key] ? "0" : "1"}" data-bool="1" style="padding:8px 12px;font-size:13px">${AV[key] ? "✓ " : ""}${label}</button>`; }
+function openEditor(first) {
+  edOpen = true; edFirst = !!first; $("editor").hidden = false; joy.id = null; joy.dx = joy.dy = 0; renderEditor();
+}
+function renderEditor() {
+  const own = id => S.owned.includes(id);
+  const accs = [["none", "None"], ...SHOP.filter(i => i.acc && own(i.id)).map(i => [i.acc, i.icon + " " + i.name])];
+  $("edOpts").innerHTML = `
+    <h2 style="margin:0 0 4px">${edFirst ? "👗 Make your character" : "👗 Avatar"}</h2>
+    <div class="lbl">Name</div><input class="txt" id="edName" value="${esc(AV.name)}" maxlength="10" style="text-transform:none;width:150px">
+    <div class="lbl">Hair style</div>${choice("hairStyle", [["long", "Long"], ["pony", "Ponytail"], ["short", "Short"]])}
+    <div class="lbl">Hair — top</div>${swatches("hairTop", HAIR_COLS)}
+    <div class="lbl">Hair — middle</div>${swatches("hairMid", HAIR_COLS)}
+    <div class="lbl">Hair — bottom</div>${swatches("hairTip", HAIR_COLS)}
+    <div class="lbl">Skin</div>${swatches("skin", SKINS)}
+    <div class="lbl">Shirt</div>${swatches("shirt", CLOTH)}<div style="margin-top:6px">Says: <input class="txt" id="edText" value="${esc(AV.shirtText)}" maxlength="5"></div>
+    <div class="lbl">Jacket</div>${swatches("jacket", ["none", ...CLOTH])}<div class="row" style="margin:6px 0">${toggle("gems", "💎 Gems on the sides")}</div>
+    <div class="lbl">Skirt</div>${choice("skirt", [["tri", "✨ Purple · blue · white"], ["solid", "Solid"], ...(own("pants") ? [["pants", "👖 Pants"]] : [])])}${AV.skirt === "solid" ? swatches("skirtA", CLOTH) : ""}<div class="row" style="margin:6px 0">${toggle("glitter", "✨ Glitter")}</div>
+    <div class="lbl">Boots</div>${swatches("boots", CLOTH)}<div class="row" style="margin:6px 0">${toggle("bootGlitter", "✨ Glitter boots")}</div>
+    <div class="lbl">Necklace</div><div class="row" style="margin:4px 0">${toggle("necklace", "📿 Necklace")}</div>${AV.necklace ? swatches("neckGem", ["#ff4fd8", "#7df9ff", "#ffd700", "#a066ff", "#ff3b5c"]) : ""}
+    <div class="lbl">Accessory ${accs.length === 1 ? "<span style='font-weight:400;text-transform:none'>(buy more at the mall 🛍)</span>" : ""}</div>${choice("acc", accs)}${own("wings") ? `<div class="row" style="margin:4px 0">${toggle("wings", "🧚 Fairy wings")}</div>` : ""}
+    <div class="row" style="margin-top:14px"><button class="btn ok" id="edDone" style="font-size:17px">${edFirst ? "🏙 Go to the city!" : "✓ Done"}</button></div>`;
+  $("edOpts").querySelectorAll("[data-k]").forEach(el => el.addEventListener("click", () => { audio(); SFX.tap(); const k = el.dataset.k; AV[k] = el.dataset.bool ? el.dataset.v === "1" : el.dataset.v; renderEditor(); }));
+  $("edName").addEventListener("input", e => { AV.name = e.target.value.slice(0, 10); });
+  $("edText").addEventListener("input", e => { AV.shirtText = e.target.value.toUpperCase().slice(0, 5); });
+  $("edDone").addEventListener("click", () => { audio(); SFX.yay(); edOpen = false; $("editor").hidden = true; save(); if (edFirst) { edFirst = false; startPlay(); } });
+}
+function drawEditorPreview() {
+  const cw = Math.round(edCv.clientWidth * 2), ch = Math.round(edCv.clientHeight * 2);
+  if (cw && (edCv.width !== cw || edCv.height !== ch)) { edCv.width = cw; edCv.height = ch; }
+  const w = edCv.width, h = edCv.height; const c2 = edCtx;
+  const gr = c2.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, "#bde0ff"); gr.addColorStop(1, "#ffd9f5"); c2.fillStyle = gr; c2.fillRect(0, 0, w, h);
+  c2.font = "40px serif"; c2.globalAlpha = .3; c2.fillText("✨", 20, 80); c2.fillText("💜", w - 60, 120); c2.fillText("⭐", 30, h - 60); c2.globalAlpha = 1;
+  const dir = Math.floor(animT / 1.6) % 4;
+  const old = ctx; ctx = c2; c2.save(); c2.translate(w / 2, h * .86); c2.scale(w / 68, w / 68); drawTeen(P, 0, 0, 0, dir, animT * 6); c2.restore(); ctx = old;
+}
+
+/* ------------------------------ title ------------------------------ */
+function showTitle() {
+  S.state = "title"; $("phoneBtn").hidden = true; ACT.hidden = true;
+  modal(`<div style="text-align:center"><div style="font-size:44px">🏙✨</div><h2 style="font-size:30px;margin:4px 0">Jules City</h2><p>A whole city to explore. Make your character, text your friends, go to the movies, buy a house… anything!</p>
+    <div class="row" style="justify-content:center">${hasSave ? `<button class="btn ok" data-act="play" style="font-size:18px">▶ Keep playing</button><button class="btn alt" data-act="newgame">🆕 New game</button>` : `<button class="btn ok" data-act="makeme" style="font-size:18px">👗 Make my character</button>`}</div>
+    <p style="color:#888;font-size:12px">by Jules 💜 · drag to walk · 📱 for your phone</p></div>`);
+}
+ACTS.play = () => { closeModal(); startPlay(); };
+ACTS.makeme = () => { closeModal(); openEditor(true); };
+ACTS.newgame = () => { if (!confirm("Start over? Your money, house, pet and outfit will reset.")) return; localStorage.removeItem(SAVE_KEY); location.reload(); };
+function startPlay() { S.state = "play"; $("phoneBtn").hidden = false; save(); toast(`Welcome to the city, ${AV.name || "Jules"}! ✨`, 3000); setTimeout(() => startTopic("mia"), 6000); setTimeout(() => startTopic("nora"), 25000); }
+
+/* ------------------------------ games menu ------------------------------ */
+const gBtn = $("gamesBtn"), gMenu = $("gamesMenu");
+gBtn.addEventListener("click", e => { e.stopPropagation(); gMenu.hidden = !gMenu.hidden; });
+document.addEventListener("pointerdown", e => { if (!gMenu.hidden && !gMenu.contains(e.target) && e.target !== gBtn) gMenu.hidden = true; });
+
+/* ------------------------------ main loop ------------------------------ */
+let last = performance.now(), nextMsg = 45, nextCall = 150;
+function paused() { return !MODAL.hidden || !$("phone").hidden || edOpen; }
+function update(dt) {
+  animT += dt;
+  if (S.state !== "play") return;
+  const prevDay = S.day; S.time += dt; S.day = 1 + Math.floor(S.time / DAY_LEN);
+  if (S.day !== prevDay) { toast(`🌅 Day ${S.day}! Allowance is ready at the bank 🏦`, 3000); save(); }
+  if (!paused()) { updatePlayer(dt); }
+  if (S.scene === "city") { updateNpcs(dt); updateCars(dt); }
+  for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt; f.vz -= 9 * dt; f.t -= dt; if (f.t <= 0 || f.z < 0) fx.splice(i, 1); }
+  for (let i = speech.length - 1; i >= 0; i--) { const s = speech[i]; s.t -= dt; if (s.e) { s.x = s.e.x; s.y = s.e.y; } if (s.t <= 0) speech.splice(i, 1); }
+  nextMsg -= dt; if (nextMsg <= 0) { nextMsg = rnd(50, 100); startTopic(pick(FRIENDS).id); }
+  nextCall -= dt; if (nextCall <= 0) { nextCall = rnd(200, 320); ringIncoming(); }
+  updateAction();
+  taps.length = 0;
+}
+function drawSky() {
+  const n = nightAmount(); const top = n > .3 ? "#1a1a4a" : "#7cc4ff", bot = n > .3 ? "#3a2a6a" : "#bde0ff";
+  const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, top); gr.addColorStop(1, bot); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+}
+function frameLoop(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  update(dt);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawSky();
+  ctx = g; drawScene(); drawNight();
+  if (S.state === "play") drawHUD();
+  if (edOpen) drawEditorPreview();
+  const st = $("stTime"); if (!$("phone").hidden) st.textContent = clockText();
+  requestAnimationFrame(frameLoop);
+}
+showTitle();
+requestAnimationFrame(frameLoop);
+</script>
+</body>
+</html>
