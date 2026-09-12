@@ -56,7 +56,9 @@
    back tomorrow, tap CONTINUE and pick up right where you left off.
    Finish the whole village and the fence gate swings open onto RAINBOW LAND:
    striped ground, candy trees, a giant rainbow, and a Rainbow Restaurant to
-   build — but more (and faster, candy-coloured) zombies come every night. */
+   build — but more (and faster, candy-coloured) zombies come every night.
+   Once the restaurant opens, customers walk in by day, eat a cake at a table
+   and leave a coin 🪙 for you to collect. */
 
 const cv = document.getElementById("game");
 const g  = cv.getContext("2d");
@@ -119,6 +121,7 @@ const SFX = {
   win:     () => { [523, 659, 784, 1046, 784, 1046, 1318].forEach((f, i) => tone(f, .22, "square", .11, 0, i * .13)); },
   faint:   () => { [330, 294, 262, 196].forEach((f, i) => tone(f, .3, "square", .1, 0, i * .22)); },
   click:   () => tone(880, .05, "square", .07),
+  coin:    () => { tone(988, .08, "square", .09); tone(1319, .16, "square", .09, 0, .08); },
   whimper: () => { tone(900, .18, "sine", .07, -300); tone(700, .2, "sine", .06, -250, .22); },
   found:   () => { [784, 988, 1175, 1568].forEach((f, i) => tone(f, .16, "triangle", .1, 0, i * .08)); },
 };
@@ -182,7 +185,7 @@ function shade(col, k) {   // k>1 lighter, k<1 darker; accepts #hex or rgb(...)
 const MW = 56, MH = 34;         // tiles across (x) and down (y): the home side, a fence, then rainbow land
 const FENCE_X = 33;             // the fence runs down this column; everything past it is rainbow land
 const T = { GRASS: 0, WATER: 1, PATH: 2, PLANK: 3 };
-let tiles = [], solid = [], trees = [], logs = [], zombies = [], parts = [], fx = [], drops = [];
+let tiles = [], solid = [], trees = [], logs = [], zombies = [], parts = [], fx = [], drops = [], coins = [], customers = [];
 const HOUSE = { x: 14, y: 13, w: 5, h: 5 };                    // house footprint
 const SQUARE = { x: HOUSE.x + 6, y: HOUSE.y + 1, w: 2, h: 2 };  // the wood square
 const STAGES = [
@@ -256,6 +259,48 @@ function nearestSquare(e) {   // where a helper takes a log: the home square, or
   return S.gate && Math.hypot(b.x - e.x, b.y - e.y) < Math.hypot(a.x - e.x, a.y - e.y) ? b : a;
 }
 function hasR(key) { return RAINBOW.slice(0, S.rb).some(s => s.key === key); }
+function restoOpen() { return S.rb >= RAINBOW.length; }
+// 🍰 customers: once the restaurant is open they come by day, sit on a chair, eat a cake and leave a coin
+const SEATS = [];   // the four chair spots, matching the chairs drawn in drawRestoInside
+for (const tx of [RESTO.x + 1.2, RESTO.x + 3.6]) { SEATS.push({ x: tx - .2, y: RESTO.y + 2.95 }); SEATS.push({ x: tx + .9, y: RESTO.y + 2.95 }); }
+const COIN_MILESTONES = [10, 25, 50, 100, 200];
+function restoLively() { return inResto(Math.floor(P.x), Math.floor(P.y)) || customers.some(c => c.state === "sit"); }   // show the inside
+function freeSeat() { for (let i = 0; i < SEATS.length; i++) if (!customers.some(c => c.seat === i)) return i; return -1; }
+function custSpot() {   // most customers arrive from the rainbow side; some walk through the village and the gate
+  if (Math.random() < .25) return edgeSpot();
+  const side = ri(0, 2);
+  if (side === 0) return { x: MW - 1.5, y: rnd(2, MH - 2) };
+  return { x: rnd(FENCE_X + 2, MW - 2), y: side === 1 ? 1.5 : MH - 1.5 };
+}
+function spawnCustomer(seat) {
+  const c = makeChar([]); c.customer = true; c.state = "come"; c.seat = seat; c.life = 0; c.hp = 99;
+  let e = custSpot(); for (let i = 0; i < 20 && blocked(e.x, e.y); i++) e = custSpot();
+  c.x = e.x; c.y = e.y; c.ex = e.x; c.ey = e.y;
+  customers.push(c);
+}
+function updateCustomers(dt) {
+  const open = restoOpen() && S.phase === "day";
+  if (open) {
+    S.custT -= dt;
+    if (S.custT <= 0) { S.custT = rnd(9, 16); const seat = freeSeat(); if (seat >= 0) spawnCustomer(seat); }
+  }
+  for (let i = customers.length - 1; i >= 0; i--) {
+    const c = customers[i]; c.life += dt;
+    if (c.state !== "leave" && !open) { c.state = "leave"; c.seat = -1; c.life = 0; c.path = null; }   // closing time
+    if (c.state === "come") {
+      const s = SEATS[c.seat];
+      if (goTo(c, s.x, s.y, 2.6, dt) || Math.hypot(s.x - c.x, s.y - c.y) < .3) { c.state = "sit"; c.x = s.x; c.y = s.y; c.eat = c.eatT = rnd(6, 10); c.walk = 0; c.dir = 1; c.path = null; }
+      else if (c.life > 60) { c.state = "leave"; c.seat = -1; c.life = 0; }   // couldn't get in — wander home
+    } else if (c.state === "sit") {
+      c.eat -= dt; c.walk = 0; c.bob = Math.abs(Math.sin(S.t * 6)) * .04;   // munching
+      if (c.eat <= 0) {
+        coins.push({ x: c.x, y: c.y, t: rnd(0, 6) }); SFX.coin(); boom(c.x, c.y, "#ff6b9d", 6, 3);
+        if (Math.hypot(c.x - P.x, c.y - P.y) < 14) say(c.name + " loved the cake and left a coin! 🪙", 2.5);
+        c.state = "leave"; c.seat = -1; c.life = 0; c.path = null;
+      }
+    } else if (goTo(c, c.ex, c.ey, 2.8, dt) || Math.hypot(c.ex - c.x, c.ey - c.y) < 1.2 || c.life > 45) customers.splice(i, 1);
+  }
+}
 function inBarn(x, y) { return x >= BARN.x && x < BARN.x + BARN.w && y >= BARN.y && y < BARN.y + BARN.h; }
 function onBarnRing(x, y) { return inBarn(x, y) && (x === BARN.x || y === BARN.y || x === BARN.x + BARN.w - 1 || y === BARN.y + BARN.h - 1); }
 function hasX(key) { return EXTRAS.slice(0, S.extra).some(s => s.key === key); }
@@ -264,7 +309,8 @@ const S = { state: "title", built: 0, pile: 0, day: 1, clock: 0, phase: "day", t
   flash: 0, thunderT: 0, msg: "", msgT: 0, prompt: null, fade: 0, fadeMode: "", won: false, wonT: 0,
   spawnT: 0, builder: null, buildProg: 0, nightsSurvived: 0, bunks: 0, extra: 0, petBeds: 0, buildSpot: null,
   saveT: 8, savedT: 0, confirm: false,     // autosave countdown, "💾 saved" flash, "start over?" question on the title
-  gate: 0, gateT: 0, rb: 0, winKind: "house" };   // fence gate open?, seconds since it opened, restaurant stages built, which win screen
+  gate: 0, gateT: 0, rb: 0, winKind: "house",     // fence gate open?, seconds since it opened, restaurant stages built, which win screen
+  coins: 0, custT: 6 };                            // coins collected, seconds until the next customer
 const DAY_LEN = 75, DUSK_LEN = 8, NIGHT_LEN = 55, DAWN_LEN = 7;
 
 function inHouse(x, y) { return x >= HOUSE.x && x < HOUSE.x + HOUSE.w && y >= HOUSE.y && y < HOUSE.y + HOUSE.h; }
@@ -279,7 +325,7 @@ function nextStage() {
 }
 
 function genWorld() {
-  tiles = []; solid = []; trees = []; logs = []; zombies = []; fx = []; drops = []; pets = [];
+  tiles = []; solid = []; trees = []; logs = []; zombies = []; fx = []; drops = []; pets = []; coins = []; customers = [];
   for (let y = 0; y < MH; y++) { tiles.push([]); solid.push([]); for (let x = 0; x < MW; x++) { tiles[y].push(T.GRASS); solid[y].push(false); } }
   // a little pond
   const px = ri(4, 8), py = ri(20, 26);
@@ -503,7 +549,7 @@ function startGame() {
   genWorld();
   S.state = "play"; S.built = 0; S.pile = 0; S.day = 1; S.clock = 0; S.phase = "day"; S.rain = 0; S.rainT = rnd(25, 60);
   S.flash = 0; S.msgT = 0; S.prompt = null; S.fade = 0; S.won = false; S.builder = null; S.buildProg = 0; S.nightsSurvived = 0; S.bunks = 0; S.extra = 0; S.petBeds = 0; S.buildSpot = null;
-  S.gate = 0; S.gateT = 0; S.rb = 0; S.winKind = "house";
+  S.gate = 0; S.gateT = 0; S.rb = 0; S.winKind = "house"; S.coins = 0; S.custT = 6;
   helpers.length = 2;   // a fresh game starts with the two original helpers
   P.x = HOUSE.x + 2.5; P.y = HOUSE.y + HOUSE.h + 2.5; P.hp = P.maxHp; P.wood = 0; P.dir = 1;
   cam.x = P.x; cam.y = P.y;
@@ -552,12 +598,13 @@ function snapshot() {
     v: SAVE_VER, at: Date.now(),
     s: { built: S.built, pile: S.pile, day: S.day, clock: S.clock, phase: S.phase, rain: S.rain, rainT: S.rainT, thunderT: S.thunderT,
          nightsSurvived: S.nightsSurvived, bunks: S.bunks, extra: S.extra, petBeds: S.petBeds, won: S.won,
-         gate: S.gate, gateT: S.gateT, rb: S.rb, winKind: S.winKind },
+         gate: S.gate, gateT: S.gateT, rb: S.rb, winKind: S.winKind, coins: S.coins },
     tiles: tiles.map(r => r.join("")).join(""),
     trees: trees.map(t => ({ x: t.x, y: t.y, hp: t.hp, big: t.big, tone: t.tone, stump: Math.max(0, t.stump), col: t.col })),
     logs: logs.map(l => ({ x: l.x, y: l.y })),
     p: charData(P), helpers: helpers.map(charData),
     pets: pets.map(p => ({ kind: p.kind, state: p.state, x: p.x, y: p.y })),
+    coins: coins.map(c => ({ x: c.x, y: c.y })),
   };
 }
 function saveGame(show) {
@@ -602,9 +649,10 @@ function restoreGame(d) {   // rebuild the whole world from a save; nothing chan
       c.x = p.x; c.y = p.y; pos(c, BARN.x + 2, BARN.y + 2); return c;
     });
     const nlogs = (Array.isArray(d.logs) ? d.logs : []).map(l => ({ x: clamp(+l.x || 0, 1, MW - 1), y: clamp(+l.y || 0, 1, MH - 1), z: 0, vz: 0, bounce: 0, t: 0 }));
+    const ncoins = (Array.isArray(d.coins) ? d.coins : []).map(c => ({ x: clamp(+c.x || 0, 1, MW - 1), y: clamp(+c.y || 0, 1, MH - 1), t: rnd(0, 6) }));
     const s = d.s || {};
     // everything parsed fine — now swap it all in at once
-    tiles = nt; solid = ns; trees = ntrees; logs = nlogs; zombies = []; fx = []; drops = []; pets = npets; P = np; helpers = nh;
+    tiles = nt; solid = ns; trees = ntrees; logs = nlogs; zombies = []; fx = []; drops = []; pets = npets; P = np; helpers = nh; coins = ncoins; customers = [];
     S.built = clamp(s.built | 0, 0, STAGES.length); S.extra = clamp(s.extra | 0, 0, EXTRAS.length); S.pile = Math.max(0, s.pile | 0);
     S.day = Math.max(1, s.day | 0); S.phase = ["day", "dusk", "night", "dawn"].includes(s.phase) ? s.phase : "day"; S.clock = Math.max(0, +s.clock || 0);
     S.rain = s.rain ? 1 : 0; S.rainT = +s.rainT || rnd(25, 60); S.thunderT = +s.thunderT || rnd(2, 6);
@@ -613,6 +661,7 @@ function restoreGame(d) {   // rebuild the whole world from a save; nothing chan
     // the gate: saved as-is, or (older save) open if the village was already finished — that one gets the opening show on CONTINUE
     S.gate = old ? (S.extra >= EXTRAS.length ? 1 : 0) : (s.gate ? 1 : 0); S.gateT = old ? 0 : Math.max(0, +s.gateT || 0);
     S.rb = S.gate ? clamp(s.rb | 0, 0, RAINBOW.length) : 0; S.winKind = s.winKind === "resto" ? "resto" : "house";
+    S.coins = Math.max(0, s.coins | 0); S.custT = 6;
     S.builder = null; S.buildProg = 0; S.buildSpot = null; S.prompt = null; S.msgT = 0; S.fade = 0; S.spawnT = 0; S.flash = 0; S.saveT = 8; S.savedT = 0;
     P.onBed = has("bed") && Math.floor(P.x) === BED.x && Math.floor(P.y) === BED.y;   // no surprise "sleep?" pop-up on arrival
     rebuildHouseSolids();
@@ -691,11 +740,12 @@ function update() {
   }
   advanceClock(dt);
   updateWeather(dt);
-  unstick(P); helpers.forEach(unstick); zombies.forEach(unstick); pets.forEach(unstick);
+  unstick(P); helpers.forEach(unstick); zombies.forEach(unstick); pets.forEach(unstick); customers.forEach(unstick);
   updatePlayer(dt);
   updateLogs(dt);
   updateHelpers(dt);
   updatePets(dt);
+  updateCustomers(dt);
   updateZombies(dt);
   updateBuild(dt);
   trees.forEach(t => { if (t.shake > 0) t.shake -= dt; if (t.stump > 0) { t.stump -= dt; if (t.stump <= 0 && [P, ...helpers, ...zombies].some(e => Math.hypot(e.x - t.x - .5, e.y - t.y - .5) < .9)) t.stump = 2; if (t.stump <= 0) { t.hp = 3; solid[t.y][t.x] = true; boom(t.x + .5, t.y + .5, "#6ad06a", 8, 3); } } });
@@ -734,6 +784,13 @@ function updatePlayer(dt) {
   const tx = Math.floor(P.x), ty = Math.floor(P.y);
   if (inAnySquare(tx, ty) && P.wood > 0) { S.pile += P.wood; SFX.drop(); boom(P.x, P.y, "#c8944a", 6, 3); say(P.wood === 2 ? "Two logs on the pile! 🪵🪵" : "One log on the pile! 🪵", 1.5); P.wood = 0; checkStage(); }
   if (P.wood < 2) for (let i = logs.length - 1; i >= 0; i--) { const l = logs[i]; if (l.z < .3 && Math.hypot(l.x - P.x, l.y - P.y) < .55) { logs.splice(i, 1); P.wood++; SFX.pick(); if (P.wood === 2) say("Hands full! Take it to the yellow square.", 2); break; } }
+  // coins left by customers
+  for (let i = coins.length - 1; i >= 0; i--) {
+    const c = coins[i]; if (Math.hypot(c.x - P.x, c.y - P.y) > .6) continue;
+    coins.splice(i, 1); S.coins++; SFX.coin(); boom(P.x, P.y, "#ffd93b", 8, 4);
+    if (COIN_MILESTONES.includes(S.coins)) say("🎉 " + S.coins + " coins! The Rainbow Restaurant is famous!", 4);
+    else say("🪙 " + S.coins + (S.coins === 1 ? " coin!" : " coins!"), 1.2);
+  }
   // bed
   if (has("bed") && tx === BED.x && ty === BED.y && !P.onBed) {
     P.onBed = true;
@@ -1170,9 +1227,21 @@ function drawGate() {
   cube(x + .42, y + .95 - len, .1, out, len, 1, "#d98c2b", { top: "#f0a848" });
   if (!S.gate) cube(x + .3, y + .3, 1.35, .4, .4, .35, "#ffd166", { top: "#fff0a0" });   // a padlock on top while shut
 }
+function drawCustomer(c) {
+  drawChar(c);
+  if (c.state === "sit") {   // the cake in their hands shrinks as they munch
+    const layers = Math.max(1, Math.ceil(3 * c.eat / c.eatT)), z0 = c.type === "kid" ? 1.25 : 1.05;
+    for (let l = 0; l < layers; l++) cube(c.x - .2 + l * .03, c.y + .18 + l * .03, z0 + l * .1, .36 - l * .06, .3 - l * .06, .1, RB[(c.seat * 2 + l) % 7]);
+  }
+}
+function drawCoin(c) {
+  const z = .12 + Math.abs(Math.sin(S.t * 3 + c.t)) * .12;
+  cube(c.x - .16, c.y - .16, z, .32, .32, .1, "#e0a800", { top: "#ffd93b" });
+  cube(c.x - .06, c.y - .06, z + .1, .12, .12, .02, "#c98f00", { top: "#e6b400" });
+}
 function drawRestoTile(x, y) {
   if (!hasR("rwalls")) return;
-  const inside = inResto(Math.floor(P.x), Math.floor(P.y));
+  const inside = restoLively();   // see-through while you're inside, or while customers are eating
   const front = x === RESTO.x + RESTO.w - 1 || y === RESTO.y + RESTO.h - 1, wa = front && inside ? .22 : undefined;
   const col = RB[(x + y) % RB.length];
   if (x === RDOOR.x && y === RDOOR.y) {
@@ -1187,7 +1256,7 @@ function drawRestoTile(x, y) {
 }
 function drawRestoRoof() {
   if (!hasR("rroof")) return;
-  const alpha = inResto(Math.floor(P.x), Math.floor(P.y)) ? .12 : 1;
+  const alpha = restoLively() ? .12 : 1;
   cube(RESTO.x - .2, RESTO.y - .2, 2, RESTO.w + .4, RESTO.h + .4, .3, "#ff5c8a", { alpha });
   cube(RESTO.x + .5, RESTO.y + .5, 2.3, RESTO.w - 1, RESTO.h - 1, .35, "#ffd60a", { alpha });
   cube(RESTO.x + 1.2, RESTO.y + 1.2, 2.65, RESTO.w - 2.4, RESTO.h - 2.4, .35, "#3a86ff", { alpha });
@@ -1274,6 +1343,8 @@ function drawScene() {
   for (let y = BARN.y; y < BARN.y + BARN.h; y++) for (let x = BARN.x; x < BARN.x + BARN.w; x++) if (onBarnRing(x, y)) q(x + y + 1, () => drawBarnTile(x, y));
   for (let i = 0; i < S.petBeds; i++) { const p = PET_BEDS[i]; q(p.x + p.y + 1.2, () => drawPetBed(i)); }
   for (const p of pets) q(p.x + p.y + .6, () => drawPet(p));
+  for (const c of customers) q(c.x + c.y + .6, () => drawCustomer(c));
+  for (const c of coins) q(c.x + c.y + .6, () => drawCoin(c));
   q(BARN.x + BARN.y + BARN.w + BARN.h + .5, drawBarnRoof);
   for (let i = 0; i < S.bunks; i++) { const p = BUNK_POS[i % BUNK_POS.length]; q(p.x + p.y + 1.2 + (i >= BUNK_POS.length ? .01 : 0), () => drawBunk(i)); }
   q(SQUARE.x + SQUARE.y + 2, drawPile);
@@ -1352,7 +1423,7 @@ function drawHUD() {
   const st = nextStage();
   row(["🪵 " + P.wood + "/2 carrying", "pile: " + S.pile, st ? "next: " + (st.short || st.name) + " (" + st.cost + ")" : S.gate ? "🏆 everything is built — keep everyone safe!" : "🏆 the whole village is finished!"]);
   const ph = S.phase === "day" ? "☀️ Day " + S.day : S.phase === "dusk" ? "🌇 Evening" : S.phase === "night" ? "🌙 Night " + S.day : "🌅 Dawn";
-  row([ph + (S.rain ? "  ⛈" : ""), "you are " + P.label]);
+  row([ph + (S.rain ? "  ⛈" : ""), "you are " + P.label].concat(restoOpen() ? ["🪙 " + S.coins] : []));
   // house progress bar
   const pw = Math.min(240, W - 40), px = 10, py = y + 4;
   g.fillStyle = "rgba(0,0,0,.4)"; roundRect(px, py, pw, 16, 8); g.fill();
@@ -1360,7 +1431,7 @@ function drawHUD() {
   y = py + 22;
   g.font = "bold 12px 'Avenir Next','Trebuchet MS',Arial";
   if (S.built >= STAGES.length) { g.fillStyle = "#fff"; g.fillText("🛏 bunks " + S.bunks + "/" + MAX_BUNKS + "   👫 helpers " + helpers.length + "   🐾 pets home " + pets.filter(p => p.state === "home").length + "/" + PET_KINDS.length, px, y + 6, maxW); y += 18; }
-  if (S.gate) { g.fillStyle = "#fff"; g.fillText("🌈 restaurant " + S.rb + "/" + RAINBOW.length + (S.rb >= RAINBOW.length ? " — OPEN! 🍰" : ""), px, y + 6, maxW); y += 18; }
+  if (S.gate) { const eating = customers.filter(c => c.state === "sit").length; g.fillStyle = "#fff"; g.fillText("🌈 restaurant " + S.rb + "/" + RAINBOW.length + (restoOpen() ? " — OPEN! 🍰" + (eating ? "  " + eating + " eating" : S.phase === "day" ? "  waiting for customers…" : "  closed for the night") : ""), px, y + 6, maxW); y += 18; }
   const lost = pets.find(p => p.state !== "home");
   if (lost) { g.fillStyle = "#ffd166"; g.fillText(lost.state === "lost" ? "🐾 " + lost.label + " is lost in the forest! Follow the paw prints" : "🐾 bring " + lost.name + " to the barn!", px, y + 6, maxW); y += 18; }
   if (S.builder) { g.fillStyle = "#fff"; g.fillText("🔨 " + S.builder.name + " is building… stand close + 🪓 to help", px, y + 6, maxW); }
@@ -1420,7 +1491,7 @@ function drawWin() {
   g.fillStyle = "#fff"; g.textAlign = "center"; g.font = "bold 44px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(resto ? "🌈 THE RAINBOW RESTAURANT IS OPEN! 🍰" : "🏠 YOU BUILT THE HOUSE! 🎉", W / 2, H / 2 - 30, W - 30);
   g.font = "bold 22px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(resto ? P.name + " and the crew built a whole rainbow land!" : P.name + " and the helpers did it!", W / 2, H / 2 + 14, W - 30);
   if (t > 1.2) { g.fillStyle = "#ffd166"; g.font = "bold 20px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("Tap to keep playing!", W / 2, H / 2 + 60, W - 30);
-    g.fillStyle = "#fff"; g.font = "bold 16px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(resto ? "More zombies come every night now — keep everyone safe! 🧟🧟" : "Next: bunk beds, a barn for lost pets, and an upstairs! 🛏🐾🏠", W / 2, H / 2 + 90, W - 30); }
+    g.fillStyle = "#fff"; g.font = "bold 16px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(resto ? "Customers are coming for cake — collect their coins! 🪙 (and more zombies at night 🧟)" : "Next: bunk beds, a barn for lost pets, and an upstairs! 🛏🐾🏠", W / 2, H / 2 + 90, W - 30); }
 }
 
 /* ------------------------------ title ------------------------------ */
@@ -1444,7 +1515,7 @@ function drawTitle() {
   g.fillStyle = "#fff"; g.font = "bold 15px 'Avenir Next','Trebuchet MS',Arial";
   const home = pets.filter(p => p.state === "home").length;
   g.fillText(S.confirm ? "Day " + S.day + " with " + P.name + " and the whole house will be gone!"
-    : SAVED ? "Day " + S.day + " · " + P.label + " · " + helpers.length + " helpers" + (home ? " · " + home + " pets home" : "")
+    : SAVED ? "Day " + S.day + " · " + P.label + " · " + helpers.length + " helpers" + (home ? " · " + home + " pets home" : "") + (S.coins ? " · 🪙 " + S.coins : "")
     : "helpers: " + helpers[0].name + " & " + helpers[1].name, W / 2, H * .72 + 26, W - 30);
   for (const b of titleBtns()) { g.fillStyle = b.act === "wipe" ? "#e63946" : b.main ? "#06d6a0" : "rgba(255,255,255,.18)"; roundRect(b.x, b.y, b.w, b.h, 16); g.fill(); g.fillStyle = "#fff"; g.font = "bold 20px 'Avenir Next','Trebuchet MS',Arial"; g.fillText(b.t, b.x + b.w / 2, b.y + b.h / 2 + 7); }
   if (!S.confirm) { g.fillStyle = "rgba(255,255,255,.6)"; g.font = "bold 12px 'Avenir Next','Trebuchet MS',Arial"; g.fillText("💾 your world saves itself while you play", W / 2, Math.min(H - 12, H * .8 + 134), W - 30); }
