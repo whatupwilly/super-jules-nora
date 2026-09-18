@@ -2,2108 +2,621 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#08081a">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="mobile-web-app-capable" content="yes">
-<title>Super Young Sisters</title>
+<meta name="description" content="Super Young Sisters — a little arcade of 13 games built by Jules and Nora. Platformers, kart racing, tennis, city life, zombie survival and more. No downloads, no ads, just tap and play.">
+<title>Super Young Sisters — The Arcade</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  #game, .btn, #verlink, #verlink a { touch-action:none; }
-  html, body {
-    width:100%; height:100%; overflow:hidden; background:#5c94fc;
-    touch-action:none; -webkit-user-select:none; user-select:none;
-    -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent;
-    font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;
-    position:fixed;
+  :root {
+    --ink:#f6f4ff;
+    --dim:#a7a3c8;
+    --panel:rgba(255,255,255,.055);
+    --edge:rgba(255,255,255,.12);
+    --pink:#ff5fa2;
+    --violet:#8b5cf6;
+    --cyan:#35d6ff;
+    --lime:#7ef29d;
+    --gold:#ffd166;
+    --shell:min(1180px, 100%);
   }
-  #game { display:block; width:100%; height:100%; image-rendering:pixelated; }
-  #verlink {
-    position:fixed; right:14px; top:max(14px, env(safe-area-inset-top)); z-index:20; display:none;
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html { scroll-behavior:smooth; }
+  body {
+    background:#08081a;
+    color:var(--ink);
+    font-family:"Avenir Next","Trebuchet MS","Helvetica Neue",Arial,sans-serif;
+    line-height:1.55;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
   }
-  #verlink a {
-    color:#fff; font-weight:700; font-size:14px; text-decoration:none;
-    background:rgba(0,0,0,.32); padding:7px 14px; border-radius:16px; margin-left:8px;
+
+  /* ---------- animated backdrop ---------- */
+  #sky { position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+  #sky .blob {
+    position:absolute; border-radius:50%; filter:blur(90px); opacity:.55;
+    animation:drift 26s ease-in-out infinite;
   }
+  #sky .b1 { width:62vw; height:62vw; left:-18vw; top:-22vw; background:#6d28d9; }
+  #sky .b2 { width:54vw; height:54vw; right:-16vw; top:-8vw; background:#db2777; animation-delay:-7s; }
+  #sky .b3 { width:58vw; height:58vw; left:18vw; top:48vh; background:#0891b2; animation-delay:-14s; }
+  #sky .b4 { width:40vw; height:40vw; right:-6vw; top:86vh; background:#c2410c; opacity:.4; animation-delay:-20s; }
+  #sky .grid {
+    position:absolute; inset:0;
+    background-image:linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size:64px 64px;
+    mask-image:radial-gradient(ellipse at 50% 0%, #000 0%, transparent 72%);
+    -webkit-mask-image:radial-gradient(ellipse at 50% 0%, #000 0%, transparent 72%);
+  }
+  @keyframes drift {
+    0%,100% { transform:translate3d(0,0,0) scale(1); }
+    33%     { transform:translate3d(6vw,4vh,0) scale(1.12); }
+    66%     { transform:translate3d(-5vw,-3vh,0) scale(.93); }
+  }
+
+  .shell { width:var(--shell); margin:0 auto; padding:0 20px; position:relative; z-index:2; }
+
+  /* ---------- top bar ---------- */
+  header {
+    position:sticky; top:0; z-index:40;
+    padding:12px 0; backdrop-filter:blur(14px);
+    background:linear-gradient(180deg, rgba(8,8,26,.9), rgba(8,8,26,.35));
+    border-bottom:1px solid rgba(255,255,255,.07);
+  }
+  header .shell { display:flex; align-items:center; gap:12px; }
+  .brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--ink); font-weight:900; letter-spacing:.01em; }
+  .brand .cab {
+    width:34px; height:34px; flex:none; border-radius:11px; display:grid; place-items:center; font-size:18px;
+    background:linear-gradient(140deg,var(--pink),var(--violet)); box-shadow:0 6px 18px rgba(139,92,246,.45);
+  }
+  .brand b { font-size:15px; }
+  .brand span { display:block; font-size:10px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); }
+  header nav.links { margin-left:auto; display:flex; gap:4px; }
+  header nav.links a {
+    color:var(--dim); text-decoration:none; font-weight:800; font-size:13px;
+    padding:8px 12px; border-radius:999px;
+  }
+  header nav.links a:hover { color:var(--ink); background:rgba(255,255,255,.08); }
+  @media (max-width:760px){ header nav.links { display:none; } }
+
+  /* ---------- quick jump menu (same as in the games) ---------- */
+  #verlink { position:relative; margin-left:auto; }
+  header nav.links + #verlink { margin-left:8px; }
+  #gamesBtn {
+    font:800 13px "Avenir Next","Trebuchet MS",Arial,sans-serif; color:#fff; cursor:pointer;
+    background:linear-gradient(135deg,rgba(255,95,162,.9),rgba(139,92,246,.9));
+    border:2px solid rgba(255,255,255,.35);
+    border-radius:999px; padding:8px 15px; -webkit-user-select:none; user-select:none;
+    box-shadow:0 6px 18px rgba(139,92,246,.4);
+  }
+  #gamesMenu[hidden] { display:none; }
+  #gamesMenu {
+    position:absolute; right:0; top:calc(100% + 8px); background:#fff;
+    border-radius:14px; padding:8px; min-width:196px; max-height:72vh; overflow:auto;
+    box-shadow:0 18px 44px rgba(0,0,0,.5);
+    display:flex; flex-direction:column; gap:2px; z-index:50;
+  }
+  #gamesMenu b { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#8a94a6; margin:6px 8px 2px; font-weight:800; }
+  #gamesMenu a { display:block; padding:7px 10px; border-radius:9px; color:#2a3a55; text-decoration:none; font-weight:700; font-size:14px; }
+  #gamesMenu a:hover, #gamesMenu a:active { background:#eef3fb; }
+  #gamesMenu a.here { background:linear-gradient(90deg,#ffe8f4,#e6f0ff); color:#5b3fa8; }
+
+  /* ---------- hero ---------- */
+  .hero { padding:64px 0 34px; text-align:center; }
+  .eyebrow {
+    display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:800;
+    letter-spacing:.14em; text-transform:uppercase; color:#ffd9ea;
+    background:rgba(255,95,162,.14); border:1px solid rgba(255,95,162,.4);
+    padding:7px 15px; border-radius:999px; margin-bottom:22px;
+  }
+  .eyebrow .dot { width:7px; height:7px; border-radius:50%; background:var(--lime); box-shadow:0 0 10px var(--lime); animation:pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity:.25; } }
+
+  h1.wordmark {
+    font-size:clamp(40px, 10.5vw, 104px); line-height:.92; font-weight:900;
+    letter-spacing:-.03em; text-transform:uppercase; margin-bottom:6px;
+    background:linear-gradient(100deg,#fff 6%,var(--gold) 26%,var(--pink) 48%,var(--violet) 68%,var(--cyan) 88%);
+    background-size:220% 100%;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:sweep 9s linear infinite;
+    filter:drop-shadow(0 8px 34px rgba(139,92,246,.45));
+  }
+  @keyframes sweep { to { background-position:220% 0; } }
+  .hero .sub {
+    font-size:clamp(16px,2.4vw,21px); color:#d7d3f2; max-width:640px; margin:16px auto 0; font-weight:600;
+  }
+  .hero .sub em { color:var(--gold); font-style:normal; font-weight:800; }
+
+  .cta { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:30px; }
   .btn {
-    position:fixed; bottom:max(18px, env(safe-area-inset-bottom));
-    width:72px; height:72px; border-radius:50%;
-    background:rgba(255,255,255,.22); border:3px solid rgba(255,255,255,.55);
-    color:#fff; font-size:30px; font-weight:800; text-align:center; line-height:66px;
-    z-index:10; display:none; backdrop-filter:blur(2px);
+    display:inline-flex; align-items:center; gap:9px; text-decoration:none; font-weight:900; font-size:16px;
+    padding:14px 26px; border-radius:999px; transition:transform .16s ease, box-shadow .16s ease;
   }
-  .btn.pressed { background:rgba(255,255,255,.55); }
-  .btn { transition: opacity .6s; }
-  .btn.faded { opacity:.14; }
-  .btn.faded.pressed { opacity:.5; }
-  #btnL { left:max(16px, env(safe-area-inset-left)); }
-  #btnR { left:calc(max(16px, env(safe-area-inset-left)) + 90px); }
-  #btnJ { right:max(16px, env(safe-area-inset-right)); width:88px; height:88px; line-height:80px; font-size:22px; }
-  #btnF { right:calc(max(16px, env(safe-area-inset-right)) + 106px); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 8px); font-size:16px; background:rgba(255,120,80,.3); border-color:rgba(255,180,120,.65); }
-  #btnD { left:50%; transform:translateX(-50%); bottom:calc(max(18px, env(safe-area-inset-bottom)) + 96px); width:84px; height:84px; line-height:78px; font-size:30px; background:rgba(120,200,255,.4); border-color:rgba(190,235,255,.8); }
-  #btnD.pressed { background:rgba(120,200,255,.7); }
-  #btnX { top:max(14px, env(safe-area-inset-top)); right:max(16px, env(safe-area-inset-right));
-    bottom:auto; left:auto; width:auto; height:auto; line-height:1; border-radius:18px;
-    padding:11px 18px; font-size:16px; font-weight:800;
-    background:rgba(255,90,126,.62); border-color:rgba(255,200,215,.85); }
-  #btnX.pressed { background:rgba(255,90,126,.9); }
+  .btn.primary {
+    color:#1a0a22; background:linear-gradient(135deg,var(--gold),var(--pink) 60%,var(--violet));
+    box-shadow:0 12px 30px rgba(255,95,162,.4);
+  }
+  .btn.ghost { color:var(--ink); background:rgba(255,255,255,.08); border:1px solid var(--edge); }
+  .btn:hover { transform:translateY(-2px); }
+  .btn.primary:hover { box-shadow:0 16px 40px rgba(255,95,162,.55); }
+
+  .stats { display:flex; flex-wrap:wrap; justify-content:center; gap:10px 34px; margin-top:44px; }
+  .stat { text-align:center; min-width:96px; }
+  @media (max-width:480px){
+    .stats { gap:6px 14px; }
+    .stat { min-width:0; flex:1; }
+    .stat span { font-size:10px; letter-spacing:.08em; }
+  }
+  .stat b { display:block; font-size:clamp(24px,4.4vw,34px); font-weight:900; letter-spacing:-.02em;
+    background:linear-gradient(120deg,var(--cyan),var(--lime)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .stat span { font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); }
+
+  /* ---------- section framing ---------- */
+  section { padding:44px 0; }
+  .sec-head { display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; margin-bottom:22px; }
+  .sec-head h2 {
+    font-size:clamp(22px,3.6vw,32px); font-weight:900; letter-spacing:-.02em;
+    display:flex; align-items:center; gap:11px;
+  }
+  .sec-head p { color:var(--dim); font-size:14px; font-weight:600; margin-left:auto; max-width:420px; }
+  @media (max-width:700px){ .sec-head p { margin-left:0; } }
+
+  /* ---------- featured ---------- */
+  .featured { display:grid; grid-template-columns:1.45fr 1fr 1fr; gap:16px; }
+  @media (max-width:880px){ .featured { grid-template-columns:1fr; } }
+  .feat {
+    position:relative; overflow:hidden; border-radius:22px; text-decoration:none; color:#fff;
+    min-height:210px; display:flex; flex-direction:column; justify-content:flex-end;
+    padding:22px; border:1px solid var(--edge); isolation:isolate;
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .feat:first-child { min-height:300px; }
+  .feat::before {
+    content:""; position:absolute; inset:0; z-index:-2; background:var(--art);
+    transition:transform .4s ease;
+  }
+  .feat::after {
+    content:""; position:absolute; inset:0; z-index:-1;
+    background:linear-gradient(180deg, rgba(6,6,20,0) 24%, rgba(6,6,20,.86) 88%);
+  }
+  .feat:hover { transform:translateY(-4px); box-shadow:0 22px 50px rgba(0,0,0,.5); }
+  .feat:hover::before { transform:scale(1.08); }
+  .feat .glyph { position:absolute; right:-6px; top:-14px; font-size:110px; opacity:.55; z-index:-1; filter:drop-shadow(0 8px 20px rgba(0,0,0,.4)); }
+  .feat .kicker {
+    align-self:flex-start; font-size:10px; font-weight:900; letter-spacing:.16em; text-transform:uppercase;
+    background:rgba(0,0,0,.42); border:1px solid rgba(255,255,255,.3); padding:5px 11px; border-radius:999px; margin-bottom:10px;
+  }
+  .feat h3 { font-size:clamp(20px,2.8vw,28px); font-weight:900; letter-spacing:-.02em; line-height:1.1; }
+  .feat p { font-size:14px; color:#e4e0f7; margin-top:6px; font-weight:600; }
+
+  /* ---------- filters ---------- */
+  .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:26px; }
+  .chip {
+    font:800 13px inherit; color:var(--dim); cursor:pointer;
+    background:rgba(255,255,255,.06); border:1px solid var(--edge);
+    padding:8px 15px; border-radius:999px; transition:all .15s ease;
+  }
+  .chip:hover { color:var(--ink); border-color:rgba(255,255,255,.3); }
+  .chip[aria-pressed="true"] {
+    color:#1a0a22; background:linear-gradient(135deg,var(--gold),var(--pink)); border-color:transparent;
+  }
+
+  /* ---------- game grid ---------- */
+  .group { margin-bottom:34px; }
+  .group > h3 {
+    font-size:12px; font-weight:900; letter-spacing:.18em; text-transform:uppercase; color:var(--dim);
+    display:flex; align-items:center; gap:12px; margin-bottom:14px;
+  }
+  .group > h3::after { content:""; flex:1; height:1px; background:linear-gradient(90deg,var(--edge),transparent); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(258px,1fr)); gap:16px; }
+  /* a collection with only one or two games gets wide, magazine-style cards
+     instead of a lonely tile floating in an empty row */
+  .grid.few { grid-template-columns:repeat(auto-fit, minmax(330px,1fr)); }
+  .grid.few .card { flex-direction:row; }
+  .grid.few .card .art { height:auto; width:152px; flex:none; }
+  .grid.few .card .art .glyph { font-size:50px; }
+  @media (max-width:540px){
+    .grid.few .card { flex-direction:column; }
+    .grid.few .card .art { width:auto; height:126px; }
+  }
+
+  .card {
+    display:flex; flex-direction:column; text-decoration:none; color:var(--ink);
+    background:var(--panel); border:1px solid var(--edge); border-radius:20px; overflow:hidden;
+    transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  .card:hover { transform:translateY(-5px); border-color:rgba(255,255,255,.34); box-shadow:0 18px 40px rgba(0,0,0,.45); }
+  .card .art {
+    position:relative; height:126px; background:var(--art); display:grid; place-items:center; overflow:hidden;
+  }
+  .card .art::after {
+    content:""; position:absolute; inset:0;
+    background:radial-gradient(circle at 30% 20%, rgba(255,255,255,.3), transparent 55%);
+  }
+  .card .art .glyph { font-size:58px; filter:drop-shadow(0 6px 14px rgba(0,0,0,.35)); transition:transform .25s ease; }
+  .card:hover .art .glyph { transform:scale(1.14) rotate(-5deg); }
+  .card .art .by {
+    position:absolute; left:10px; top:10px; font-size:10px; font-weight:900; letter-spacing:.1em; text-transform:uppercase;
+    background:rgba(0,0,0,.42); border:1px solid rgba(255,255,255,.28); padding:4px 9px; border-radius:999px; color:#fff;
+  }
+  .card .body { padding:15px 16px 17px; display:flex; flex-direction:column; flex:1; gap:8px; }
+  .card h4 { font-size:17px; font-weight:900; letter-spacing:-.01em; }
+  .card p { font-size:13.5px; color:#c6c2e4; font-weight:500; flex:1; }
+  .tags { display:flex; flex-wrap:wrap; gap:6px; }
+  .tags span {
+    font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+    color:#cfc9f2; background:rgba(255,255,255,.08); border:1px solid var(--edge);
+    padding:4px 9px; border-radius:999px;
+  }
+  .card .play {
+    margin-top:2px; font-size:13px; font-weight:900; color:var(--gold);
+    display:flex; align-items:center; gap:6px;
+  }
+  .card .play::after { content:"→"; transition:transform .2s ease; }
+  .card:hover .play::after { transform:translateX(5px); }
+
+  /* ---------- heroes marquee ---------- */
+  .heroes { overflow:hidden; border-block:1px solid var(--edge); padding:18px 0;
+    background:linear-gradient(90deg, rgba(139,92,246,.12), rgba(255,95,162,.12)); }
+  .track { display:flex; gap:12px; width:max-content; animation:roll 34s linear infinite; }
+  .track span {
+    font-size:14px; font-weight:900; letter-spacing:.06em; white-space:nowrap;
+    padding:8px 16px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid var(--edge);
+  }
+  @keyframes roll { to { transform:translateX(-50%); } }
+  .heroes:hover .track { animation-play-state:paused; }
+
+  /* ---------- why panel ---------- */
+  .why { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); gap:16px; }
+  .why div {
+    background:var(--panel); border:1px solid var(--edge); border-radius:18px; padding:20px;
+  }
+  .why h4 { font-size:15px; font-weight:900; margin:10px 0 6px; }
+  .why p { font-size:13.5px; color:#c6c2e4; font-weight:500; }
+  .why .ico { font-size:26px; }
+
+  /* ---------- footer ---------- */
+  footer { padding:46px 0 60px; text-align:center; border-top:1px solid var(--edge); margin-top:30px; }
+  footer .made { font-size:15px; font-weight:800; }
+  footer .made b { background:linear-gradient(120deg,var(--pink),var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  footer p { color:var(--dim); font-size:13px; margin-top:8px; }
+  footer .mini { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:20px; }
+  footer .mini a {
+    font-size:12.5px; font-weight:800; color:var(--dim); text-decoration:none;
+    padding:7px 13px; border-radius:999px; border:1px solid var(--edge); background:rgba(255,255,255,.05);
+  }
+  footer .mini a:hover { color:var(--ink); border-color:rgba(255,255,255,.3); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation:none !important; transition:none !important; }
+    html { scroll-behavior:auto; }
+  }
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
-<div class="btn" id="btnL">&#9664;</div>
-<div class="btn" id="btnR">&#9654;</div>
-<div class="btn" id="btnJ">JUMP</div>
-<div class="btn" id="btnF">FIRE</div>
-<div class="btn" id="btnD">&#9660;</div>
-<div class="btn" id="btnX">&#128682; EXIT</div>
-<div id="verlink">
-  <button id="gamesBtn" type="button">🎮 Games</button>
-  <nav id="gamesMenu" hidden>
-    <b>Super Young Sisters</b>
-    <a class="here" href="./">🕹 Classic</a><a href="hd/">✨ HD</a><a href="fortnite/">⚡ Battle</a><a href="realistic/">🌿 Real</a>
-    <b>More magic</b>
-    <a href="magic/">🌈 Magic Heroes</a><a href="bubble/">🫧 Bubble</a><a href="life/">🏡 Magic Life</a><a href="kart/">🏎 Magic Kart</a><a href="tennis/">🎾 Magic Tennis</a>
-    <b>Jules's city</b>
-    <a href="city/">🏙 Jules City</a><a href="newcity/">✨ New City</a>
-    <b>Nora's new world</b>
-    <a href="zombie/">🧟 Zombie Night</a>
-    <b>Dad's work</b>
-    <a href="faceplant/">🍔 Face Plant</a>
-  </nav>
+
+<div id="sky" aria-hidden="true">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div>
+  <div class="grid"></div>
 </div>
-<style>
-  #verlink { position:fixed; right:10px; top:max(10px, env(safe-area-inset-top)); z-index:30; left:auto; bottom:auto;
-    font-family:"Avenir Next","Trebuchet MS",Arial,sans-serif; }
-  #gamesBtn { font:800 14px "Avenir Next","Trebuchet MS",Arial,sans-serif; color:#fff;
-    background:rgba(40,50,70,.55); border:2px solid rgba(255,255,255,.55);
-    border-radius:999px; padding:7px 14px; -webkit-user-select:none; user-select:none; }
-  #gamesMenu[hidden] { display:none; }
-  #gamesMenu { position:absolute; right:0; top:calc(100% + 6px); background:#ffffff;
-    border-radius:14px; padding:8px; min-width:176px; box-shadow:0 10px 28px rgba(0,0,0,.28);
-    display:flex; flex-direction:column; gap:2px; }
-  #gamesMenu b { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#8a94a6;
-    margin:6px 8px 2px; font-weight:800; }
-  #verlink #gamesMenu a { display:block; padding:7px 10px; margin:0; border:none; box-shadow:none;
-    background:none; border-radius:9px; color:#2a3a55; text-decoration:none; font-weight:700; font-size:14px; }
-  #verlink #gamesMenu a:hover, #verlink #gamesMenu a:active { background:#eef3fb; }
-  #verlink #gamesMenu a.here { background:#ffd166; color:#7a4b12; }
-</style>
+
+<header>
+  <div class="shell">
+    <a class="brand" href="./">
+      <span class="cab">🎮</span>
+      <b>Super Young Sisters<span>The Arcade</span></b>
+    </a>
+    <nav class="links">
+      <a href="#games">All games</a>
+      <a href="#heroes">Heroes</a>
+      <a href="#about">About</a>
+    </nav>
+    <div id="verlink">
+      <button id="gamesBtn" type="button">🎮 Games</button>
+      <nav id="gamesMenu" hidden></nav>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="shell">
+
+    <div class="hero">
+      <div class="eyebrow"><span class="dot"></span> 13 games · newest: New City</div>
+      <h1 class="wordmark">Super Young<br>Sisters</h1>
+      <p class="sub">A little arcade built by two sisters, one game at a time. Platformers, kart racing, doubles tennis, a whole city, and a night full of zombies — <em>all in your browser</em>, nothing to download.</p>
+      <div class="cta">
+        <a class="btn primary" href="newcity/">▶ Play the newest game</a>
+        <a class="btn ghost" href="#games">Browse all 13 →</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>13</b><span>Games</span></div>
+        <div class="stat"><b>11</b><span>Heroes</span></div>
+        <div class="stat"><b>5</b><span>Worlds</span></div>
+        <div class="stat"><b>0</b><span>Downloads</span></div>
+      </div>
+    </div>
+
+    <section id="featured">
+      <div class="sec-head">
+        <h2>✨ Fresh off the workbench</h2>
+        <p>The newest builds, straight from the sisters' latest ideas.</p>
+      </div>
+      <div class="featured" id="featuredGrid"></div>
+    </section>
+
+    <section id="games">
+      <div class="sec-head">
+        <h2>🕹 The whole arcade</h2>
+        <p>Every game runs on a phone, an iPad or a laptop. Tap one and you're playing.</p>
+      </div>
+      <div class="filters" id="filters"></div>
+      <div id="groups"></div>
+    </section>
+  </div>
+
+  <section id="heroes" class="heroes">
+    <div class="track" id="heroTrack"></div>
+  </section>
+
+  <div class="shell">
+    <section id="about">
+      <div class="sec-head">
+        <h2>💜 Built at the kitchen table</h2>
+        <p>No app store, no accounts, no ads — just games two kids wanted to exist.</p>
+      </div>
+      <div class="why">
+        <div>
+          <div class="ico">📱</div>
+          <h4>Made for the iPad</h4>
+          <p>Every game has big touch controls and an on-screen joystick, and works just as well with a keyboard.</p>
+        </div>
+        <div>
+          <div class="ico">⚡️</div>
+          <h4>One tap to play</h4>
+          <p>Each game is a single page that loads instantly. Nothing to install, nothing to sign up for.</p>
+        </div>
+        <div>
+          <div class="ico">🎨</div>
+          <h4>Their characters</h4>
+          <p>Princess Rosalina, Sparkle, Icy, Appy and the rest started as drawings. Now they race karts and play tennis.</p>
+        </div>
+        <div>
+          <div class="ico">🐶</div>
+          <h4>One very brave pug</h4>
+          <p>Peach the pug has been rescued in four different art styles so far. She keeps getting lost.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="shell">
+    <p class="made">Made with 💛 by <b>Jules &amp; Nora</b> — with a little help from Dad.</p>
+    <p>Super Young Sisters · a homemade arcade</p>
+    <div class="mini" id="footLinks"></div>
+  </div>
+</footer>
+
 <script>
 (function () {
-  var b = document.getElementById("gamesBtn"), m = document.getElementById("gamesMenu");
-  b.addEventListener("click", function (e) { e.stopPropagation(); m.hidden = !m.hidden; });
-  document.addEventListener("pointerdown", function (e) {
-    if (!m.hidden && !m.contains(e.target) && e.target !== b) m.hidden = true;
-  });
-})();
-</script>
-<script>
-"use strict";
-/* ============================== SETUP ============================== */
-const cv = document.getElementById("game");
-const g  = cv.getContext("2d");
-const TILE = 16, ROWS = 15, LEVEL_H = ROWS * TILE; // 240 game px tall
+  "use strict";
 
-let W = 0, H = 0, DPR = 1, SCALE = 1, VIEW_W = 0, VIEW_H = 0;
-function resize() {
-  DPR = Math.min(window.devicePixelRatio || 1, 3);
-  W = window.innerWidth; H = window.innerHeight;
-  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
-  // landscape: fit level height; portrait: fit ~11 tiles across so things stay big
-  SCALE = W >= H ? H / LEVEL_H : W / 176;
-  VIEW_W = W / SCALE; VIEW_H = H / SCALE;
-}
-window.addEventListener("resize", resize);
-window.addEventListener("orientationchange", () => setTimeout(resize, 200));
-resize();
+  /* Every game in the arcade. This one list drives the cards, the filter
+     chips, the quick-jump menu and the footer, so a new game only has to be
+     added here (plus its own folder). */
+  var GAMES = [
+    { href:"classic/",   short:"🕹 Classic",        emoji:"🕹",  title:"Super Young Sisters",
+      group:"Super Young Sisters", menuGroup:"Super Young Sisters", kind:"Platformer",
+      blurb:"The one that started it all. Run, jump and stomp through pixel worlds as Jules or Nora to rescue Peach the pug.",
+      tags:["Platformer","2 heroes","Pixel art"],
+      art:"linear-gradient(140deg,#5c94fc,#2a5bd7 55%,#1b3a8f)" },
 
-/* ============================== AUDIO ============================== */
-let AC = null;
-function audio() {
-  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
-  if (AC && AC.state === "suspended") AC.resume();
-}
-function tone(freq, dur, type, vol, slide) {
-  if (!AC) return;
-  const o = AC.createOscillator(), gn = AC.createGain(), t = AC.currentTime;
-  o.type = type || "square"; o.frequency.setValueAtTime(freq, t);
-  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
-  gn.gain.setValueAtTime(vol || .12, t);
-  gn.gain.exponentialRampToValueAtTime(.001, t + dur);
-  o.connect(gn).connect(AC.destination); o.start(t); o.stop(t + dur + .02);
-}
-const SFX = {
-  jump:  () => tone(300, .22, "square", .10, 380),
-  coin:  () => { tone(990, .08, "square", .10); setTimeout(() => tone(1320, .25, "square", .10), 70); },
-  stomp: () => tone(220, .14, "square", .14, -140),
-  brick: () => tone(140, .16, "sawtooth", .14, -80),
-  die:   () => { tone(520, .25, "square", .12, -300); setTimeout(() => tone(260, .4, "square", .12, -180), 200); },
-  bump:  () => tone(110, .08, "square", .12),
-  select:() => { tone(660, .09, "square", .10); setTimeout(() => tone(880, .14, "square", .10), 80); },
-  clear: () => [523,659,784,1047,1319].forEach((f,i) => setTimeout(() => tone(f, .22, "square", .10), i*110)),
-  sprout:() => [392,494,587,698].forEach((f,i) => setTimeout(() => tone(f, .09, "square", .09), i*60)),
-  grow:  () => [262,330,392,523,659,784].forEach((f,i) => setTimeout(() => tone(f, .08, "square", .10), i*45)),
-  shrink:() => [784,523,392,262].forEach((f,i) => setTimeout(() => tone(f, .09, "square", .10), i*70)),
-  fire:  () => tone(680, .12, "sawtooth", .08, -420),
-  swim:  () => tone(360, .12, "sine", .10, 240),
-  pipe:  () => { tone(520, .14, "square", .12, -260); setTimeout(() => tone(300, .2, "square", .10, -160), 110); },
-  boing: () => tone(300, .26, "sine", .14, 520),
-  yum:   () => [523,659,784].forEach((f,i) => setTimeout(() => tone(f, .12, "triangle", .12), i*70)),
-  yip:   () => { tone(880, .06, "square", .10); setTimeout(() => tone(1100, .07, "square", .08), 60); },
-  star:  () => [659,784,988,1319,988,1319].forEach((f,i) => setTimeout(() => tone(f, .10, "square", .10), i*55)),
-  oneup: () => [784,1047,1319,1568].forEach((f,i) => setTimeout(() => tone(f, .12, "square", .10), i*90)),
-  boots: () => { tone(280, .18, "sine", .12, 420); setTimeout(() => tone(420, .22, "sine", .12, 520), 130); },
-};
+    { href:"hd/",        short:"✨ HD",             emoji:"✨",  title:"Super Young Sisters HD",
+      group:"Super Young Sisters", menuGroup:"Super Young Sisters", kind:"Platformer",
+      blurb:"The same rescue mission, redrawn. Smoother shading, richer backgrounds and much bigger heroes.",
+      tags:["Platformer","Remastered"],
+      art:"linear-gradient(140deg,#34d399,#0ea5e9 60%,#4338ca)" },
 
-/* ============================== INPUT ============================== */
-const input = { left:false, right:false, jump:false, jumpPressed:false, firePressed:false, downPressed:false, anyTap:false };
-const keys = {};
-window.addEventListener("keydown", e => {
-  if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Space"].includes(e.code)) e.preventDefault();
-  audio();
-  if (!keys[e.code] && (e.code==="Space"||e.code==="ArrowUp"||e.code==="KeyZ"||e.code==="KeyW")) input.jumpPressed = true;
-  if (!keys[e.code] && (e.code==="KeyX"||e.code==="KeyB")) input.firePressed = true;
-  if (!keys[e.code] && (e.code==="ArrowDown"||e.code==="KeyS")) input.downPressed = true;
-  keys[e.code] = true;
-  input.anyTap = true;
-});
-window.addEventListener("keyup", e => { keys[e.code] = false; });
+    { href:"fortnite/",  short:"⚡ Battle",         emoji:"⚡",  title:"Battle Royale",
+      group:"Super Young Sisters", menuGroup:"Super Young Sisters", kind:"Action",
+      blurb:"Drop in, pick your hero and be the last sister standing. The storm is closing — keep moving.",
+      tags:["Action","Drop-in","Last one standing"],
+      art:"linear-gradient(140deg,#a855f7,#6366f1 55%,#0f172a)" },
 
-function syncKeys() {
-  input.left  = !!(keys["ArrowLeft"] || keys["KeyA"]) || touch.left;
-  input.right = !!(keys["ArrowRight"]|| keys["KeyD"]) || touch.right;
-  input.jump  = !!(keys["Space"] || keys["ArrowUp"] || keys["KeyZ"] || keys["KeyW"]) || touch.jump;
-  input.down  = !!(keys["ArrowDown"] || keys["KeyS"]) || touch.down;
-}
+    { href:"realistic/", short:"🌿 Real",           emoji:"🌿",  title:"Lifelike",
+      group:"Super Young Sisters", menuGroup:"Super Young Sisters", kind:"Platformer",
+      blurb:"Real photo textures — grass, brick, wood, rock and sky — wrapped around the jump-and-run adventure.",
+      tags:["Platformer","Photo textures"],
+      art:"linear-gradient(140deg,#84cc16,#15803d 55%,#166534)" },
 
-const touch = { left:false, right:false, jump:false, down:false };
-const btnL = document.getElementById("btnL"),
-      btnR = document.getElementById("btnR"),
-      btnJ = document.getElementById("btnJ"),
-      btnF = document.getElementById("btnF"),
-      btnD = document.getElementById("btnD"),
-      btnX = document.getElementById("btnX");
-const allBtns = [btnL, btnR, btnJ, btnF, btnD];
+    { href:"magic/",     short:"🌈 Magic Heroes",   emoji:"🌈",  title:"Magic Heroes",
+      group:"More Magic", menuGroup:"More magic", kind:"Adventure",
+      blurb:"Eleven magic heroes, each with their own powers — Princess Rosalina, Sparkle, Icy, Appy, Bamboo, Chun Mi and friends.",
+      tags:["Adventure","11 heroes","Powers"],
+      art:"linear-gradient(140deg,#f472b6,#a78bfa 50%,#38bdf8)" },
 
-// Controls fade to near-invisible a few seconds after first use (still tappable)
-let fadeScheduled = false;
-function scheduleFade() {
-  if (fadeScheduled) return;
-  fadeScheduled = true;
-  setTimeout(() => allBtns.forEach(b => b.classList.add("faded")), 3000);
-}
-function unfadeButtons() {
-  fadeScheduled = false;
-  allBtns.forEach(b => b.classList.remove("faded"));
-}
+    { href:"bubble/",    short:"🫧 Bubble",         emoji:"🫧",  title:"Bubble Trouble",
+      group:"More Magic", menuGroup:"More magic", kind:"Arcade",
+      blurb:"Pop the big bouncing bubbles before they split and squash you. Easy to start, hard to survive.",
+      tags:["Arcade","Quick play"],
+      art:"linear-gradient(140deg,#22d3ee,#60a5fa 55%,#818cf8)" },
 
-function bindBtn(el, prop, onPress) {
-  const set = on => {
-    if (on && onPress && !touch[prop]) onPress();
-    touch[prop] = on;
-    el.classList.toggle("pressed", on);
-  };
-  el.addEventListener("pointerdown", e => { e.preventDefault(); audio(); scheduleFade(); set(true); }, {passive:false});
-  el.addEventListener("pointerup",     () => set(false));
-  el.addEventListener("pointercancel", () => set(false));
-  el.addEventListener("pointerleave",  () => set(false));
-}
-bindBtn(btnL, "left"); bindBtn(btnR, "right");
-bindBtn(btnJ, "jump", () => { input.jumpPressed = true; });
-bindBtn(btnF, "fire", () => { input.firePressed = true; });
-bindBtn(btnD, "down", () => { input.downPressed = true; });
-btnX.addEventListener("pointerdown", e => { e.preventDefault(); audio(); btnX.classList.add("pressed");
-  if (game.state === "play" && game.inPlayground) exitPlayground(); }, {passive:false});
-btnX.addEventListener("pointerup", () => btnX.classList.remove("pressed"));
-btnX.addEventListener("pointercancel", () => btnX.classList.remove("pressed"));
+    { href:"life/",      short:"🏡 Magic Life",     emoji:"🏡",  title:"Magic Life",
+      group:"More Magic", menuGroup:"More magic", kind:"Sandbox",
+      blurb:"A dollhouse world with a bedroom, a beach and an ice cream shop. Dress up the heroes and make your own story.",
+      tags:["Sandbox","Dollhouse","No rules"],
+      art:"linear-gradient(140deg,#fbbf24,#fb7185 55%,#c026d3)" },
 
-cv.addEventListener("pointerdown", e => {
-  e.preventDefault(); audio();
-  input.anyTap = true;
-  tapX = e.clientX; tapY = e.clientY;
-}, {passive:false});
-// block 1-finger scroll, but leave 2-finger pinch available so the page can always be un-zoomed
-document.addEventListener("touchmove", e => { if (e.touches.length < 2) e.preventDefault(); }, {passive:false});
-// iPad Safari ignores user-scalable=no and zooms on double-tap — suppress rapid second taps
-let lastTouchEnd = 0;
-document.addEventListener("touchend", e => {
-  const tnow = Date.now();
-  if (tnow - lastTouchEnd < 350) e.preventDefault();
-  lastTouchEnd = tnow;
-}, {passive:false});
-let tapX = -1, tapY = -1;
+    { href:"kart/",      short:"🏎 Magic Kart",     emoji:"🏎",  title:"Magic Kart",
+      group:"More Magic", menuGroup:"More magic", kind:"Racing",
+      blurb:"A retro kart racer with all eleven heroes on the grid. Drift the corners, grab the items, take the trophy.",
+      tags:["Racing","11 racers","Power-ups"],
+      art:"linear-gradient(140deg,#f97316,#ef4444 55%,#7c2d12)" },
 
-function showButtons(on) {
-  btnL.style.display = btnR.style.display = btnJ.style.display = on ? "block" : "none";
-  if (!on) { btnD.style.display = btnX.style.display = "none"; downBtnShown = exitBtnShown = false; }
-  refreshFireBtn();
-  refreshContextBtns();
-}
-let fireBtnShown = false;
-function refreshFireBtn() {
-  const want = game.state === "play" && player.power === 2 && !game.inPlayground;
-  if (want !== fireBtnShown) { fireBtnShown = want; btnF.style.display = want ? "block" : "none"; }
-}
-let downBtnShown = false, exitBtnShown = false;
-function refreshContextBtns() {
-  const wantD = game.state === "play" && !game.inPlayground && player.onPipe;
-  if (wantD !== downBtnShown) { downBtnShown = wantD; btnD.style.display = wantD ? "block" : "none"; }
-  const wantX = game.state === "play" && game.inPlayground;
-  if (wantX !== exitBtnShown) { exitBtnShown = wantX; btnX.style.display = wantX ? "block" : "none"; }
-}
+    { href:"tennis/",    short:"🎾 Magic Tennis",   emoji:"🎾",  title:"Magic Tennis",
+      group:"More Magic", menuGroup:"More magic", kind:"Sports",
+      blurb:"Real doubles tennis with both sisters on the court at once. Aces, long rallies and a whole tournament to win.",
+      tags:["Sports","2 players","Tournament"],
+      art:"linear-gradient(140deg,#a3e635,#10b981 55%,#0f766e)" },
 
-/* ============================== CHARACTERS ============================== */
-const CHARS = {
-  jules: {
-    name: "JULES",
-    cap:"#f3d27a", capDark:"#d9b452", hair:"#3a2a1e", skin:"#f3c89f",
-    shirt:"#f59cc4", shirtDark:"#e074a8", legs:"#33408c", legsLow:"#33408c",
-    shoe:"#aacdec", sock:null,
-  },
-  nora: {
-    name: "NORA",
-    cap:"#1e6b4d", capDark:"#124a34", hair:"#2e2118", skin:"#f0c49a",
-    shirt:"#7fdcc4", shirtDark:"#4fbfa2", legs:"#7fdcc4", legsLow:"#f0c49a",
-    shoe:"#e9b7cd", sock:"#f5f1ea",
+    { href:"city/",      short:"🏙 Jules City",     emoji:"🏙",  title:"Jules City",
+      group:"Jules's City", menuGroup:"Jules's city", kind:"Life sim",
+      blurb:"Jules's original city: build your look, get a phone, meet friends and go find something fun to do downtown.",
+      tags:["Life sim","By Jules","Avatar maker"],
+      art:"linear-gradient(140deg,#38bdf8,#6366f1 55%,#1e1b4b)" },
+
+    { href:"newcity/",   short:"✨ New City",       emoji:"🌆",  title:"New City",
+      group:"Jules's City", menuGroup:"Jules's city", kind:"Life sim", featured:"Newest",
+      blurb:"The big remake: smoother people, huge houses, a beach, a ranch, cars you can actually drive and phone calls that talk back.",
+      tags:["Life sim","By Jules","Drivable cars"],
+      art:"linear-gradient(140deg,#fb7185,#8b5cf6 45%,#22d3ee)" },
+
+    { href:"zombie/",    short:"🧟 Zombie Night",   emoji:"🧟",  title:"Zombie Night",
+      group:"Nora's World", menuGroup:"Nora's new world", kind:"Survival", featured:"Nora's world",
+      blurb:"Chop trees, build a house, rescue lost pets and hold the fence until sunrise. Your world saves itself for tomorrow.",
+      tags:["Survival","By Nora","Saves your world"],
+      art:"linear-gradient(140deg,#4ade80,#0f766e 45%,#111827)" },
+
+    { href:"faceplant/", short:"🍔 Face Plant",     emoji:"🍔",  title:"Face Plant",
+      group:"Dad's Work", menuGroup:"Dad's work", kind:"Arcade", featured:"Dad's work",
+      blurb:"Dad's job, turned into a game. Clock in, toast the buns and build every burger right before the tickets stack up.",
+      tags:["Arcade","Make-line","Beat the ticket"],
+      art:"linear-gradient(140deg,#fcd34d,#f97316 50%,#b91c1c)" },
+  ];
+
+  var HEROES = ["PRINCESS ROSALINA","SPARKLE","ICY","MISTY","CUTIE","SQUISHY","APPY","BAMBOO","CHUN MI","NORTHERN LIGHT","NORA","JULES","PEACH THE PUG"];
+
+  var FEATURED = ["newcity/", "zombie/", "kart/"];
+
+  function el(tag, cls, html) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (html != null) n.innerHTML = html;
+    return n;
   }
-};
-let heroKey = "jules";
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function byHref(h) {
+    for (var i = 0; i < GAMES.length; i++) if (GAMES[i].href === h) return GAMES[i];
+    return null;
+  }
 
-const firePals = {};
-function firePal(key) {
-  if (!firePals[key]) {
-    const p = CHARS[key];
-    firePals[key] = Object.assign({}, p, {
-      shirt:"#fff6f3", shirtDark:p.shirt, cap:"#ff5e5e", capDark:"#d63c3c",
+  /* ----- featured row ----- */
+  (function () {
+    var wrap = document.getElementById("featuredGrid");
+    FEATURED.forEach(function (h) {
+      var g = byHref(h);
+      if (!g) return;
+      var a = el("a", "feat");
+      a.href = g.href;
+      a.style.setProperty("--art", g.art);
+      a.innerHTML =
+        '<span class="glyph">' + g.emoji + "</span>" +
+        '<span class="kicker">' + esc(g.featured || g.kind) + "</span>" +
+        "<h3>" + esc(g.title) + "</h3>" +
+        "<p>" + esc(g.blurb) + "</p>";
+      wrap.appendChild(a);
+    });
+  })();
+
+  /* ----- filter chips + grouped grid ----- */
+  var groupsEl = document.getElementById("groups");
+
+  function render(kind) {
+    groupsEl.innerHTML = "";
+    var seen = [];
+    GAMES.forEach(function (g) { if (seen.indexOf(g.group) < 0) seen.push(g.group); });
+
+    seen.forEach(function (name) {
+      var picks = GAMES.filter(function (g) {
+        return g.group === name && (kind === "All" || g.kind === kind);
+      });
+      if (!picks.length) return;
+
+      var sec = el("div", "group");
+      sec.appendChild(el("h3", null, esc(name)));
+      var grid = el("div", picks.length <= 2 ? "grid few" : "grid");
+
+      picks.forEach(function (g) {
+        var a = el("a", "card");
+        a.href = g.href;
+        var by = /By (Jules|Nora|Dad)/.exec(g.tags.join(" "));
+        a.innerHTML =
+          '<div class="art" style="--art:' + g.art + '">' +
+            (by ? '<span class="by">' + esc(by[0]) + "</span>" : "") +
+            '<span class="glyph">' + g.emoji + "</span>" +
+          "</div>" +
+          '<div class="body">' +
+            "<h4>" + esc(g.title) + "</h4>" +
+            "<p>" + esc(g.blurb) + "</p>" +
+            '<div class="tags">' + g.tags.map(function (t) { return "<span>" + esc(t) + "</span>"; }).join("") + "</div>" +
+            '<span class="play">Play now</span>' +
+          "</div>";
+        grid.appendChild(a);
+      });
+
+      sec.appendChild(grid);
+      groupsEl.appendChild(sec);
     });
   }
-  return firePals[key];
-}
 
-/* Star power: the outfit flashes through the rainbow while it lasts. */
-const STAR_COLORS = ["#ff5e7e", "#ffd166", "#6ee7b7", "#7fb5ff", "#c89bff"];
-function starPal(base, t) {
-  const i = (t >> 2) % STAR_COLORS.length, a = STAR_COLORS[i], b = STAR_COLORS[(i + 2) % STAR_COLORS.length];
-  return Object.assign({}, base, { shirt:a, shirtDark:b, cap:b, capDark:a, legs:b, legsLow:a, shoe:a });
-}
-
-/* Draw a kid: feet centered at (0,0), facing right by default.
-   power: 0 small, 1 super (bigger), 2 fire (bigger + fire outfit) */
-function drawKid(ctx, x, y, pal, frame, facing, airborne, walking, power) {
-  ctx.save();
-  ctx.translate(x, y);
-  if (power > 0) ctx.scale(1.18, 1.32);
-  if (facing < 0) ctx.scale(-1, 1);
-  const r = (rx, ry, rw, rh, c) => { ctx.fillStyle = c; ctx.fillRect(rx, ry, rw, rh); };
-
-  // legs + shoes
-  if (airborne) {
-    r(-4, -6, 3, 4, pal.legs); r(2, -5, 3, 4, pal.legs);
-    if (pal.sock) { r(-4, -3, 3, 2, pal.sock); r(2, -2, 3, 2, pal.sock); }
-    r(-5, -2, 4, 2, pal.shoe); r(2, -1, 4, 2, pal.shoe);
-  } else if (walking && frame) {
-    r(-5, -6, 3, 4, pal.legs); r(3, -6, 3, 4, pal.legs);
-    r(-5, -3, 3, 3, pal.legsLow); r(3, -3, 3, 3, pal.legsLow);
-    if (pal.sock) { r(-5, -2, 3, 1, pal.sock); r(3, -2, 3, 1, pal.sock); }
-    r(-6, -2, 4, 2, pal.shoe); r(3, -2, 4, 2, pal.shoe);
-  } else {
-    r(-4, -6, 3, 4, pal.legs); r(1, -6, 3, 4, pal.legs);
-    r(-4, -3, 3, 3, pal.legsLow); r(1, -3, 3, 3, pal.legsLow);
-    if (pal.sock) { r(-4, -2, 3, 1, pal.sock); r(1, -2, 3, 1, pal.sock); }
-    r(-5, -2, 4, 2, pal.shoe); r(1, -2, 4, 2, pal.shoe);
-  }
-  // shirt
-  r(-6, -12, 12, 7, pal.shirt);
-  r(-6, -8, 12, 1, pal.shirtDark);
-  // arms
-  if (airborne) { r(-8, -14, 2, 4, pal.shirt); r(6, -14, 2, 4, pal.shirt);
-                  r(-8, -10, 2, 2, pal.skin);  r(6, -10, 2, 2, pal.skin); }
-  else          { r(-8, -12, 2, 4, pal.shirt); r(6, -12, 2, 4, pal.shirt);
-                  r(-8, -8, 2, 2, pal.skin);   r(6, -8, 2, 2, pal.skin); }
-  // head
-  r(-5, -19, 11, 7, pal.skin);
-  // hair bob
-  r(-6, -20, 13, 3, pal.hair);
-  r(-6, -18, 2, 8, pal.hair);
-  r(5, -18, 2, 8, pal.hair);
-  // cap
-  r(-6, -22, 12, 3, pal.cap);
-  r(-5, -23, 10, 1, pal.cap);
-  r(4, -21, 6, 2, pal.capDark);
-  // face
-  r(1, -17, 1.5, 2, "#241a12");
-  r(-2.5, -17, 1.5, 2, "#241a12");
-  ctx.fillStyle = "#c96d5c"; ctx.fillRect(-1, -13.5, 3, 1); // smile
-  ctx.restore();
-}
-
-function drawPowerup(ctx, p) {
-  const x = p.x + p.w/2, y = p.y + p.h;
-  const r = (rx,ry,rw,rh,c)=>{ctx.fillStyle=c;ctx.fillRect(x+rx,y+ry,rw,rh);};
-  if (p.type === "mushroom" || p.type === "oneup") {
-    const cap = p.type === "oneup" ? "#3fbf52" : "#e8453c";
-    r(-4, -6, 8, 6, "#f7e8d2");                      // stalk
-    r(-3, -3, 1.5, 2, "#241a12"); r(1.5, -3, 1.5, 2, "#241a12");
-    r(-7, -12, 14, 7, cap);                          // cap
-    r(-6, -13, 12, 1, cap);
-    r(-5, -11, 3, 3, "#fff"); r(2, -11, 3, 3, "#fff"); r(-1.5, -8, 3, 2, "#fff");
-    if (p.type === "oneup") {                        // "1" on the cap so it reads as an extra life
-      ctx.fillStyle = "#2c8f3c"; ctx.font = "bold 6px monospace";
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText("1", x, y - 9.5);
-    }
-  } else if (p.type === "star") {                    // spinning lucky star
-    const spin = Math.sin(game.timer * 0.09) * 0.9;
-    ctx.save(); ctx.translate(x, y - 7); ctx.rotate(spin);
-    for (const [rad, col] of [[7.5, "#ffb02a"], [6, "#ffe066"]]) {
-      ctx.fillStyle = col; ctx.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const a = -Math.PI/2 + i * Math.PI/5, rr = i % 2 ? rad * 0.44 : rad;
-        ctx[i ? "lineTo" : "moveTo"](Math.cos(a)*rr, Math.sin(a)*rr);
-      }
-      ctx.closePath(); ctx.fill();
-    }
-    ctx.fillStyle = "#241a12";
-    ctx.fillRect(-2.6, -1, 1.4, 2); ctx.fillRect(1.2, -1, 1.4, 2);
-    ctx.restore();
-  } else if (p.type === "boots") {                   // bouncy boots on a spring
-    ctx.strokeStyle = "#c0c6d4"; ctx.lineWidth = 1.4;   // coil
-    ctx.beginPath();
-    for (let i = 0; i <= 3; i++) { ctx.moveTo(-4, -1.5 - i*1.6); ctx.lineTo(4, -2.3 - i*1.6); }
-    ctx.stroke();
-    r(-5, -12, 9, 6, "#39c46a");                     // boot leg
-    r(-5, -12, 9, 2, "#63e78d");
-    r(-5, -8, 12, 3, "#2a9e52");                     // toe
-    r(-5, -10, 9, 1.2, "#ffe066");                   // laces
-  } else {                                           // fire flower
-    r(-1, -7, 2, 7, "#3fae4e");                      // stem
-    r(-5, -4, 4, 2, "#3fae4e"); r(1, -3, 4, 2, "#3fae4e");
-    ctx.fillStyle = "#ff8a3c";
-    ctx.beginPath(); ctx.arc(x, y-10, 5.5, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#e8453c";
-    ctx.beginPath(); ctx.arc(x, y-10, 3.8, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#ffd76e";
-    ctx.beginPath(); ctx.arc(x, y-10, 2, 0, Math.PI*2); ctx.fill();
-  }
-}
-
-function drawFireball(ctx, f, t) {
-  ctx.fillStyle = "#ff8a3c";
-  ctx.beginPath(); ctx.arc(f.x + 2, f.y + 2, 3.2, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#ffd76e";
-  const a = t * 0.5;
-  ctx.beginPath(); ctx.arc(f.x + 2 + Math.cos(a)*1.2, f.y + 2 + Math.sin(a)*1.2, 1.6, 0, Math.PI*2); ctx.fill();
-}
-
-function drawGrump(ctx, x, y, frame, squashT) {
-  ctx.save(); ctx.translate(x, y);
-  const r = (rx,ry,rw,rh,c)=>{ctx.fillStyle=c;ctx.fillRect(rx,ry,rw,rh);};
-  if (squashT > 0) {
-    r(-7, -4, 14, 4, "#8a4b2d");
-    r(-5, -2, 10, 2, "#5e2f1a");
-  } else {
-    r(-6, -12, 12, 10, "#a4582f");           // body
-    r(-7, -8, 14, 6, "#a4582f");
-    const off = frame ? 1 : -1;
-    r(-7 + off, -2, 5, 2, "#5e2f1a");        // feet
-    r(2 - off, -2, 5, 2, "#5e2f1a");
-    r(-4, -10, 2, 3, "#fff"); r(2, -10, 2, 3, "#fff");
-    r(-3, -9, 1.5, 2, "#241a12"); r(2.5, -9, 1.5, 2, "#241a12");
-    r(-4.5, -11.5, 3, 1.5, "#5e2f1a"); r(1.5, -11.5, 3, 1.5, "#5e2f1a"); // angry brows
-  }
-  ctx.restore();
-}
-
-
-function drawBowser(ctx, B) {
-  ctx.save();
-  ctx.translate(B.x + B.w/2, B.y + B.h);
-  if (B.dead) ctx.scale(1, -1);
-  if ((B.facing || -1) < 0) ctx.scale(-1, 1);
-  const r = (x,y,w,h,c) => { ctx.fillStyle = c; ctx.fillRect(x,y,w,h); };
-  const flash = !B.dead && B.stun > 0 && (B.stun >> 2) % 2 === 0;
-  r(-11,-6,7,6,"#caa23c"); r(4,-6,7,6,"#caa23c");          // legs
-  r(-13,-24,20,18, flash ? "#9ef0a0" : "#3f9e44");         // shell
-  r(-11,-22,16,14, flash ? "#c8ffc8" : "#5cc463");
-  r(-12,-27,3,4,"#f5f1e0"); r(-6,-28,3,5,"#f5f1e0"); r(0,-27,3,4,"#f5f1e0");  // spikes
-  r(3,-20,8,14,"#f0d8a0");                                 // belly
-  r(5,-31,11,11,"#7ec850");                                // head
-  r(5,-34,8,4,"#e8632c");                                  // hair
-  r(3,-33,2,4,"#f5f1e0"); r(14,-33,2,4,"#f5f1e0");         // horns
-  r(10,-29,3,3,"#fff"); r(11,-28,2,2,"#c81e1e");           // eye
-  r(12,-24,5,4,"#cfe8b0"); r(13,-21,3,1,"#fff");           // snout + teeth
-  ctx.restore();
-}
-
-function drawFlame(ctx, fl) {
-  const flick = (game.timer >> 2) % 2;
-  ctx.fillStyle = flick ? "#ffd166" : "#ff8a3c";
-  ctx.fillRect(fl.x, fl.y, fl.w, fl.h);
-  ctx.fillStyle = "#e8453c";
-  ctx.fillRect(fl.vx < 0 ? fl.x : fl.x + fl.w - 4, fl.y + 1, 4, fl.h - 2);
-}
-
-function drawPug(ctx, cx, feetY) {
-  ctx.save(); ctx.translate(cx, feetY);
-  const r = (x,y,w,h,c) => { ctx.fillStyle = c; ctx.fillRect(x,y,w,h); };
-  r(-6,-8,10,6,"#d8b27e");                                 // body
-  r(3,-10,3,3,"#c89e64");                                  // curly tail
-  r(-6,-2,2,2,"#c89e64"); r(-1,-2,2,2,"#c89e64"); r(2,-2,2,2,"#c89e64");  // legs
-  r(-10,-13,9,9,"#d8b27e");                                // head
-  r(-10,-8,5,4,"#4a3828");                                 // dark muzzle
-  r(-10,-14,3,3,"#4a3828"); r(-4,-14,3,3,"#4a3828");       // ears
-  r(-9,-11,2,2,"#241a12"); r(-5,-11,2,2,"#241a12");        // eyes
-  r(-8,-4,2,2,"#e8748c");                                  // tongue
-  r(-10,-5,5,1.5,"#ff5e7e");                               // collar
-  ctx.restore();
-}
-
-/* ============================== LEVELS ============================== */
-function lvName(n) { return ((n >> 2) + 1) + "-" + (n % 4 + 1); }
-function makeLevel(num) {
-  const widths = [150, 170, 170, 140, 175, 160, 168, 140, 184];
-  const Wd = widths[num] || 150;
-  const grid = Array.from({length: ROWS}, () => Array(Wd).fill(" "));
-  const enemies = [];
-  const setT = (x, y, c) => { if (x>=0 && x<Wd && y>=0 && y<ROWS) grid[y][x] = c; };
-  const ground = (a, b) => { for (let x=a; x<=b; x++){ setT(x,13,"G"); setT(x,14,"#"); } };
-  const brick  = (x, y) => setT(x, y, "=");
-  const qb     = (x, y) => setT(x, y, "?");
-  const mb     = (x, y) => setT(x, y, "M");   // powerup block (looks like ?)
-  const stone  = (x, y) => setT(x, y, "S");
-  const coin   = (x, y) => setT(x, y, "o");
-  const coins  = (x, y, n) => { for (let i=0;i<n;i++) coin(x+i, y); };
-  const pipe   = (x, h) => { for (let yy=13-h; yy<13; yy++){ const c = yy===13-h ? "T":"P"; setT(x,yy,c); setT(x+1,yy,c); } };
-  const stair  = (x, h, dir) => { for (let s=0;s<h;s++){ const cx = x + (dir<0 ? -s : s); for (let yy=12; yy>12-(s+1); yy--) stone(cx, yy); } };
-  const enemy  = (x, ty = 11) => enemies.push({ x:x*TILE, y:ty*TILE, w:12, h:12, vx:-0.5, vy:0, dead:0, active:false, frame:0 });
-  const fishE  = (x, ty) => enemies.push({ x:x*TILE, y:ty*TILE, w:14, h:10, vx:-0.45, vy:0, dead:0, active:false, frame:0, fish:true, ph: x % 9 });
-  const leaper = (x) => enemies.push({ x:x*TILE, homeX:x*TILE, y:LEVEL_H+30, w:14, h:11, vx:0, vy:0, dead:0, active:false, frame:0, leap:true, leapT: 30 + (x * 13) % 90 });
-  const tramp  = (x, ty = 13) => setT(x, ty, "J");   // trampoline, flush with the floor you run along
-  const star   = (x, y) => setT(x, y, "N");          // ★ block: rainbow invincibility
-  const life   = (x, y) => setT(x, y, "V");          // 1 block: an extra heart
-  const bootsB = (x, y) => setT(x, y, "K");          // ↑ block: bouncy boots
-  const firebars = [];
-  const fbar   = (x, y, len) => firebars.push({ cx:x*TILE+8, cy:y*TILE+8, len: len || 4, sp:0.035, ph: x * 0.7 });
-
-  let flagX = null, boss = null, cageX = null, bossHp = 3;
-  if (num === 0) {
-    ground(0, 45);
-    mb(12,9); brick(13,9); qb(14,9); coins(12,5,3);
-    enemy(18);
-    pipe(24,2); pipe(32,3);
-    enemy(29); enemy(37);
-    ground(49, 75);                          // gap 46-48
-    brick(54,9); qb(55,9); brick(56,9); mb(57,9); brick(58,9);
-    coins(54,5,5);
-    enemy(60); enemy(61); enemy(68);
-    pipe(70,2);
-    ground(80, Wd-1);                        // gap 76-79
-    stone(84,9); stone(85,9); stone(86,9); stone(87,9);
-    coins(84,6,4);
-    enemy(92);
-    stair(96, 4, 1);
-    stair(103, 4, -1);
-    enemy(108); enemy(112);
-    coins(114,8,6);
-    qb(118,9);
-    stair(126, 5, 1);
-    flagX = 138;
-  } else if (num === 1) {
-    ground(0, 30);
-    qb(10,9); mb(12,9); coins(10,5,3);
-    enemy(15); enemy(22);
-    pipe(26,3);
-    ground(34, 52);                          // gap 31-33
-    brick(38,9); brick(39,9); qb(40,9); brick(41,9); brick(42,9);
-    stone(44,6); stone(45,6); coins(44,3,2);
-    enemy(40); enemy(46); enemy(47);
-    ground(56, 80);                          // gap 53-55
-    pipe(60,2); pipe(68,3);
-    enemy(64); enemy(65);
-    coins(72,8,5);
-    stone(74,9); stone(75,9); stone(76,9);
-    ground(84, 110);                         // gap 81-83
-    stair(88, 3, 1);
-    stone(95,8); stone(96,8); stone(97,8); coins(95,5,3);
-    enemy(100); enemy(104); enemy(105);
-    brick(102,9); mb(103,9); brick(104,9);
-    ground(114, Wd-1);                       // gap 111-113
-    coins(116,8,4);
-    enemy(120); enemy(126); enemy(127);
-    pipe(130,3);
-    stair(138, 4, 1);
-    enemy(146); enemy(150);
-    stair(150, 6, 1);
-    flagX = 160;
-  } else if (num === 2) {                    // 1-3: night-sky athletic
-    ground(0, 15);
-    enemy(8);
-    stone(18,10); stone(19,10); stone(20,10); stone(21,10); coins(18,7,4);
-    stone(24,8); stone(25,8); stone(26,8);
-    stone(30,10); stone(31,10); stone(32,10); stone(33,10); enemy(31, 8);
-    ground(36, 48); enemy(40); stair(44, 3, 1);
-    stone(51,10); stone(52,10); stone(53,10); stone(54,10); coins(51,7,4);
-    stone(57,7); stone(58,7); stone(59,7);
-    ground(63, 75); enemy(68); enemy(72);
-    stone(78,9); stone(79,9); stone(80,9);
-    stone(83,11); stone(84,11); stone(85,11);
-    stone(88,8); stone(89,8); stone(90,8); stone(91,8); coins(88,5,4);
-    ground(95, 110); enemy(100); enemy(104); stair(106, 4, 1);
-    ground(114, 135);
-    brick(118,9); brick(119,9); mb(120,9); brick(121,9); brick(122,9);
-    coins(118,5,5);
-    enemy(126); enemy(130); enemy(131);
-    stone(139,10); stone(140,10); stone(141,10);
-    ground(144, Wd-1); stair(154, 5, 1);
-    flagX = 164;
-  } else if (num === 3) {                    // 1-4: Bowser's castle — save Peach the pug!
-    const cground = (a, b) => { for (let x=a; x<=b; x++){ stone(x,13); stone(x,14); } };
-    for (let x = 0; x < 133; x++) brick(x, 1);          // castle ceiling
-    cground(0, 15);
-    enemy(10);
-    stone(17,11);                                       // stepping stones over the lava
-    cground(19, 28); mb(24,9);
-    stone(30,11);
-    cground(32, 45); stone(36,2); stone(36,3); enemy(40);
-    stone(47,11);
-    cground(49, 62); stone(52,2); stone(52,3); enemy(56); enemy(58);
-    stone(64,11);
-    cground(66, 96);
-    brick(72,9); brick(73,9); brick(74,9); coins(72,6,3);
-    enemy(78); enemy(84);
-    stone(88,2); stone(88,3);
-    cground(97, Wd-1);                                  // Bowser's bridge and the cage
-    coins(100,8,3);
-    boss = { x: 112 * TILE };
-    cageX = 126;
-    for (let x = 133; x < Wd; x++) for (let y = 2; y <= 12; y++) stone(x, y);
-  } else if (num === 4) {                    // 2-1: pipe country (SMB 2-1)
-    ground(0, 41);
-    qb(8,9); brick(9,9); mb(10,9); brick(11,9);
-    coins(8,5,4);
-    enemy(14); enemy(15);
-    pipe(18,2); pipe(23,3); pipe(28,4);
-    enemy(26);
-    coins(31,7,3);
-    pipe(34,4);
-    enemy(39);
-    ground(45, 79);                          // gap 42-44
-    brick(48,9); brick(49,9); qb(50,9); brick(51,9);
-    coins(48,5,4);
-    enemy(54); enemy(55);
-    stair(60, 4, 1);                         // the big wall — over the top!
-    stair(67, 4, -1);
-    enemy(71); enemy(72);
-    pipe(75,2);
-    ground(83, 120);                         // gap 80-82
-    coins(86,8,5);
-    qb(90,9); mb(92,9);
-    stone(96,6); stone(97,6); coins(96,3,2);
-    enemy(100); enemy(104); enemy(105);
-    pipe(108,2); pipe(114,3);
-    enemy(118);
-    ground(124, Wd-1);                       // gap 121-123
-    enemy(128); enemy(132); enemy(133);
-    brick(136,9); qb(137,9); brick(138,9);
-    coins(136,5,3);
-    enemy(144); enemy(148);
-    stair(156, 6, 1);
-    flagX = 166;
-  } else if (num === 5) {                    // 2-2: under the sea (SMB 2-2)
-    ground(0, Wd-1);
-    for (let x = 0; x < Wd; x++) stone(x, 1);          // water ceiling
-    coins(10,10,3);
-    fishE(18, 8);
-    stone(22,12); stone(22,11); stone(22,10);
-    fishE(26, 5);
-    coins(28,6,4);
-    fishE(34,10); fishE(35,6);
-    mb(40,8);
-    stone(46,12); stone(47,12); stone(47,11); stone(48,12); stone(48,11); stone(48,10);
-    fishE(52,7); fishE(56,9);
-    coins(58,4,5);
-    stone(62,2); stone(62,3); stone(63,2);             // stalactites
-    fishE(66,6); fishE(70,8); fishE(71,4);
-    stone(74,12); stone(74,11); stone(74,10); stone(74,9);
-    coins(78,7,4);
-    fishE(82,5); fishE(86,9);
-    stone(90,12); stone(91,12); stone(91,11); stone(92,12);
-    fishE(96,6); fishE(100,10); fishE(101,5);
-    mb(104,7);
-    stone(108,2); stone(108,3); stone(108,4);
-    fishE(112,8); fishE(116,6);
-    coins(114,9,5);
-    for (let y = 2; y <= 7; y++) stone(122, y);        // wall — swim through the gap
-    stone(122,11); stone(122,12);
-    fishE(128,7); fishE(132,9); fishE(133,4);
-    coins(136,6,4);
-    fishE(140,8); fishE(144,6);
-    flagX = 150;
-  } else if (num === 6) {                    // 2-3: leaping-fish bridges (SMB 2-3)
-    const br = (a, b) => { for (let x=a; x<=b; x++) setT(x, 10, "B"); };
-    ground(0, 12);
-    br(12, 27); coins(15,7,4); enemy(19, 8); enemy(25, 8);
-    br(30, 44); coins(33,7,5); enemy(37, 8); enemy(41, 8);
-    br(47, 58); coins(50,6,4); enemy(54, 8);
-    br(62, 78); mb(68,6); enemy(66, 8); enemy(73, 8); coins(74,7,3);
-    br(81, 92); coins(84,7,4); enemy(88, 8);
-    br(96, 112); enemy(100, 8); enemy(106, 8); coins(102,6,5);
-    br(115, 126); coins(118,7,3); enemy(122, 8);
-    br(130, 140);
-    ground(142, Wd-1);
-    enemy(146); enemy(150);
-    [20, 34, 48, 64, 76, 86, 100, 110, 120, 134, 145].forEach(x => leaper(x));
-    stair(154, 5, 1);
-    flagX = 162;
-  } else if (num === 7) {                    // 2-4: Bowser's second castle — save Peach again!
-    const cground = (a, b) => { for (let x=a; x<=b; x++){ stone(x,13); stone(x,14); } };
-    for (let x = 0; x < 133; x++) brick(x, 1);          // castle ceiling
-    cground(0, 10);
-    enemy(7);
-    stone(12,11);
-    cground(14, 26); fbar(20, 10); stone(20,10); mb(24,9);
-    stone(28,10);
-    cground(30, 44); enemy(34); enemy(37); stone(40,2); stone(40,3);
-    stone(46,11); stone(48,9);                          // double hop over the long lava
-    cground(50, 64); fbar(56, 10); stone(56,10); coins(53,6,3); enemy(61);
-    stone(66,11);
-    cground(68, 88);
-    brick(72,9); brick(73,9); brick(74,9); coins(72,6,3);
-    enemy(78); enemy(82);
-    fbar(85, 10); stone(85,10);
-    stone(90,10);
-    cground(92, Wd-1);                                  // Bowser's bridge and the cage
-    coins(96,8,3);
-    boss = { x: 112 * TILE };
-    bossHp = 4;
-    cageX = 126;
-    for (let x = 133; x < Wd; x++) for (let y = 2; y <= 12; y++) stone(x, y);
-  } else {                                   // 3-1: bouncy sunset park — trampolines and every power-up
-    const br = (a, b) => { for (let x=a; x<=b; x++) setT(x, 10, "B"); };
-    ground(0, 26);                                      // --- warm-up: meet the springs
-    qb(5,9); mb(7,9); coins(4,5,4);
-    tramp(12); tramp(13);                               // first trampolines, coins stacked above them
-    coins(11,8,2); coins(13,5,3);
-    for (let x = 16; x <= 20; x++) stone(x, 8);         // bounce up onto the cloud ledge...
-    brick(17,5); star(18,5); brick(19,5);               // ...then jump for the ★ star
-    coins(17,6,3);
-    enemy(22); enemy(25);
-    ground(31, 56);                                     // gap 27-30
-    tramp(34);
-    stone(38,7); stone(39,7); stone(40,7); coins(38,4,3);
-    brick(44,9); bootsB(45,9); brick(46,9);             // ↑ bouncy boots
-    enemy(49); enemy(53);
-    tramp(55);                                          // launch pad for the long gap
-    stone(61,11); stone(62,11); stone(63,11); stone(64,11); stone(65,11);   // --- spring islands (gap 57-60)
-    tramp(63, 11); coins(64,6,4);
-    stone(69,10); stone(70,10); stone(71,10); stone(72,10);   // gap 66-68
-    coins(69,7,3); enemy(70, 8);
-    for (let x = 75; x <= 81; x++) stone(x, 11);        // gap 73-74 — a roomy island to land on
-    tramp(75, 11);                                      // spring on the island's near edge
-    stone(78,7); stone(79,7); stone(80,7);              // cloud ledge (clear of the drop at 82)
-    brick(78,4); life(79,4); brick(80,4);               // 1 block — an extra heart
-    ground(84, 114);                                    // gap 82-83
-    coins(86,8,5);
-    qb(90,9); mb(92,9);
-    enemy(95); enemy(99); enemy(100);
-    tramp(104); coins(103,7,3);
-    for (let x = 108; x <= 112; x++) stone(x, 8);       // second cloud ledge
-    brick(109,5); star(110,5); brick(111,5);            // ★ a second star for the bridge run
-    coins(109,6,3);
-    tramp(113); tramp(114);                             // springs at the lip — bounce up onto the bridge
-    br(119, 140);                                       // --- bridge in the clouds (gap 115-118)
-    tramp(126, 10); tramp(133, 10);
-    coins(122,7,4); coins(129,5,4); coins(136,7,4);
-    enemy(124, 8); enemy(131, 8); enemy(138, 8);
-    ground(145, Wd-1);                                  // --- finale (gap 141-144)
-    brick(149,9); bootsB(150,9); brick(151,9);          // one more pair of boots for the dash
-    enemy(154); enemy(158); enemy(159);
-    tramp(163); coins(162,6,4); coins(163,3,3);
-    stair(168, 6, 1);
-    flagX = 178;
-  }
-  return { grid, width: Wd, enemies, flagX, name: lvName(num), boss, cageX, firebars, bossHp,
-           theme: ["day","day","night","castle","day","water","bridge","castle","sunset"][num] || "day" };
-}
-const LEVEL_COUNT = 9;
-
-/* ============================== PLAYGROUND ==============================
-   A safe, enemy-free hangout reached by going down any pipe. Water slide,
-   trampoline, parkour, puppies and an ice-cream stand. Exit anytime. */
-function makePlayground() {
-  const Wd = 128;
-  const grid = Array.from({length: ROWS}, () => Array(Wd).fill(" "));
-  const setT = (x,y,c) => { if (x>=0 && x<Wd && y>=0 && y<ROWS) grid[y][x] = c; };
-  const ground = (a,b) => { for (let x=a;x<=b;x++){ setT(x,13,"G"); setT(x,14,"#"); } };
-  const stone = (x,y) => setT(x,y,"S");
-  const brick = (x,y) => setT(x,y,"=");
-  const coin  = (x,y) => setT(x,y,"o");
-  const coins = (x,y,n) => { for (let i=0;i<n;i++) coin(x+i,y); };
-  const pipe  = (x,h) => { for (let yy=13-h; yy<13; yy++){ const c = yy===13-h?"T":"P"; setT(x,yy,c); setT(x+1,yy,c); } };
-  const stair = (x,h,dir) => { for (let s=0;s<h;s++){ const cx=x+(dir<0?-s:s); for (let yy=12; yy>12-(s+1); yy--) stone(cx,yy); } };
-  ground(0, Wd-1);                                   // continuous floor — no pits
-
-  pipe(6, 2);                                        // the exit pipe, right by spawn
-
-  stair(12, 7, 1);                                   // water slide: stairs up...
-  const slide = { x0: 18, x1: 26, topY: 6*TILE, botY: 13*TILE };  // ...then a scripted chute down
-
-  setT(34,12,"J"); setT(35,12,"J");                  // gymnastics trampoline
-  coins(33,8,4);                                     // floating coins to grab on the bounce
-  brick(38,6); brick(39,6); brick(40,6);             // a ledge to flip up onto
-  stone(43,9); stone(44,9); stone(45,9);             // balance beam
-
-  const par = [[46,10],[49,8],[52,9],[55,7],[58,9],[61,8],[64,10]];    // parkour hops
-  for (const p of par) { stone(p[0],p[1]); stone(p[0]+1,p[1]); coin(p[0], p[1]-2); }
-
-  const puppies = [];
-  for (let i=0;i<3;i++) puppies.push({ x:(72+i*4)*TILE, minX:70*TILE, maxX:84*TILE,
-                                       vx:(i%2?0.45:-0.45), hopT:i*20 });
-
-  const signs = [
-    { x:6.5, text:"EXIT ↑",     color:"#ff5e7e" },
-    { x:15,  text:"WATER SLIDE",     color:"#2aa7e0" },
-    { x:34.5,text:"GYMNASTICS",      color:"#f59a2e" },
-    { x:55,  text:"PARKOUR",         color:"#9b6cff" },
-    { x:77,  text:"PUPPIES",         color:"#ff6fae" },
-    { x:92,  text:"ICE CREAM",       color:"#ff7a7a" },
-  ];
-
-  return { grid, width: Wd, enemies: [], flagX: null, name: "PLAYGROUND", boss: null,
-           theme: "playground", slide, puppies, iceCreamX: 92*TILE,
-           splash: { x0: 24, x1: 28 }, fence: { x0: 69, x1: 85 }, signs };
-}
-
-function enterPipe() {
-  game.savedLevel = game.level;
-  game.savedReturn = { x: player.x, y: player.y, camX: game.camX,
-                       power: player.power, h: player.h, facing: player.facing };
-  game.state = "entering"; game.timer = 0; player.vx = 0; player.onPipe = false;
-  SFX.pipe(); showButtons(false);
-}
-function loadPlayground() {
-  game.level = makePlayground();
-  game.inPlayground = true;
-  player.h = player.power > 0 ? 24 : 16;
-  player.x = 3*TILE; player.y = 12*TILE - player.h;
-  player.vx = 0; player.vy = 0; player.facing = 1; player.grounded = false;
-  player.inv = 0; player.onPipe = false; player.runCharge = 0;
-  game.camX = 0; game.particles = []; game.pops = []; game.powerups = [];
-  game.fireballs = []; game.bossFlames = []; game.boss = null; game.pug = null; game.treatT = 0;
-  game.state = "play"; showButtons(true);
-}
-function exitPlayground() {
-  game.state = "exiting"; game.timer = 0; player.vx = 0; player.onPipe = false;
-  SFX.pipe(); showButtons(false);
-}
-function finishExit() {
-  const r = game.savedReturn;
-  game.level = game.savedLevel; game.inPlayground = false;
-  player.power = r.power; player.h = r.h;
-  player.x = r.x; player.y = r.y; player.vx = 0; player.vy = 0;
-  player.facing = r.facing; player.grounded = false; player.inv = 30; player.onPipe = false;
-  game.camX = r.camX; game.savedLevel = null;
-  game.particles = []; game.pops = []; game.powerups = []; game.fireballs = [];
-  game.state = "play"; showButtons(true);
-}
-
-/* ============================== GAME STATE ============================== */
-const game = {
-  state: "title",     // title | play | dead | clear | gameover | win | entering | exiting
-  levelNum: 0, level: null,
-  score: 0, coins: 0, lives: 3,
-  timer: 0, camX: 0,
-  particles: [], pops: [], powerups: [], fireballs: [], bossFlames: [],
-  boss: null, pug: null, rescued: false,
-  titleCards: [],
-  inPlayground: false, savedLevel: null, savedReturn: null, treatT: 0,
-};
-const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,
-                 coyote:0, jumpBuf:0, animT:0, frame:0,
-                 power:0, inv:0, star:0, boots:0, runCharge:0, runDir:0, onPipe:false,
-                 jg:{ hold:0.125, fall:0.4375 } };
-
-function startLevel(n) {
-  game.levelNum = n;
-  game.level = makeLevel(n);
-  game.inPlayground = false; game.savedLevel = null;
-  player.h = player.power > 0 ? 24 : 16;
-  player.x = 2*TILE; player.y = 13*TILE - player.h;
-  player.vx = 0; player.vy = 0; player.facing = 1; player.grounded = false;
-  player.inv = 0; player.star = 0; player.boots = 0; player.runCharge = 0; player.onPipe = false;
-  game.camX = 0; game.particles = []; game.pops = []; game.timer = 0;
-  game.powerups = []; game.fireballs = []; game.bossFlames = [];
-  game.rescued = false;
-  game.boss = null; game.pug = null;
-  if (game.level.boss) {
-    game.boss = { x: game.level.boss.x, baseX: game.level.boss.x, y: 13*TILE - 28,
-                  w: 26, h: 28, vx: -0.3, vy: 0, facing: -1,
-                  hp: game.level.bossHp || 3, stun: 0, fireT: 130, hopT: 110, dead: false, deadT: 0, active: false };
-    game.pug = { x: game.level.cageX * TILE + 8, free: false, hopT: 0 };
-  }
-  game.state = "play";
-  document.getElementById("verlink").style.display = "none";
-  showButtons(true);
-}
-function goTitle() {
-  game.state = "title"; game.score = 0; game.coins = 0; game.lives = 3; game.timer = 0;
-  player.power = 0; player.star = 0; player.boots = 0; game.rescued = false;
-  game.inPlayground = false; game.savedLevel = null;
-  unfadeButtons();
-  document.getElementById("verlink").style.display = "block";
-  showButtons(false);
-}
-
-/* ============================== PHYSICS ============================== */
-const SOLID = "#G=?MUSPTBJNVK";
-function tileAt(tx, ty) {
-  const L = game.level;
-  if (tx < 0 || tx >= L.width) return "#";
-  if (ty < 0) return " ";
-  if (ty >= ROWS) return " ";
-  return L.grid[ty][tx];
-}
-function isSolid(c) { return SOLID.includes(c); }
-
-function moveEntity(e, onBumpHead) {
-  // horizontal
-  e.x += e.vx;
-  let x0 = Math.floor(e.x / TILE), x1 = Math.floor((e.x + e.w - 0.01) / TILE);
-  let y0 = Math.floor(e.y / TILE), y1 = Math.floor((e.y + e.h - 0.01) / TILE);
-  if (e.vx > 0) {
-    for (let ty = y0; ty <= y1; ty++) if (isSolid(tileAt(x1, ty))) { e.x = x1*TILE - e.w - 0.01; e.hitWall = true; break; }
-  } else if (e.vx < 0) {
-    for (let ty = y0; ty <= y1; ty++) if (isSolid(tileAt(x0, ty))) { e.x = (x0+1)*TILE + 0.01; e.hitWall = true; break; }
-  }
-  // vertical
-  e.y += e.vy;
-  x0 = Math.floor(e.x / TILE); x1 = Math.floor((e.x + e.w - 0.01) / TILE);
-  y0 = Math.floor(e.y / TILE); y1 = Math.floor((e.y + e.h - 0.01) / TILE);
-  e.grounded = false;
-  if (e.vy > 0) {
-    for (let tx = x0; tx <= x1; tx++) if (isSolid(tileAt(tx, y1))) {
-      e.y = y1*TILE - e.h; e.vy = 0; e.grounded = true; break;
-    }
-  } else if (e.vy < 0) {
-    let bumped = null, bestDist = 1e9;
-    for (let tx = x0; tx <= x1; tx++) if (isSolid(tileAt(tx, y0))) {
-      e.y = (y0+1)*TILE + 0.01; e.vy = 0;
-      const cx = e.x + e.w/2, d = Math.abs((tx+0.5)*TILE - cx);
-      if (d < bestDist) { bestDist = d; bumped = tx; }
-    }
-    if (bumped !== null && onBumpHead) onBumpHead(bumped, y0);
-  }
-}
-
-function bumpBlock(tx, ty) {
-  const c = tileAt(tx, ty), L = game.level;
-  if (c === "?") {
-    L.grid[ty][tx] = "U";
-    game.coins++; game.score += 100; SFX.coin();
-    game.pops.push({ x:(tx+0.5)*TILE, y:ty*TILE, t:0 });
-  } else if (c === "M") {
-    L.grid[ty][tx] = "U";
-    game.score += 100; SFX.sprout();
-    // mushroom when small, fire flower when already big (like SMB)
-    game.powerups.push({ x:tx*TILE + 2, y:ty*TILE + 2, w:12, h:12,
-      vx:0.7, vy:0, type: player.power === 0 ? "mushroom" : "flower", rise:28 });
-  } else if (c === "N" || c === "V" || c === "K") {
-    L.grid[ty][tx] = "U";
-    game.score += 100; SFX.sprout();
-    const type = c === "N" ? "star" : c === "V" ? "oneup" : "boots";
-    game.powerups.push({ x:tx*TILE + 2, y:ty*TILE + 2, w:12, h:12,
-      vx: type === "star" ? 1.1 : 0.7, vy:0, type, rise:28 });
-  } else if (c === "=") {
-    if (player.power > 0) {                  // only big kids break bricks
-      L.grid[ty][tx] = " ";
-      game.score += 50; SFX.brick();
-      for (let i = 0; i < 6; i++)
-        game.particles.push({ x:(tx+0.5)*TILE, y:(ty+0.5)*TILE,
-          vx:(i%2?1:-1)*(0.6+i*0.25), vy:-2.2-(i%3)*0.7, t:0, c:"#b46a36" });
-    } else SFX.bump();
-  } else if (isSolid(c)) {
-    SFX.bump();
-  }
-}
-
-function applyDamage() {
-  if (player.inv > 0 || player.star > 0) return;   // star power shrugs everything off
-  if (player.power > 0) {
-    player.power--;
-    if (player.power === 0) { player.y += 8; player.h = 16; }
-    player.inv = 120; SFX.shrink();
-  } else {
-    killPlayer();
-  }
-}
-
-function bossHit() {
-  const B = game.boss;
-  B.hp--; B.stun = 50; SFX.stomp();
-  game.score += 500;
-  if (B.hp <= 0) { B.dead = true; B.deadT = 0; B.vy = -4.5; game.score += 5000; SFX.clear(); }
-}
-
-function collectCoins() {
-  const x0 = Math.floor(player.x / TILE), x1 = Math.floor((player.x + player.w) / TILE);
-  const y0 = Math.floor(player.y / TILE), y1 = Math.floor((player.y + player.h) / TILE);
-  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
-    if (tileAt(tx, ty) === "o") {
-      game.level.grid[ty][tx] = " ";
-      game.coins++; game.score += 100; SFX.coin();
-      game.pops.push({ x:(tx+0.5)*TILE, y:ty*TILE, t:0 });
-    }
-  }
-}
-
-/* ============================== UPDATE ============================== */
-/* Super Mario Bros movement constants (px/frame @ 60fps, 16px tiles) */
-const WALK_MAX = 1.5625, RUN_MAX = 2.5625;
-const ACC_WALK = 0.0374, ACC_RUN = 0.0556, DEC_REL = 0.0508, DEC_SKID = 0.1016;
-const MAX_FALL = 4.0;
-/* SMB jump: initial velocity + gravity depend on takeoff speed */
-function jumpTier(speed) {
-  const s = Math.abs(speed);
-  const t = s < 1.0    ? { v:-4.0, hold:0.125,   fall:0.4375  }
-          : s < 2.3125 ? { v:-4.0, hold:0.1172,  fall:0.40625 }
-                       : { v:-5.0, hold:0.15625, fall:0.5625  };
-  // bouncy boots: springier launch and a floatier fall
-  return player.boots > 0 ? { v: t.v * 1.25, hold: t.hold * 0.95, fall: t.fall * 0.9 } : t;
-}
-
-function setPower(n) {
-  if (n > 0 && player.h === 16) { player.y -= 8.01; player.h = 24; }
-  if (n === 0 && player.h === 24) { player.y += 8; player.h = 16; }
-  player.power = n;
-}
-
-function updatePlay() {
-  syncKeys();
-  if (player.inv > 0) player.inv--;
-  if (player.star > 0) {
-    player.star--;
-    if (game.timer % 3 === 0)                       // a trail of sparkles while starry
-      game.particles.push({ x: player.x + Math.random()*player.w, y: player.y + Math.random()*player.h,
-        vx: -player.vx*0.3 + (Math.random()-0.5), vy: -Math.random()*0.8, t: 40,
-        c: STAR_COLORS[(game.timer >> 1) % STAR_COLORS.length] });
-    if (player.star === 0) SFX.shrink();
-  }
-  if (player.boots > 0) {
-    player.boots--;
-    if (player.boots === 0) SFX.shrink();
-  }
-
-  // --- horizontal: walk/auto-run with SMB accel, release decel and skid ---
-  const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-  if (dir !== 0) {
-    if (dir === player.runDir) player.runCharge++;
-    else { player.runCharge = 0; player.runDir = dir; }
-  } else player.runCharge = 0;
-  const running = player.runCharge > 30;            // hold a direction ~0.5s to run
-  const maxV = running ? RUN_MAX : WALK_MAX;
-
-  if (dir !== 0) {
-    player.facing = dir;
-    if (player.vx * dir < 0) {
-      player.vx += dir * (player.grounded ? DEC_SKID : ACC_RUN);   // skid turn
-    } else if (Math.abs(player.vx) < maxV) {
-      player.vx += dir * (running ? ACC_RUN : ACC_WALK);
-      if (Math.abs(player.vx) > maxV) player.vx = dir * maxV;
-    } else if (player.grounded && Math.abs(player.vx) > maxV) {
-      player.vx -= Math.sign(player.vx) * DEC_REL;                 // ease back to walk speed
-    }
-  } else if (player.grounded && player.vx !== 0) {
-    const s = Math.sign(player.vx);
-    player.vx -= s * DEC_REL;
-    if (player.vx * s < 0) player.vx = 0;
-  }
-
-  const swim = game.level.theme === "water";
-  if (swim) {
-    // --- underwater: tap jump to swim up, gentle sinking otherwise ---
-    if (input.jumpPressed) {
-      input.jumpPressed = false;
-      player.vy = -2.7; SFX.swim();
-    }
-    player.vy = Math.min(player.vy + 0.07, 1.3);
-  } else {
-    // --- jump (buffer + coyote for kid-friendliness) ---
-    if (input.jumpPressed) { player.jumpBuf = 7; input.jumpPressed = false; }
-    if (player.grounded) { player.coyote = 5; player.jg = jumpTier(player.vx); }
-    if (player.jumpBuf > 0 && player.coyote > 0) {
-      const t = jumpTier(player.vx);
-      player.vy = t.v; player.jg = t;
-      player.coyote = 0; player.jumpBuf = 0; SFX.jump();
-    }
-    if (player.jumpBuf > 0) player.jumpBuf--;
-    if (player.coyote > 0) player.coyote--;
-
-    // --- gravity: light while rising & holding jump, heavy otherwise (SMB) ---
-    player.vy += (player.vy < 0 && input.jump) ? player.jg.hold : player.jg.fall;
-    player.vy = Math.min(player.vy, MAX_FALL);
-  }
-
-  player.hitWall = false;
-  moveEntity(player, bumpBlock);
-  collectCoins();
-
-  // --- trampoline bounce (playground) ---
-  if (player.grounded) {
-    const bx = Math.floor((player.x + player.w/2)/TILE), by = Math.floor((player.y + player.h + 1)/TILE);
-    if (tileAt(bx, by) === "J") {
-      player.vy = player.boots > 0 ? -9.2 : -8.6;   // boots make the springs a little springier
-      // heavier rise than a normal jump, so even a held bounce stays on screen
-      player.jg = { hold: player.boots > 0 ? 0.34 : 0.32, fall: 0.4375 };
-      player.grounded = false; player.coyote = 0; player.jumpBuf = 0;
-      SFX.boing();
-      for (let i=0;i<5;i++) game.particles.push({ x:(bx+0.5)*TILE + (i-2)*2.5, y:by*TILE,
-        vx:(i-2)*0.5, vy:-1.4-Math.random()*1.6, t:0, c:"#ffd166" });
-    }
-  }
-
-  // --- the playground runs its own (hazard-free) update ---
-  if (game.inPlayground) { updatePlaygroundExtras(); return; }
-
-  // --- firebars (castle hazards) ---
-  if (player.inv === 0) for (const fb of (game.level.firebars || [])) {
-    const a = game.timer * fb.sp + fb.ph;
-    for (let i = 1; i <= fb.len; i++) {
-      const px = fb.cx + Math.cos(a) * i * 6, py = fb.cy + Math.sin(a) * i * 6;
-      if (px > player.x - 2 && px < player.x + player.w + 2 &&
-          py > player.y - 2 && py < player.y + player.h + 2) {
-        applyDamage();
-        if (game.state !== "play") return;
-        break;
-      }
-    }
-  }
-
-  // --- fireballs ---
-  if (input.firePressed) {
-    input.firePressed = false;
-    if (player.power === 2 && game.fireballs.length < 2) {
-      game.fireballs.push({ x: player.x + (player.facing > 0 ? player.w : -5),
-        y: player.y + player.h * 0.35, w:4, h:4, vx: 3 * player.facing, vy: 1 });
-      SFX.fire();
-    }
-  }
-  for (const f of game.fireballs) {
-    f.vy = Math.min(f.vy + 0.3, 5);
-    f.hitWall = false;
-    moveEntity(f);
-    if (f.grounded) f.vy = -2.6;
-    if (f.hitWall || f.x < game.camX - 24 || f.x > game.camX + VIEW_W + 24 || f.y > LEVEL_H + 24) f.gone = true;
-  }
-  game.fireballs = game.fireballs.filter(f => !f.gone);
-
-  // --- powerups (mushrooms & boots walk, stars bounce along, flowers sit) ---
-  for (const p of game.powerups) {
-    if (p.rise > 0) { p.rise--; p.y -= 0.5; }
-    else if (p.type !== "flower") {
-      p.vy = Math.min(p.vy + 0.4375, MAX_FALL);
-      p.hitWall = false;
-      moveEntity(p);
-      if (p.hitWall) p.vx = -p.vx;
-      if (p.grounded && p.type === "star") p.vy = -3.6;      // stars bounce off the floor
-      if (p.y > LEVEL_H + 40) p.gone = true;
-    }
-    if (p.rise < 20 &&
-        player.x < p.x + p.w && player.x + player.w > p.x &&
-        player.y < p.y + p.h && player.y + player.h > p.y) {
-      p.gone = true; game.score += 1000;
-      if (p.type === "star") { player.star = 640; SFX.star(); }
-      else if (p.type === "boots") { player.boots = 900; SFX.boots(); }
-      else if (p.type === "oneup") {
-        game.lives++; SFX.oneup();
-        game.pops.push({ x: p.x + p.w/2, y: p.y, t: 0, oneup: true });
-      } else {
-        SFX.grow();
-        setPower(p.type === "flower" ? Math.min(2, player.power + 1) : Math.max(1, player.power));
-      }
-      if (p.type !== "oneup") game.pops.push({ x: p.x + p.w/2, y: p.y, t: 0 });
-    }
-  }
-  game.powerups = game.powerups.filter(p => !p.gone);
-  refreshFireBtn();
-
-  // animation
-  if (Math.abs(player.vx) > 0.3 && player.grounded) {
-    player.animT += Math.abs(player.vx);
-    if (player.animT > 7) { player.animT = 0; player.frame = 1 - player.frame; }
-  } else player.frame = 0;
-
-  // fell in a pit
-  if (player.y > LEVEL_H + 40) { killPlayer(); return; }
-
-  // enemies
-  const L = game.level;
-  for (const e of L.enemies) {
-    if (!e.active) {
-      if (e.x < game.camX + VIEW_W + 24) e.active = true;
-      else continue;
-    }
-    if (e.dead > 0) { e.dead++; if (e.fish || e.leap) { e.y += 2; } continue; }
-    if (e.fish) {                            // swimmer: drifts with a gentle bob
-      e.vy = Math.sin((game.timer + e.ph * 17) * 0.05) * 0.35;
-      e.hitWall = false;
-      moveEntity(e);
-      if (e.hitWall) e.vx = -e.vx;
-      e.frame = (Math.floor(game.timer / 10)) % 2;
-    } else if (e.leap) {                     // leaper: bursts out of the water below
-      if (e.y > LEVEL_H + 20) {
-        e.vy = 0;
-        if (--e.leapT <= 0) {
-          e.leapT = 100 + Math.random() * 80;
-          e.x = e.homeX + (Math.random() * 40 - 20);
-          e.y = LEVEL_H + 18;
-          e.vy = -(4.6 + Math.random() * 1.3);
-          e.vx = (player.x > e.x ? 1 : -1) * (0.3 + Math.random() * 0.4);
-        }
-      } else {
-        e.vy += 0.16;
-        e.x += e.vx; e.y += e.vy;
-      }
-      e.frame = (Math.floor(game.timer / 10)) % 2;
-    } else {
-      e.vy = Math.min(e.vy + 0.4375, MAX_FALL);
-      e.hitWall = false;
-      moveEntity(e);
-      if (e.hitWall) e.vx = -e.vx;
-      e.frame = (Math.floor(game.timer / 14)) % 2;
-      if (e.y > LEVEL_H + 60) { e.dead = 999; continue; }
-    }
-
-    // fireball hits
-    for (const f of game.fireballs) {
-      if (!f.gone && f.x < e.x + e.w && f.x + f.w > e.x &&
-          f.y < e.y + e.h && f.y + f.h > e.y) {
-        e.dead = 1; f.gone = true; game.score += 200; SFX.stomp();
-      }
-    }
-    if (e.dead > 0) continue;
-
-    // player collision
-    if (player.x < e.x + e.w && player.x + player.w > e.x &&
-        player.y < e.y + e.h && player.y + player.h > e.y) {
-      const feet = player.y + player.h;
-      if (player.star > 0) {                // starry: just run straight through them
-        e.dead = 1; game.score += 200; SFX.stomp();
-      } else if (player.vy > 0.4 && feet - e.y < 9) {
-        e.dead = 1; game.score += 200; SFX.stomp();
-        const t = jumpTier(player.vx);
-        player.vy = t.v; player.jg = t;     // SMB-style bounce; hold jump to ride it higher
-      } else {
-        applyDamage();
-        if (game.state !== "play") return;
-      }
-    }
-  }
-  L.enemies = L.enemies.filter(e => e.dead < 26 || !e.active);
-
-  // --- Bowser (castle boss) ---
-  const B = game.boss;
-  if (B && !B.dead) {
-    if (!B.active && B.x < game.camX + VIEW_W + 60) B.active = true;
-    if (B.active) {
-      if (B.stun > 0) B.stun--;
-      B.facing = player.x + player.w/2 < B.x + B.w/2 ? -1 : 1;
-      B.x += B.vx;
-      if (B.x < B.baseX - 30 || B.x > B.baseX + 30) B.vx = -B.vx;
-      B.vy = Math.min(B.vy + 0.3, 5);
-      B.y += B.vy;
-      const floorY = 13*TILE - B.h;
-      if (B.y >= floorY) { B.y = floorY; B.vy = 0; }
-      if (--B.hopT <= 0) { B.hopT = 130 + (game.timer % 70); B.vy = -3.4; }
-      if (--B.fireT <= 0) {
-        B.fireT = 150;
-        game.bossFlames.push({ x: B.x + (B.facing > 0 ? B.w + 2 : -14), y: B.y + 7,
-                               w: 12, h: 6, vx: 1.5 * B.facing });
-        SFX.brick();
-      }
-      for (const f of game.fireballs) {
-        if (!f.gone && B.stun === 0 && f.x < B.x + B.w && f.x + f.w > B.x &&
-            f.y < B.y + B.h && f.y + f.h > B.y) { f.gone = true; bossHit(); }
-      }
-      if (player.x < B.x + B.w && player.x + player.w > B.x &&
-          player.y < B.y + B.h && player.y + player.h > B.y) {
-        const feet = player.y + player.h;
-        if (player.vy > 0.4 && feet - B.y < 14) {
-          const t = jumpTier(player.vx);
-          player.vy = t.v; player.jg = t;       // bounce off his head
-          if (B.stun === 0) bossHit();
-        } else if (player.star > 0) {
-          if (B.stun === 0) bossHit();          // starry kids bonk Bowser on contact
-        } else if (B.stun < 30) {
-          applyDamage();
-          if (game.state !== "play") return;
-        }
-      }
-    }
-  } else if (B && B.dead && B.y < LEVEL_H + 80) {
-    B.deadT++; B.vy = Math.min(B.vy + 0.25, 6); B.y += B.vy;
-  }
-  for (const fl of game.bossFlames) {
-    fl.x += fl.vx;
-    if (fl.x < game.camX - 30 || fl.x > game.camX + VIEW_W + 30) fl.gone = true;
-    else if (player.inv === 0 &&
-        player.x < fl.x + fl.w && player.x + player.w > fl.x &&
-        player.y < fl.y + fl.h && player.y + player.h > fl.y) {
-      fl.gone = true;
-      applyDamage();
-      if (game.state !== "play") return;
-    }
-  }
-  game.bossFlames = game.bossFlames.filter(fl => !fl.gone);
-
-  // --- Peach the pug, waiting in her cage ---
-  if (game.pug) {
-    if (!game.pug.free && game.boss.dead && game.boss.deadT > 40) { game.pug.free = true; SFX.sprout(); }
-    if (game.pug.free) {
-      game.pug.hopT++;
-      if (Math.abs(player.x + player.w/2 - game.pug.x) < 14 && player.y + player.h > 11*TILE) {
-        game.state = "clear"; game.timer = 0; game.rescued = true; game.score += 5000;
-        SFX.clear(); spawnConfetti(game.pug.x, 100); showButtons(false);
-      }
-    }
-  }
-
-  // flag
-  if (L.flagX && player.x + player.w/2 >= L.flagX * TILE) {
-    game.state = "clear"; game.timer = 0; game.score += 1000; SFX.clear();
-    spawnConfetti(L.flagX * TILE, 80);
-    showButtons(false);
-  }
-
-  // --- stand on a pipe + press Down → slide into the playground ---
-  player.onPipe = false;
-  if (player.grounded) {
-    const bx = Math.floor((player.x + player.w/2)/TILE), by = Math.floor((player.y + player.h + 1)/TILE);
-    if (tileAt(bx, by) === "T") player.onPipe = true;
-  }
-  if (player.onPipe && input.downPressed) { input.downPressed = false; enterPipe(); return; }
-  refreshContextBtns();
-
-  // camera
-  const target = player.x + player.w/2 - VIEW_W * 0.42;
-  game.camX += (target - game.camX) * 0.12;
-  game.camX = Math.max(0, Math.min(game.camX, L.width * TILE - VIEW_W));
-}
-
-function updatePlaygroundExtras() {
-  const L = game.level;
-
-  // walk animation
-  if (Math.abs(player.vx) > 0.3 && player.grounded) {
-    player.animT += Math.abs(player.vx);
-    if (player.animT > 7) { player.animT = 0; player.frame = 1 - player.frame; }
-  } else player.frame = 0;
-
-  // water slide — a scripted whoosh down the chute
-  const s = L.slide;
-  if (s) {
-    const cx = player.x + player.w/2;
-    if (cx > s.x0*TILE && cx < s.x1*TILE) {
-      const frac = (cx - s.x0*TILE) / ((s.x1 - s.x0)*TILE);
-      const lineY = s.topY + (s.botY - s.topY) * frac;
-      const feet = player.y + player.h;
-      if (feet >= lineY - 3 && feet <= lineY + 12 && player.vy >= -0.5) {
-        player.y = lineY - player.h; player.vy = 0; player.grounded = true; player.facing = 1;
-        if (player.vx < 2.6) player.vx += 0.3;
-        if (game.timer % 4 === 0) game.particles.push({ x:cx, y:feet, vx:Math.random()-0.5, vy:-Math.random()*1.6, t:0, c:"#9be0ff" });
-      }
-    }
-  }
-
-  // puppies trot back and forth; hearts when you're near
-  for (const pup of L.puppies) {
-    pup.x += pup.vx;
-    if (pup.x < pup.minX || pup.x > pup.maxX) pup.vx *= -1;
-    pup.hopT++;
-    if (Math.abs(player.x + player.w/2 - pup.x) < 22 && game.timer % 40 === 0) {
-      game.pops.push({ x:pup.x, y:11*TILE, t:0, heart:true }); SFX.yip();
-    }
-  }
-
-  // ice-cream stand hands you a treat when you walk up
-  if (game.treatT > 0) game.treatT--;
-  if (Math.abs(player.x + player.w/2 - L.iceCreamX) < 16 && game.treatT <= 0) {
-    game.treatT = 100; game.score += 50; SFX.yum();
-    game.pops.push({ x:L.iceCreamX, y:11*TILE, t:0, treat:true });
-  }
-
-  // go down the exit pipe to leave (the EXIT button does the same)
-  player.onPipe = false;
-  if (player.grounded) {
-    const bx = Math.floor((player.x + player.w/2)/TILE), by = Math.floor((player.y + player.h + 1)/TILE);
-    const tc = tileAt(bx, by);
-    if (tc === "T" || tc === "P") player.onPipe = true;
-  }
-  if (player.onPipe && input.downPressed) { input.downPressed = false; exitPlayground(); return; }
-
-  if (player.y > LEVEL_H + 30) { player.x = 4*TILE; player.y = 12*TILE - player.h; player.vy = 0; }
-  refreshContextBtns();
-
-  // camera
-  const target = player.x + player.w/2 - VIEW_W * 0.42;
-  game.camX += (target - game.camX) * 0.12;
-  game.camX = Math.max(0, Math.min(game.camX, L.width * TILE - VIEW_W));
-}
-
-function killPlayer() {
-  game.state = "dead"; game.timer = 0;
-  player.vy = -6.5; player.power = 0; player.star = 0; player.boots = 0; SFX.die();
-  showButtons(false);
-}
-
-function spawnConfetti(x, n) {
-  const colors = ["#ff5e7e","#ffd166","#6ee7b7","#7fb5ff","#c89bff"];
-  for (let i = 0; i < n; i++)
-    game.particles.push({ x: x + (Math.random()*60-30), y: Math.random()*120,
-      vx: Math.random()*2-1, vy: Math.random()*-1.5-0.5, t: -Math.random()*30,
-      c: colors[i % colors.length], conf: true });
-}
-
-function update() {
-  game.timer++;
-
-  // particles
-  for (const p of game.particles) {
-    if (p.t < 0) { p.t++; continue; }
-    p.x += p.vx; p.y += p.vy;
-    p.vy += p.conf ? 0.05 : 0.3;
-    if (p.conf) p.vx *= 0.99;
-    p.t++;
-  }
-  game.particles = game.particles.filter(p => p.t < (p.conf ? 220 : 60) && p.y < LEVEL_H + 80);
-  for (const c of game.pops) c.t++;
-  game.pops = game.pops.filter(c => c.t < 28);
-
-  if (game.state === "play") updatePlay();
-  else if (game.state === "entering") {
-    game.timer++; player.y += 1.7; player.frame = 0;
-    if (game.timer > 22) loadPlayground();
-  }
-  else if (game.state === "exiting") {
-    game.timer++; player.y += 1.7; player.frame = 0;
-    if (game.timer > 22) finishExit();
-  }
-  else if (game.state === "dead") {
-    player.vy += 0.35; player.y += player.vy;
-    if (game.timer > 110) {
-      game.lives--;
-      if (game.lives <= 0) { game.state = "gameover"; game.timer = 0; }
-      else startLevel(game.levelNum);
-    }
-  }
-  else if (game.state === "clear") {
-    // hero strolls right past the flag
-    player.vx = 1.2; player.vy = Math.min(player.vy + 0.46, 7);
-    moveEntity(player);
-    player.animT += 1.2;
-    if (player.animT > 7) { player.animT = 0; player.frame = 1 - player.frame; }
-    if (game.timer > 170) {
-      if (game.levelNum + 1 < LEVEL_COUNT) startLevel(game.levelNum + 1);
-      else { game.state = "win"; game.timer = 0; spawnConfetti(game.camX + VIEW_W/2, 120); }
-    }
-  }
-  else if (game.state === "gameover") {
-    if (game.timer > 30 && tapX >= 0 && game.goHits) {
-      for (const h of game.goHits) {
-        if (tapX >= h.x && tapX <= h.x + h.w && tapY >= h.y && tapY <= h.y + h.h) {
-          SFX.select();
-          if (h.action === "continue") { game.lives = 3; startLevel(game.levelNum); }
-          else goTitle();
-          break;
-        }
-      }
-    }
-    if (keys["Enter"] && game.timer > 30) { SFX.select(); game.lives = 3; startLevel(game.levelNum); }
-  }
-  else if (game.state === "win") {
-    if (game.timer % 50 === 0 && game.timer < 400) spawnConfetti(game.camX + VIEW_W/2, 30);
-    if (game.timer > 90 && input.anyTap) goTitle();
-  }
-  else if (game.state === "title") updateTitle();
-
-  input.anyTap = false; input.firePressed = false; input.downPressed = false; tapX = -1;
-}
-
-function updateTitle() {
-  if (tapX >= 0) {
-    for (const c of game.titleCards) {
-      if (tapX >= c.sx && tapX <= c.sx + c.sw && tapY >= c.sy && tapY <= c.sy + c.sh) {
-        heroKey = c.key; SFX.select();
-        startLevel(0);
-        return;
-      }
-    }
-  }
-  if (keys["Enter"]) { SFX.select(); startLevel(0); }
-}
-
-/* ============================== DRAW ============================== */
-function drawTile(c, tx, ty) {
-  const x = tx*TILE, y = ty*TILE;
-  const r = (rx,ry,rw,rh,col)=>{g.fillStyle=col;g.fillRect(x+rx,y+ry,rw,rh);};
-  switch (c) {
-    case "G":
-      r(0,0,16,16,"#b46a36"); r(0,0,16,5,"#3fbf52"); r(0,4,16,1,"#2c8f3c");
-      r(2,8,2,2,"#8a4b22"); r(9,11,2,2,"#8a4b22"); break;
-    case "#":
-      r(0,0,16,16,"#9a5527"); r(3,3,2,2,"#7a3f1b"); r(10,9,2,2,"#7a3f1b"); r(6,13,2,2,"#7a3f1b"); break;
-    case "=":
-      r(0,0,16,16,"#c1693a"); g.fillStyle="#8a4520";
-      g.fillRect(x,y+7,16,2); g.fillRect(x,y+15,16,1);
-      g.fillRect(x+7,y,2,7); g.fillRect(x+3,y+9,2,7); g.fillRect(x+11,y+9,2,7); break;
-    case "?": case "M":
-      r(0,0,16,16,"#e8a33d"); r(1,1,14,14,"#f6c14f");
-      g.fillStyle="#8a5a12"; g.font="bold 10px monospace"; g.textAlign="center"; g.textBaseline="middle";
-      g.fillText("?", x+8, y+9);
-      r(1,1,2,2,"#fff0c0"); break;
-    case "N": case "V": case "K": {          // special power-up blocks — colour-coded so kids can tell them apart
-      const skin = c === "N" ? ["#b58cf0","#d3b4ff","#4c2f80","★"]     // star
-                 : c === "V" ? ["#2f9e56","#63d98b","#1d5c33","1"]          // extra life
-                             : ["#2f8fd0","#79cdf5","#124a70","↑"];    // bouncy boots
-      const glow = (game.timer >> 3) % 2 ? 0.25 : 0;
-      r(0,0,16,16,skin[0]); r(1,1,14,14,skin[1]);
-      g.fillStyle = "rgba(255,255,255," + glow + ")"; g.fillRect(x+1, y+1, 14, 14);
-      g.fillStyle = skin[2]; g.font = "bold 10px monospace"; g.textAlign = "center"; g.textBaseline = "middle";
-      g.fillText(skin[3], x+8, y+9);
-      r(1,1,2,2,"#ffffff"); break;
-    }
-    case "U":
-      r(0,0,16,16,"#a9743a"); r(1,1,14,14,"#c08a48"); r(6,6,4,4,"#a9743a"); break;
-    case "S":
-      r(0,0,16,16,"#b8b8c8"); r(1,1,14,14,"#d8d8e8"); r(2,2,12,2,"#efeff8"); r(2,12,12,2,"#a0a0b4"); break;
-    case "T":
-      r(-2,0,20,8,"#2f9e44"); r(-2,0,20,2,"#56c462"); r(0,8,16,8,"#2f9e44");
-      r(1,2,3,6,"#56c462"); r(2,8,3,8,"#56c462"); break;
-    case "P":
-      r(0,0,16,16,"#2f9e44"); r(2,0,3,16,"#56c462"); r(13,0,2,16,"#1f7a32"); break;
-    case "B":
-      r(0,2,16,6,"#d89a52"); r(0,2,16,2,"#f0c080"); r(0,7,16,1,"#8a5a28");
-      r(2,8,2,8,"#8a5a28"); r(12,8,2,8,"#8a5a28"); break;
-    case "J":   // trampoline — the mat sits at the tile's top, where you actually stand
-      r(1,5,2,11,"#7a1f38"); r(13,5,2,11,"#7a1f38");         // legs down to the floor
-      r(0,0,16,5,"#e0436a"); r(0,0,16,2,"#ff86a6");          // springy mat
-      g.strokeStyle="#ffd0dd"; g.lineWidth=0.6;
-      for (let i=2;i<16;i+=3){ g.beginPath(); g.moveTo(x+i,y+5); g.lineTo(x+i,y+9); g.stroke(); }
-      break;
-    case "o": {
-      const t = Math.sin(game.timer * 0.15 + tx) * 0.5 + 0.5;
-      const w = 3 + 5 * t;
-      g.fillStyle = "#f6c14f";
-      g.beginPath(); g.ellipse(x+8, y+8, w/1.6, 6, 0, 0, Math.PI*2); g.fill();
-      g.fillStyle = "#fff0c0";
-      g.beginPath(); g.ellipse(x+8, y+8, w/3.2, 3.4, 0, 0, Math.PI*2); g.fill();
-      break;
-    }
-  }
-}
-
-function drawBackground(camX) {
-  const theme = game.level.theme || "day";
-  if (theme === "playground") {
-    const pg = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
-    pg.addColorStop(0, "#bfe9ff"); pg.addColorStop(1, "#ffe6f2");
-    g.fillStyle = pg; g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
-    // rainbow arc (parallax)
-    const rcx = camX * 0.5 + VIEW_W * 0.5, bands = ["#ff6b6b","#ffa94d","#ffd43b","#69db7c","#4dabf7","#b197fc"];
-    g.lineWidth = 5;
-    for (let i=0;i<bands.length;i++){ g.strokeStyle = bands[i];
-      g.beginPath(); g.arc(rcx, 232, 150 - i*5, Math.PI, 0); g.stroke(); }
-    // bunting along the top
-    const off = camX % 22;
-    for (let i=-1;i<VIEW_W/22+2;i++){ const bx = camX + i*22 - off, c = ["#ff5e7e","#ffd166","#6ee7b7","#7fb5ff","#c89bff"][((i%5)+5)%5];
-      g.fillStyle = c; g.beginPath(); g.moveTo(bx, 14); g.lineTo(bx+22, 14); g.lineTo(bx+11, 26); g.closePath(); g.fill(); }
-    // drifting balloons
-    for (let i=0;i<5;i++){ const bx = camX + ((i*160 + game.timer*0.25) % (VIEW_W+120)) - 60,
-      byy = 60 + Math.sin(game.timer*0.03 + i)*10 + i*9, c = ["#ff6b9d","#ffd43b","#4dabf7","#69db7c","#b197fc"][i%5];
-      g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = 0.8;
-      g.beginPath(); g.moveTo(bx, byy+11); g.lineTo(bx, byy+24); g.stroke();
-      g.fillStyle = c; g.beginPath(); g.ellipse(bx, byy, 9, 11, 0, 0, Math.PI*2); g.fill();
-      g.fillStyle = "rgba(255,255,255,.5)"; g.beginPath(); g.ellipse(bx-3, byy-3, 2.4, 3.4, -0.5, 0, Math.PI*2); g.fill(); }
-    return;
-  }
-  if (theme === "castle") {
-    const cgr = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
-    cgr.addColorStop(0, "#140a10"); cgr.addColorStop(1, "#43161c");
-    g.fillStyle = cgr;
-    g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
-    return;
-  }
-  if (theme === "night") {
-    const ngr = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
-    ngr.addColorStop(0, "#0e1638"); ngr.addColorStop(1, "#33437e");
-    g.fillStyle = ngr;
-    g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
-    for (let i = 0; i < 50; i++) {
-      const sx = camX + ((i * 89.7) % VIEW_W), sy = (i * 47.3) % 170;
-      const tw = Math.sin(game.timer * 0.05 + i) * 0.5 + 0.5;
-      g.fillStyle = "rgba(255,255,235," + (0.25 + tw * 0.6) + ")";
-      g.fillRect(sx, sy, 1.6, 1.6);
-    }
-    const mx = camX + VIEW_W * 0.8;
-    g.fillStyle = "#f2ecd8";
-    g.beginPath(); g.arc(mx, 36, 11, 0, Math.PI*2); g.fill();
-    g.fillStyle = "#0e1638";
-    g.beginPath(); g.arc(mx + 5, 33, 9, 0, Math.PI*2); g.fill();
-    const hx2 = -((camX * 0.4) % 220);
-    g.fillStyle = "#1c3a4e";
-    for (let i = -1; i < VIEW_W / 220 + 2; i++) {
-      const bx = camX + hx2 + i * 220;
-      g.beginPath(); g.arc(bx + 60, 208, 44, Math.PI, 0); g.fill();
-      g.beginPath(); g.arc(bx + 170, 208, 26, Math.PI, 0); g.fill();
-    }
-    return;
-  }
-  if (theme === "sunset") {
-    const sgr = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
-    sgr.addColorStop(0, "#3f5aa8"); sgr.addColorStop(0.45, "#ff9a6b"); sgr.addColorStop(1, "#ffd6a0");
-    g.fillStyle = sgr;
-    g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
-    // low evening sun (slow parallax)
-    const sx = camX * 0.15 + VIEW_W * 0.66;
-    g.fillStyle = "rgba(255,240,180,.5)";
-    g.beginPath(); g.arc(sx, 104, 40, 0, Math.PI*2); g.fill();
-    g.fillStyle = "#fff1c2";
-    g.beginPath(); g.arc(sx, 104, 26, 0, Math.PI*2); g.fill();
-    // pink clouds drifting past — no hills: this park floats way up in the sky,
-    // so the pits stay clearly empty
-    const cx1 = -((camX * 0.3) % 240);
-    g.fillStyle = "rgba(255,214,232,.85)";
-    for (let i = -1; i < VIEW_W / 240 + 2; i++) {
-      const bx = camX + cx1 + i * 240;
-      cloud(bx + 20, 40); cloud(bx + 130, 72);
-    }
-    const cx2 = -((camX * 0.12) % 300);          // faraway cloud bank near the horizon
-    g.fillStyle = "rgba(255,236,214,.55)";
-    for (let i = -1; i < VIEW_W / 300 + 2; i++) {
-      const bx = camX + cx2 + i * 300;
-      cloud(bx + 60, 176); cloud(bx + 210, 190);
-    }
-    return;
-  }
-  if (theme === "water") {
-    const wgr = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
-    wgr.addColorStop(0, "#2c7fd4"); wgr.addColorStop(1, "#10336e");
-    g.fillStyle = wgr;
-    g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
-    for (let i = 0; i < 24; i++) {           // drifting bubbles
-      const bx = camX + ((i * 73.7) % VIEW_W) + Math.sin(game.timer * 0.03 + i) * 4;
-      const by = LEVEL_H - ((game.timer * 0.35 + i * 61.3) % (LEVEL_H + 30));
-      g.fillStyle = "rgba(220,240,255," + (0.18 + (i % 3) * 0.1) + ")";
-      g.beginPath(); g.arc(bx, by, 1.2 + (i % 3) * 0.7, 0, Math.PI*2); g.fill();
-    }
-    return;
-  }
-  // sky
-  const grad = g.createLinearGradient(0, -VIEW_H, 0, LEVEL_H);
-  grad.addColorStop(0, "#7db4ff"); grad.addColorStop(1, "#aee0ff");
-  g.fillStyle = grad;
-  g.fillRect(camX - 4, -VIEW_H - 4, VIEW_W + 8, VIEW_H + LEVEL_H + 8);
-  // hills + clouds parallax
-  const hx = -((camX * 0.4) % 220);
-  g.fillStyle = "#79d07e";
-  for (let i = -1; i < VIEW_W / 220 + 2; i++) {
-    const bx = camX + hx + i * 220;
-    g.beginPath(); g.arc(bx + 60, 208, 44, Math.PI, 0); g.fill();
-    g.beginPath(); g.arc(bx + 170, 208, 26, Math.PI, 0); g.fill();
-  }
-  const cx0 = -((camX * 0.25) % 260);
-  g.fillStyle = "rgba(255,255,255,.92)";
-  for (let i = -1; i < VIEW_W / 260 + 2; i++) {
-    const bx = camX + cx0 + i * 260;
-    cloud(bx + 40, 48); cloud(bx + 160, 86);
-  }
-}
-function cloud(x, y) {
-  g.beginPath();
-  g.arc(x, y, 10, 0, Math.PI*2); g.arc(x+12, y-5, 12, 0, Math.PI*2);
-  g.arc(x+26, y, 10, 0, Math.PI*2); g.fill();
-}
-
-function drawFlag(fx) {
-  const x = fx * TILE + 8;
-  g.fillStyle = "#cfd6dd"; g.fillRect(x-1, 2*TILE, 3, 11*TILE);
-  g.fillStyle = "#e9eef2"; g.beginPath(); g.arc(x+0.5, 2*TILE, 4, 0, Math.PI*2); g.fill();
-  const wave = Math.sin(game.timer * 0.1) * 2;
-  g.fillStyle = "#ff5e7e";
-  g.beginPath();
-  g.moveTo(x+2, 2*TILE+4); g.lineTo(x+26+wave, 2*TILE+11); g.lineTo(x+2, 2*TILE+18);
-  g.closePath(); g.fill();
-  g.fillStyle = "#fff";
-  g.font = "bold 8px monospace"; g.textAlign="left";
-  g.fillText("♥", x+6, 2*TILE+14);
-}
-
-function drawLava(tx0, tx1) {
-  const t = game.timer;
-  for (let tx = tx0; tx <= tx1; tx++) {
-    if (tileAt(tx, 13) !== " " || tileAt(tx, 14) !== " ") continue;
-    const x = tx * TILE;
-    const fl = Math.sin(t * 0.08 + tx * 1.7) * 2;
-    g.fillStyle = "#e84a1a";
-    g.fillRect(x, LEVEL_H - 8 + fl * 0.3, TILE, 12);
-    g.fillStyle = "#ffb02a";
-    g.fillRect(x + 2, LEVEL_H - 9 + fl * 0.5, 4, 3);
-    g.fillRect(x + 9, LEVEL_H - 8 - fl * 0.5, 4, 3);
-  }
-}
-
-function drawWater(tx0, tx1) {
-  const t = game.timer;
-  for (let tx = tx0; tx <= tx1; tx++) {
-    if (tileAt(tx, 13) !== " " || tileAt(tx, 14) !== " ") continue;
-    const x = tx * TILE;
-    const fl = Math.sin(t * 0.06 + tx * 1.3) * 2;
-    g.fillStyle = "#2f6fd4";
-    g.fillRect(x, LEVEL_H - 10 + fl * 0.3, TILE, 14);
-    g.fillStyle = "#7fb5ff";
-    g.fillRect(x + 2, LEVEL_H - 11 + fl * 0.5, 5, 2.5);
-  }
-}
-
-function drawFish(ctx, e) {
-  ctx.save();
-  ctx.translate(e.x + e.w/2, e.y + e.h/2);
-  if (e.dead > 0) ctx.scale(1, -1);                        // belly-up when bonked
-  if (e.vx > 0) ctx.scale(-1, 1);                          // art faces left
-  const r = (x,y,w,h,c) => { ctx.fillStyle = c; ctx.fillRect(x,y,w,h); };
-  r(-6,-4,11,8,"#ef5350");                                 // body
-  r(-6,0,11,4,"#ffb3a0");                                  // belly
-  const flap = e.frame ? 2 : -2;
-  r(5,-3,3,6,"#d63c3c"); r(5,-3+flap,3,3,"#d63c3c");       // tail
-  r(-2,-6,4,3,"#d63c3c");                                  // top fin
-  r(-7,-3,3,3,"#fff"); r(-7,-2,2,2,"#241a12");             // eye
-  ctx.restore();
-}
-
-function drawFirebars() {
-  for (const fb of game.level.firebars) {
-    const a = game.timer * fb.sp + fb.ph;
-    for (let i = 0; i <= fb.len; i++) {
-      const px = fb.cx + Math.cos(a) * i * 6, py = fb.cy + Math.sin(a) * i * 6;
-      g.fillStyle = (i + (game.timer >> 2)) % 2 ? "#ffd166" : "#ff8a3c";
-      g.beginPath(); g.arc(px, py, i === 0 ? 3 : 2.6, 0, Math.PI*2); g.fill();
-    }
-  }
-}
-
-function drawCagePug() {
-  const p = game.pug, gy = 13 * TILE;
-  const hop = p.free ? -Math.abs(Math.sin(p.hopT * 0.15)) * 6 : 0;
-  drawPug(g, p.x, gy + hop);
-  if (!p.free) {
-    g.fillStyle = "#caa23c";
-    g.fillRect(p.x - 13, gy - 30, 26, 3);
-    g.fillRect(p.x - 13, gy - 2, 26, 2);
-    for (let i = 0; i <= 5; i++) g.fillRect(p.x - 13 + i * 4.8, gy - 28, 1.8, 26);
-  } else if ((game.timer >> 3) % 2 === 0) {
-    g.fillStyle = "#ff5e7e";
-    g.font = "bold 9px monospace"; g.textAlign = "center"; g.textBaseline = "alphabetic";
-    g.fillText("\u2665", p.x, gy - 24 + Math.sin(game.timer * 0.1) * 2);
-  }
-}
-
-function drawSign(txTile, text, color) {
-  const x = txTile*TILE, y = 13*TILE;
-  g.fillStyle = "#9a6a3a"; g.fillRect(x-1, y-26, 2, 14);              // post
-  const w = Math.max(text.length*4.6 + 7, 26);
-  g.fillStyle = color; roundRect(x - w/2, y-39, w, 15, 4); g.fill();   // board
-  g.fillStyle = "rgba(255,255,255,.35)"; roundRect(x - w/2, y-39, w, 4, 4); g.fill();
-  g.fillStyle = "#fff"; g.font = "bold 8px 'Avenir Next',Arial";
-  g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillText(text, x, y-31);
-}
-function drawIceCreamStand(x, gy) {
-  const r = (rx,ry,rw,rh,c) => { g.fillStyle = c; g.fillRect(x+rx, gy+ry, rw, rh); };
-  g.fillStyle = "#7a5230"; g.beginPath(); g.arc(x-7,gy-3,2.4,0,Math.PI*2); g.arc(x+7,gy-3,2.4,0,Math.PI*2); g.fill();
-  r(-12,-18,24,14,"#fff3f8"); r(-12,-6,24,2,"#d98ab0");              // cart body
-  for (let i=0;i<6;i++){ g.fillStyle = i%2?"#ff6b9d":"#ffe0ec"; g.fillRect(x-12+i*4, gy-23, 4, 5); }  // awning
-  g.fillStyle = "#7a5230"; g.font = "bold 6px 'Avenir Next',Arial"; g.textAlign="center"; g.textBaseline="middle";
-  g.fillText("ICE CREAM", x, gy-11);
-  // giant cone on top
-  g.fillStyle = "#e8b87a"; g.beginPath(); g.moveTo(x-4,gy-24); g.lineTo(x+4,gy-24); g.lineTo(x,gy-15); g.closePath(); g.fill();
-  g.fillStyle = "#ffd1e8"; g.beginPath(); g.arc(x-1.6,gy-27,3.2,0,Math.PI*2); g.fill();
-  g.fillStyle = "#bff0d8"; g.beginPath(); g.arc(x+1.8,gy-28,3,0,Math.PI*2); g.fill();
-  g.fillStyle = "#fff3a0"; g.beginPath(); g.arc(x,gy-31,2.6,0,Math.PI*2); g.fill();
-  g.fillStyle = "#e0466a"; g.beginPath(); g.arc(x,gy-33,1.1,0,Math.PI*2); g.fill();
-}
-function drawPlayground() {
-  const L = game.level, t = game.timer;
-  // water slide chute
-  const s = L.slide;
-  if (s) {
-    g.lineCap = "round";
-    g.strokeStyle = "#3aa6dc"; g.lineWidth = 15;
-    g.beginPath(); g.moveTo(s.x0*TILE, s.topY-3); g.lineTo(s.x1*TILE, s.botY-3); g.stroke();
-    g.strokeStyle = "#7fd4ff"; g.lineWidth = 9;
-    g.beginPath(); g.moveTo(s.x0*TILE, s.topY-5); g.lineTo(s.x1*TILE, s.botY-5); g.stroke();
-    g.strokeStyle = "#d6f3ff"; g.lineWidth = 2.5;
-    g.beginPath(); g.moveTo(s.x0*TILE, s.topY-7); g.lineTo(s.x1*TILE, s.botY-7); g.stroke();
-  }
-  if (L.splash) {
-    const px0 = L.splash.x0*TILE, pw = (L.splash.x1-L.splash.x0)*TILE;
-    g.fillStyle = "#7fc8ff"; g.fillRect(px0, 12*TILE+5, pw, TILE+3);
-    g.fillStyle = "rgba(255,255,255,.65)";
-    for (let i=0;i<4;i++){ const wx = px0+6+i*10 + Math.sin(t*0.1+i)*2;
-      g.beginPath(); g.arc(wx, 12*TILE+8, 1.6, 0, Math.PI*2); g.fill(); }
-  }
-  // puppy pen fence
-  if (L.fence) {
-    g.strokeStyle = "#d2a973"; g.lineWidth = 1.6;
-    for (let fx=L.fence.x0; fx<=L.fence.x1; fx+=3){ const x=fx*TILE;
-      g.beginPath(); g.moveTo(x, 12.1*TILE); g.lineTo(x, 13*TILE); g.stroke(); }
-    g.beginPath(); g.moveTo(L.fence.x0*TILE, 12.35*TILE); g.lineTo(L.fence.x1*TILE, 12.35*TILE); g.stroke();
-  }
-  for (const pup of L.puppies) {
-    const hop = -Math.abs(Math.sin(pup.hopT*0.15))*5;
-    drawPug(g, pup.x, 13*TILE + hop);
-  }
-  drawIceCreamStand(L.iceCreamX, 13*TILE);
-  for (const sg of L.signs) drawSign(sg.x, sg.text, sg.color);
-}
-
-function drawWorld() {
-  const L = game.level, camX = game.camX;
-  drawBackground(camX);
-  // powerups still rising are drawn first so the block hides them
-  for (const p of game.powerups) if (p.rise > 0) drawPowerup(g, p);
-  const tx0 = Math.max(0, Math.floor(camX / TILE) - 1);
-  const tx1 = Math.min(L.width - 1, Math.ceil((camX + VIEW_W) / TILE) + 1);
-  for (let ty = 0; ty < ROWS; ty++)
-    for (let tx = tx0; tx <= tx1; tx++) {
-      const c = L.grid[ty][tx];
-      if (c !== " ") drawTile(c, tx, ty);
-    }
-  if (L.theme === "castle") drawLava(tx0, tx1);
-  if (L.theme === "bridge") drawWater(tx0, tx1);
-  if (L.theme === "playground") drawPlayground();
-  if (L.firebars && L.firebars.length) drawFirebars();
-  if (L.flagX) drawFlag(L.flagX);
-
-  for (const p of game.powerups) if (p.rise <= 0) drawPowerup(g, p);
-  for (const f of game.fireballs) drawFireball(g, f, game.timer);
-
-  for (const e of L.enemies) {
-    if (!e.active || e.dead > 25) continue;
-    if (e.fish || e.leap) drawFish(g, e);
-    else drawGrump(g, e.x + e.w/2, e.y + e.h, e.frame, e.dead);
-  }
-
-  if (game.pug) drawCagePug();
-  if (game.boss && game.boss.y < LEVEL_H + 60) drawBowser(g, game.boss);
-  for (const fl of game.bossFlames) drawFlame(g, fl);
-
-  // coin / heart / ice-cream pops
-  for (const c of game.pops) {
-    const yy = c.y - 8 - c.t * 1.2;
-    if (c.heart) {
-      g.fillStyle = "#ff5e7e";
-      g.beginPath();
-      g.moveTo(c.x, yy+3);
-      g.bezierCurveTo(c.x-4, yy-2, c.x-2, yy-5, c.x, yy-2);
-      g.bezierCurveTo(c.x+2, yy-5, c.x+4, yy-2, c.x, yy+3);
-      g.fill();
-    } else if (c.oneup) {
-      g.fillStyle = "#8ef0a0"; g.font = "bold 8px monospace";
-      g.textAlign = "center"; g.textBaseline = "middle";
-      g.fillText("1UP", c.x, yy);
-    } else if (c.treat) {
-      g.fillStyle = "#e8b87a"; g.beginPath();
-      g.moveTo(c.x-2.4, yy-1); g.lineTo(c.x+2.4, yy-1); g.lineTo(c.x, yy+4); g.closePath(); g.fill();
-      g.fillStyle = "#ffd1e8"; g.beginPath(); g.arc(c.x, yy-3, 2.6, 0, Math.PI*2); g.fill();
-      g.fillStyle = "#bff0d8"; g.beginPath(); g.arc(c.x+0.6, yy-4.4, 2, 0, Math.PI*2); g.fill();
-    } else {
-      g.fillStyle = "#f6c14f";
-      g.beginPath(); g.ellipse(c.x, yy, 4, 5.5, 0, 0, Math.PI*2); g.fill();
-      g.fillStyle = "#fff0c0";
-      g.beginPath(); g.ellipse(c.x, yy, 1.6, 3, 0, 0, Math.PI*2); g.fill();
-    }
-  }
-  // particles
-  for (const p of game.particles) {
-    if (p.t < 0) continue;
-    g.fillStyle = p.c;
-    if (p.conf) { g.save(); g.translate(p.x, p.y); g.rotate(p.t * 0.1 + p.x); g.fillRect(-2, -1.4, 4, 2.8); g.restore(); }
-    else g.fillRect(p.x - 2, p.y - 2, 4, 4);
-  }
-
-  // player (flickers while invincible after taking a hit)
-  let pal = player.power === 2 ? firePal(heroKey) : CHARS[heroKey];
-  if (player.star > 0) pal = starPal(pal, game.timer);
-  if (player.boots > 0)                                   // glowing spring-shoes
-    pal = Object.assign({}, pal, { shoe: (game.timer >> 2) % 2 ? "#8ef0a0" : "#39c46a" });
-  if (game.state === "dead") {
-    g.save();
-    g.translate(player.x + player.w/2, player.y + player.h);
-    g.scale(1, -1); g.translate(-(player.x + player.w/2), -(player.y + player.h) + player.h + 6);
-    drawKid(g, player.x + player.w/2, player.y + player.h, pal, 0, player.facing, true, false, 0);
-    g.restore();
-  } else if (!(player.inv > 0 && (game.timer >> 2) % 2 === 0)) {
-    drawKid(g, player.x + player.w/2, player.y + player.h, pal,
-            player.frame, player.facing, !player.grounded, Math.abs(player.vx) > 0.3, player.power);
-  }
-
-  // "↓ PLAY!" hint when standing on a pipe (out in the world, not playground)
-  if (player.onPipe && !game.inPlayground && game.state === "play") {
-    const bx = player.x + player.w/2, byy = player.y - 13 + Math.sin(game.timer*0.2)*1.5;
-    g.fillStyle = "rgba(0,0,0,.55)"; roundRect(bx-21, byy-9, 42, 13, 6); g.fill();
-    g.fillStyle = "#ffe066"; g.font = "bold 8px 'Avenir Next',Arial";
-    g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText("↓ PLAY!", bx, byy-2);
-  }
-}
-
-function hud() {
-  g.save();
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  const top = Math.max(10, (window.visualViewport ? 0 : 0) + 10);
-  g.font = "bold 16px 'Avenir Next',Arial";
-  g.textAlign = "left"; g.textBaseline = "top";
-  outlineText("♥".repeat(Math.max(0, game.lives)), 14, top, "#ff5e7e");
-  outlineText("● " + game.coins, 14, top + 22, "#ffd166");
-  // power-up timers count down so you know how long the magic lasts
-  let py = top + 44;
-  if (player.star > 0) {
-    outlineText("★ " + Math.ceil(player.star / 60), 14, py, STAR_COLORS[(game.timer >> 2) % STAR_COLORS.length]);
-    py += 22;
-  }
-  if (player.boots > 0) outlineText("↑ " + Math.ceil(player.boots / 60), 14, py, "#8ef0a0");
-  g.textAlign = "right";
-  outlineText(game.level ? game.level.name : "", W - 14, top, "#fff");
-  outlineText(String(game.score).padStart(6, "0"), W - 14, top + 22, "#fff");
-  g.restore();
-}
-function outlineText(t, x, y, color) {
-  g.lineWidth = 4; g.strokeStyle = "rgba(0,0,0,.45)"; g.lineJoin = "round";
-  g.strokeText(t, x, y); g.fillStyle = color; g.fillText(t, x, y);
-}
-
-function centerCard(lines) {
-  g.save();
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  g.fillStyle = "rgba(0,0,0,.45)"; g.fillRect(0, 0, W, H);
-  g.textAlign = "center"; g.textBaseline = "middle";
-  let y = H/2 - (lines.length-1) * 22;
-  for (const [txt, size, col] of lines) {
-    g.font = "800 " + size + "px 'Avenir Next',Arial";
-    outlineText(txt, W/2, y, col);
-    y += size + 18;
-  }
-  g.restore();
-}
-
-function drawGameOver() {
-  g.save();
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  g.fillStyle = "rgba(0,0,10,.6)"; g.fillRect(0, 0, W, H);
-  g.textAlign = "center"; g.textBaseline = "middle";
-  g.font = "900 " + Math.min(W/9, 48) + "px 'Avenir Next',Arial";
-  outlineText("GAME OVER", W/2, H*0.3, "#ff5e7e");
-  // continue button (same level, fresh lives, score kept)
-  const bw = Math.min(W*0.62, 310), bh = 56;
-  const bx = W/2 - bw/2, by = H*0.46;
-  const pulse = 1 + Math.sin(game.timer * 0.07) * 0.02;
-  g.save();
-  g.translate(W/2, by + bh/2); g.scale(pulse, pulse); g.translate(-W/2, -(by + bh/2));
-  g.fillStyle = "#ffd166"; roundRect(bx, by, bw, bh, 16); g.fill();
-  g.lineWidth = 4; g.strokeStyle = "#b8862c"; roundRect(bx, by, bw, bh, 16); g.stroke();
-  g.fillStyle = "#5a3c10"; g.font = "900 " + Math.min(bw/11, 23) + "px 'Avenir Next',Arial";
-  g.fillText("\u25b6 CONTINUE " + (game.level ? game.level.name : ""), W/2, by + bh/2);
-  g.restore();
-  // back-to-title link
-  const tw = Math.min(W*0.5, 240), th = 40, tx2 = W/2 - tw/2, ty2 = by + bh + 22;
-  g.fillStyle = "rgba(255,255,255,.16)"; roundRect(tx2, ty2, tw, th, 12); g.fill();
-  g.font = "700 " + Math.min(W/26, 16) + "px 'Avenir Next',Arial";
-  outlineText("back to title", W/2, ty2 + th/2, "#fff");
-  game.goHits = [
-    { x: bx, y: by, w: bw, h: bh, action: "continue" },
-    { x: tx2, y: ty2, w: tw, h: th, action: "title" },
-  ];
-  g.restore();
-}
-
-function drawTitle() {
-  g.save();
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  // sky
-  const grad = g.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, "#6aa8ff"); grad.addColorStop(1, "#bfe7ff");
-  g.fillStyle = grad; g.fillRect(0, 0, W, H);
-  // decorative clouds
-  g.fillStyle = "rgba(255,255,255,.9)";
-  const s = Math.max(1.2, W/420);
-  for (let i = 0; i < 4; i++) {
-    const bx = ((game.timer * 0.3 + i * (W/3.4)) % (W + 120)) - 60;
-    g.save(); g.translate(bx, 50 + i * 36); g.scale(s, s); cloud(0, 0); g.restore();
-  }
-  // ground strip
-  g.fillStyle = "#3fbf52"; g.fillRect(0, H - 46, W, 8);
-  g.fillStyle = "#b46a36"; g.fillRect(0, H - 38, W, 38);
-
-  g.textAlign = "center"; g.textBaseline = "middle";
-  const big = Math.min(W/9, H*0.105, 52);
-  const ty1 = H * 0.10;
-  g.font = "900 " + big + "px 'Avenir Next',Arial";
-  outlineText("SUPER", W/2, ty1, "#ffd166");
-  outlineText("YOUNG SISTERS", W/2, ty1 + big + 6, "#ff5e7e");
-  if (H > W * 0.9) {
-    g.font = "700 " + Math.min(W/22, 20) + "px 'Avenir Next',Arial";
-    outlineText("Pick your hero!", W/2, ty1 + big*2.3 + 26, "#fff");
-  }
-
-  // character cards (sized to fit landscape too)
-  game.titleCards = [];
-  const cw = Math.min(W * 0.36, 170, H * 0.45), ch = Math.min(cw * 1.15, H * 0.5);
-  const cy = H * (W > H ? 0.58 : 0.52);
-  const keysArr = ["jules", "nora"];
-  keysArr.forEach((k, i) => {
-    const cxp = W/2 + (i === 0 ? -1 : 1) * (cw/2 + 14);
-    const sx = cxp - cw/2, sy = cy - ch/2;
-    const bounce = Math.sin(game.timer * 0.08 + i * 2) * 4;
-    g.fillStyle = "rgba(255,255,255,.92)";
-    roundRect(sx, sy, cw, ch, 16); g.fill();
-    g.lineWidth = 4; g.strokeStyle = i === 0 ? "#f59cc4" : "#4fbfa2";
-    roundRect(sx, sy, cw, ch, 16); g.stroke();
-    // sprite (scaled up)
-    g.save();
-    g.translate(cxp, sy + ch * 0.62 + bounce);
-    const ks = cw / 44;
-    g.scale(ks, ks);
-    drawKid(g, 0, 0, CHARS[k], Math.floor(game.timer/20) % 2, 1, false, true);
-    g.restore();
-    g.font = "900 " + cw/6.2 + "px 'Avenir Next',Arial";
-    outlineText(CHARS[k].name, cxp, sy + ch - cw/7, i === 0 ? "#e074a8" : "#2f9e7e");
-    game.titleCards.push({ key: k, sx, sy, sw: cw, sh: ch });
-  });
-
-  g.font = "600 " + Math.min(W/26, 16) + "px 'Avenir Next',Arial";
-  outlineText("tap a hero to start", W/2, cy + ch/2 + 34, "#fff");
-  g.font = "600 12px 'Avenir Next',Arial";
-  outlineText("made with ♥ for Jules & Nora", W/2, H - 16, "#ffe9f0");
-  g.restore();
-}
-function roundRect(x, y, w, h, r) {
-  g.beginPath();
-  g.moveTo(x+r, y); g.arcTo(x+w, y, x+w, y+h, r); g.arcTo(x+w, y+h, x, y+h, r);
-  g.arcTo(x, y+h, x, y, r); g.arcTo(x, y, x+w, y, r); g.closePath();
-}
-
-function drawWinScreen() {
-  g.save();
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  const grad = g.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, "#2b3a8f"); grad.addColorStop(1, "#7d6ad9");
-  g.fillStyle = grad; g.fillRect(0, 0, W, H);
-  // stars
-  for (let i = 0; i < 40; i++) {
-    const sx = (i * 97.3) % W, sy = (i * 53.7) % (H*0.6);
-    const tw = Math.sin(game.timer * 0.07 + i) * 0.5 + 0.5;
-    g.fillStyle = "rgba(255,255,240," + (0.3 + tw*0.7) + ")";
-    g.fillRect(sx, sy, 2.5, 2.5);
-  }
-  g.textAlign = "center"; g.textBaseline = "middle";
-  g.font = "900 " + Math.min(W/8, 56) + "px 'Avenir Next',Arial";
-  outlineText("YOU WIN!", W/2, H*0.22, "#ffd166");
-  g.font = "700 " + Math.min(W/20, 22) + "px 'Avenir Next',Arial";
-  outlineText("Jules & Nora saved Peach the pug!", W/2, H*0.32, "#fff");
-
-  // both kids celebrating
-  const ks = Math.min(W, H) / 110;
-  [["jules", -1], ["nora", 1]].forEach(([k, side]) => {
-    g.save();
-    const hop = Math.abs(Math.sin(game.timer * 0.1 + (side+1))) * 14;
-    g.translate(W/2 + side * Math.min(W*0.16, 90), H*0.62 - hop);
-    g.scale(ks, ks);
-    drawKid(g, 0, 0, CHARS[k], 0, -side, true, false);
-    g.restore();
-  });
-
-  // Peach the pug, safe at last
-  g.save();
-  const pugHop = Math.abs(Math.sin(game.timer * 0.12)) * 10;
-  g.translate(W/2, H*0.62 - pugHop);
-  g.scale(ks * 0.9, ks * 0.9);
-  drawPug(g, 0, 0);
-  g.restore();
-
-  g.font = "800 " + Math.min(W/16, 26) + "px 'Avenir Next',Arial";
-  outlineText("SCORE " + game.score + "   ●×" + game.coins, W/2, H*0.76, "#fff");
-  if (game.timer > 90 && Math.floor(game.timer/30) % 2 === 0) {
-    g.font = "700 " + Math.min(W/22, 18) + "px 'Avenir Next',Arial";
-    outlineText("tap to play again", W/2, H*0.86, "#aee0ff");
-  }
-  // confetti in screen space
-  g.restore();
-}
-
-function draw() {
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  g.clearRect(0, 0, W, H);
-
-  if (game.state === "title") { drawTitle(); return; }
-  if (game.state === "win")   {
-    drawWinScreen();
-    // overlay confetti (game coords roughly map; redraw in screen space)
-    g.setTransform(DPR, 0, 0, DPR, 0, 0);
-    for (const p of game.particles) {
-      if (p.t < 0 || !p.conf) continue;
-      g.fillStyle = p.c;
-      g.save();
-      g.translate((p.x - game.camX) * SCALE, p.y * (H / LEVEL_H));
-      g.rotate(p.t * 0.1 + p.x);
-      g.fillRect(-3, -2, 6, 4);
-      g.restore();
-    }
-    return;
-  }
-
-  // world transform: in portrait, lift the play area above the touch controls
-  const extra = Math.max(0, H / SCALE - LEVEL_H);
-  const reserve = Math.min(extra, 130 / SCALE);   // ~130 css px for buttons
-  const offY = extra - reserve;
-  g.setTransform(DPR * SCALE, 0, 0, DPR * SCALE, -game.camX * DPR * SCALE, offY * DPR * SCALE);
-  drawWorld();
-  if (reserve > 0) {                              // underground band beneath the level
-    g.fillStyle = "#5a3318";
-    g.fillRect(game.camX - 4, LEVEL_H, VIEW_W + 8, reserve + 8);
-    g.fillStyle = "#46270f";
-    g.fillRect(game.camX - 4, LEVEL_H, VIEW_W + 8, 3);
-  }
-  hud();
-
-  if (game.state === "gameover") drawGameOver();
-  if (game.state === "clear") centerCard(game.rescued ? (game.levelNum + 1 < LEVEL_COUNT ? [
-    ["PEACH IS SAFE! \ud83d\udc36", Math.min(W/10, 40), "#ffd166"],
-    ["...oh no, Bowser grabbed her again!", Math.min(W/24, 18), "#fff"],
-    ["on to World " + (((game.levelNum + 1) >> 2) + 1) + "!", Math.min(W/24, 18), "#aee0ff"],
-  ] : [
-    ["PEACH IS SAFE! \ud83d\udc36", Math.min(W/10, 40), "#ffd166"],
-    ["you rescued the pug princess!", Math.min(W/24, 18), "#fff"],
-  ]) : [
-    ["LEVEL CLEAR!", Math.min(W/10, 44), "#ffd166"],
-    [(game.levelNum + 1 < LEVEL_COUNT ? "get ready for " + lvName(game.levelNum + 1) + "..." : "one more surprise..."), Math.min(W/24, 18), "#fff"],
-  ]);
-}
-
-/* ============================== MAIN LOOP ============================== */
-let last = performance.now(), acc = 0;
-function frame(now) {
-  requestAnimationFrame(frame);
-  acc += Math.min(now - last, 100); last = now;
-  const STEP = 1000 / 60;
-  let steps = 0;
-  while (acc >= STEP && steps < 5) { update(); acc -= STEP; steps++; }
-  if (steps === 5) acc = 0;
-  draw();
-}
-goTitle();
-requestAnimationFrame(frame);
-window.__g = { game, player, startLevel, update, draw, input, keys };   // debug handle
-
+  (function () {
+    var kinds = ["All"];
+    GAMES.forEach(function (g) { if (kinds.indexOf(g.kind) < 0) kinds.push(g.kind); });
+    var bar = document.getElementById("filters");
+
+    kinds.forEach(function (k) {
+      var b = el("button", "chip", esc(k));
+      b.type = "button";
+      b.setAttribute("aria-pressed", k === "All" ? "true" : "false");
+      b.addEventListener("click", function () {
+        Array.prototype.forEach.call(bar.children, function (c) { c.setAttribute("aria-pressed", "false"); });
+        b.setAttribute("aria-pressed", "true");
+        render(k);
+      });
+      bar.appendChild(b);
+    });
+    render("All");
+  })();
+
+  /* ----- quick-jump menu, same shape as the one inside every game ----- */
+  (function () {
+    var menu = document.getElementById("gamesMenu"), html = "";
+    html += '<a class="here" href="./">🏠 All Games</a>';
+    var last = null;
+    GAMES.forEach(function (g) {
+      if (g.menuGroup !== last) { html += "<b>" + esc(g.menuGroup) + "</b>"; last = g.menuGroup; }
+      html += '<a href="' + g.href + '">' + g.short + "</a>";
+    });
+    menu.innerHTML = html;
+
+    var btn = document.getElementById("gamesBtn");
+    btn.addEventListener("click", function (e) { e.stopPropagation(); menu.hidden = !menu.hidden; });
+    document.addEventListener("pointerdown", function (e) {
+      if (!menu.hidden && !menu.contains(e.target) && e.target !== btn) menu.hidden = true;
+    });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") menu.hidden = true; });
+  })();
+
+  /* ----- heroes marquee (doubled so the loop is seamless) ----- */
+  (function () {
+    var t = document.getElementById("heroTrack"), html = "";
+    HEROES.concat(HEROES).forEach(function (h) { html += "<span>" + esc(h) + "</span>"; });
+    t.innerHTML = html;
+  })();
+
+  /* ----- footer links ----- */
+  (function () {
+    var f = document.getElementById("footLinks"), html = "";
+    GAMES.forEach(function (g) { html += '<a href="' + g.href + '">' + g.short + "</a>"; });
+    f.innerHTML = html;
+  })();
+})();
 </script>
 </body>
 </html>
