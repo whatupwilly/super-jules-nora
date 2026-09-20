@@ -573,7 +573,7 @@ let flight = null;   // { phase: "taxi" | "away" | "land", dest, trip }
 const CLOUDS = [...Array(12)].map((_, i) => ({ x: 58 + i * 3.2 + hash(i, 1) * 3, y: 43 + hash(i, 2) * 15, z: 2.5 + hash(i, 3) * 5, s: 1.1 + hash(i, 4) }));
 const P = { x: 24.5, y: 25.5, dir: 1, walk: 0, av: AV, stepT: 0 };
 const pet = { x: 24.5, y: 26.5, dir: 1, walk: 0 };
-const cam = { x: P.x, y: P.y };
+const cam = { x: P.x, y: P.y, z: 0 };
 const fx = [];
 function boom(x, y, col, n) { for (let i = 0; i < n; i++) fx.push({ x, y, z: .5, vx: rnd(-1.5, 1.5), vy: rnd(-1.5, 1.5), vz: rnd(1, 3), col, t: rnd(.4, .8) }); }
 
@@ -781,9 +781,9 @@ function drawRoom() {
   }
 }
 function drawScene() {
-  const tgt = flight ? plane : P;
-  cam.x += (tgt.x - cam.x) * .12; cam.y += (tgt.y - cam.y) * .12;
-  const c0 = proj(cam.x, cam.y);
+  const tgt = flight ? plane : P;   // the camera follows the plane, and climbs with it
+  cam.x += (tgt.x - cam.x) * .12; cam.y += (tgt.y - cam.y) * .12; cam.z += ((flight ? plane.z : 0) - cam.z) * .12;
+  const c0 = proj(cam.x, cam.y, cam.z);
   ctx.save();
   ctx.translate(W / 2, H / 2 + 40); ctx.scale(ZOOM, ZOOM); ctx.translate(-c0.sx, -c0.sy);
   draws = [];
@@ -835,7 +835,7 @@ function drawNight() {
   dg.setTransform(DPR, 0, 0, DPR, 0, 0); dg.clearRect(0, 0, W, H);
   dg.fillStyle = `rgba(10,12,60,${n})`; dg.fillRect(0, 0, W, H);
   dg.globalCompositeOperation = "destination-out";
-  const c0 = proj(cam.x, cam.y);
+  const c0 = proj(cam.x, cam.y, cam.z);
   const hole = (x, y, z, r) => { const p = proj(x, y, z); const sx = W / 2 + (p.sx - c0.sx) * ZOOM, sy = H / 2 + 40 + (p.sy - c0.sy) * ZOOM; const gr = dg.createRadialGradient(sx, sy, 0, sx, sy, r * ZOOM); gr.addColorStop(0, "rgba(0,0,0,.9)"); gr.addColorStop(1, "rgba(0,0,0,0)"); dg.fillStyle = gr; dg.beginPath(); dg.arc(sx, sy, r * ZOOM, 0, Math.PI * 2); dg.fill(); };
   for (const l of lamps) hole(l.x + .5, l.y + .5, 1.5, 120);
   for (const b of BUILDINGS) if (!b.deco) hole(b.door.x, b.door.y, .8, 90);
@@ -1069,7 +1069,7 @@ function updateFlight(dt) {
   const f = flight; if (!f) return;
   if (f.phase === "taxi") {
     plane.vx = Math.min(11, plane.vx + 4.5 * dt); plane.x += plane.vx * dt;
-    if (plane.x > 38) plane.z += plane.vx * .34 * dt * Math.min(1, (plane.x - 38) / 6);
+    if (plane.x > 38) plane.z = Math.min(7, plane.z + plane.vx * .34 * dt * Math.min(1, (plane.x - 38) / 6));
     if (plane.x > MAP + 16) { f.phase = "away"; landAt(f.dest); }
   } else if (f.phase === "land") {
     plane.vx = plane.x > 46 ? -9.5 : Math.min(-4, plane.vx + 4 * dt); plane.x += plane.vx * dt;
