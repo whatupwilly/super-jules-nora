@@ -94,6 +94,14 @@
   #mapCv { width:100%; border-radius:14px; background:#7dbb61; touch-action:manipulation; }
   .song { display:flex; align-items:center; gap:10px; background:#fff; border-radius:14px; padding:10px; margin-bottom:8px; }
   .song.playing { background:#e9e6ff; }
+  /* ---- airport ---- */
+  .board { background:#111; color:#ffd166; border-radius:12px; padding:8px 10px; font:800 13px "Courier New",Courier,monospace; letter-spacing:.04em; }
+  .board .bh { color:#fff; font-size:12px; margin-bottom:4px; border-bottom:1px dashed #444; padding-bottom:4px; display:flex; justify-content:space-between; }
+  .board .br { display:flex; justify-content:space-between; gap:6px; padding:3px 0; }
+  .board .st { color:#fff; } .board .st.g { color:#7dff9a; } .board .st.o { color:#ff9f1c; } .board .st.p { color:#ff70a6; }
+  .postcard { border-radius:16px; padding:14px; text-align:center; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,.45); }
+  .postcard h2 { color:#fff; font-size:28px; margin:0; }
+  input.txt.fly { text-transform:none; width:100%; box-sizing:border-box; font-size:20px; padding:10px 12px; }
   #toast { position:fixed; left:50%; top:calc(var(--sat) + 52px); transform:translateX(-50%); z-index:60; background:rgba(30,20,60,.92); color:#fff;
     border-radius:16px; padding:10px 16px; font:700 14px var(--font); max-width:86vw; box-shadow:0 8px 24px rgba(0,0,0,.3); transition:opacity .3s; pointer-events:none; }
   #toast[hidden] { display:none; }
@@ -166,7 +174,8 @@
    corner. You make your own teen avatar (Jules's look is the default: long
    blue/black/purple hair, TTYL shirt, gem jacket, glitter skirt, purple boots),
    then walk around a whole city: movies, theater, school, mall, boba cafe,
-   arcade, pizza, pet shop, salon, bank, and houses you can buy and furnish.
+   arcade, pizza, pet shop, salon, bank, houses you can buy and furnish, and an
+   airport where you type in anywhere in the world and fly there.
    The 📱 phone has Messages (fake friends who text you back), a Phone app for
    calls, Camera, Photos, a Map, a Wallet and Music. */
 
@@ -218,11 +227,12 @@ const SFX = {
   shutter:() => { tone(1400, .03, "square", .08); tone(700, .05, "square", .06, 0, .05); },
   bark:   () => { tone(500, .08, "square", .08, -200); tone(450, .08, "square", .08, -200, .12); },
   pop:    () => tone(880, .05, "sine", .08, 400),
+  jet:    () => { tone(90, 2.6, "sawtooth", .07, 260); tone(140, 2.6, "square", .04, 220, .1); },
 };
 
 /* ------------------------------ input ------------------------------ */
 const keys = {};
-window.addEventListener("keydown", e => { keys[e.key.toLowerCase()] = true; if (["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase())) e.preventDefault(); if (e.key === "Enter" || e.key === " ") { if (!ACT.hidden) doAction(); } });
+window.addEventListener("keydown", e => { if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return; keys[e.key.toLowerCase()] = true; if (["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase())) e.preventDefault(); if (e.key === "Enter" || e.key === " ") { if (!ACT.hidden) doAction(); } });
 window.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
 document.addEventListener("touchmove", e => { if (e.touches.length < 2 && e.target === cv) e.preventDefault(); }, { passive: false });   // cards and the phone still scroll
 const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0 };
@@ -436,16 +446,16 @@ function drawPet(p, x, y, z, dir, walk) {
 
 /* ------------------------------ state ------------------------------ */
 const S = { state: "title", money: 100, time: 40, day: 1, house: null, furniture: [], pet: null, owned: [], marker: null,
-  place: "Downtown", scene: "city", unread: 0, photos: [], bankDay: 0, quests: [], stats: { movies: 0, grades: 0, shows: 0, boba: 0 } };
+  place: "Downtown", scene: "city", unread: 0, photos: [], bankDay: 0, quests: [], souvenirs: [], stats: { movies: 0, grades: 0, shows: 0, boba: 0, trips: 0 } };
 const SAVE_KEY = Arcade.key("julescity.v1");
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ money: S.money, house: S.house, furniture: S.furniture, pet: S.pet, owned: S.owned, av: AV, day: S.day, bankDay: S.bankDay, stats: S.stats, photos: S.photos.slice(0, 6) })); } catch (e) {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ money: S.money, house: S.house, furniture: S.furniture, pet: S.pet, owned: S.owned, av: AV, day: S.day, bankDay: S.bankDay, stats: S.stats, photos: S.photos.slice(0, 6), souvenirs: S.souvenirs })); } catch (e) {}
 }
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); if (!d) return false;
     S.money = d.money ?? 100; S.house = d.house ?? null; S.furniture = d.furniture || []; S.pet = d.pet || null; S.owned = d.owned || [];
-    S.day = d.day || 1; S.bankDay = d.bankDay || 0; S.stats = Object.assign(S.stats, d.stats || {}); S.photos = d.photos || [];
+    S.day = d.day || 1; S.bankDay = d.bankDay || 0; S.stats = Object.assign(S.stats, d.stats || {}); S.photos = d.photos || []; S.souvenirs = d.souvenirs || [];
     if (d.av) Object.assign(AV, JULES, d.av);
     return true;
   } catch (e) { return false; }
@@ -453,11 +463,12 @@ function load() {
 const hasSave = load();
 
 /* ------------------------------ the city ------------------------------ */
-const MAP = 44;
-const T = { GRASS: 0, ROAD: 1, WALK: 2, WATER: 3, PLAZA: 4, SAND: 5 };
+const MAP = 58;
+const T = { GRASS: 0, ROAD: 1, WALK: 2, WATER: 3, PLAZA: 4, SAND: 5, TARMAC: 6 };
 const tiles = []; for (let y = 0; y < MAP; y++) { tiles.push(new Array(MAP).fill(T.GRASS)); }
-const ROADS = [10, 22, 34];
-const isRoad = (x, y) => ROADS.some(r => (x === r || x === r + 1) || (y === r || y === r + 1));
+const ROADS = [10, 22, 34, 46];
+const AIRPORT_Y = 48;   // everything from this row down is the airport strip; the up/down roads stop at it
+const isRoad = (x, y) => (y < AIRPORT_Y && ROADS.some(r => x === r || x === r + 1)) || ROADS.some(r => y === r || y === r + 1);
 for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
   if (isRoad(x, y)) tiles[y][x] = T.ROAD;
   else if (isRoad(x - 1, y) || isRoad(x + 1, y) || isRoad(x, y - 1) || isRoad(x, y + 1)) tiles[y][x] = T.WALK;
@@ -466,6 +477,9 @@ for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
 for (let y = 24; y <= 33; y++) for (let x = 0; x <= 9; x++) { if (x === 4 || x === 5 || y === 28 || y === 29) tiles[y][x] = T.PLAZA; }
 for (let y = 25; y <= 27; y++) for (let x = 6; x <= 8; x++) tiles[y][x] = T.WATER;
 for (let y = 37; y <= 43; y++) for (let x = 0; x <= 9; x++) tiles[y][x] = (y === 37 || x === 9) ? T.SAND : T.WATER;
+// the runway (y 50..53, x 14..56) and the apron in front of the terminal
+const RUNWAY = { x0: 14, x1: 56, y0: 50, y1: 53 };
+for (let y = RUNWAY.y0; y <= RUNWAY.y1; y++) for (let x = RUNWAY.x0; x <= RUNWAY.x1; x++) tiles[y][x] = T.TARMAC;
 const BUILDINGS = [
   { id: "cinema",  name: "Star Cinema",     icon: "🎬", x: 13, y: 2,  w: 7, d: 5, h: 2.6, col: "#e63946" },
   { id: "theater", name: "Grand Theater",   icon: "🎭", x: 25, y: 2,  w: 7, d: 5, h: 3,   col: "#9d4edd" },
@@ -481,6 +495,7 @@ const BUILDINGS = [
   { id: "arcade",  name: "Neon Arcade",     icon: "🕹", x: 13, y: 38, w: 6, d: 4, h: 2.2, col: "#5390d9" },
   { id: "pizza",   name: "Pizza Planet",    icon: "🍕", x: 25, y: 38, w: 6, d: 4, h: 2,   col: "#f94144" },
   { id: "bank",    name: "City Bank",       icon: "🏦", x: 37, y: 38, w: 5, d: 4, h: 2.4, col: "#adb5bd" },
+  { id: "airport", name: "Jules Airport",   icon: "✈️", x: 3,  y: 49, w: 8, d: 4, h: 2,   col: "#8ecae6" },
   // decorative apartments (no door)
   { id: "apt1", name: "Apartments", icon: "🏢", x: 21, y: 26, w: 0, d: 0, h: 0, col: "#ddd", deco: true },
 ];
@@ -492,11 +507,14 @@ function blockedTile(x, y) {
   if (x < 0 || y < 0 || x >= MAP || y >= MAP) return true;
   const t = tiles[y][x]; if (t === T.WATER) return true;
   if (inBuilding(x, y)) return true;
+  if (x >= 12 && x <= 13 && y >= 49 && y <= 50) return true;                       // the control tower
+  if (!flight && x >= 15 && x <= 19 && y >= 49 && y <= 53) return true;           // the parked plane
   return false;
 }
 (function decorate() {
   for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) {
     if (tiles[y][x] !== T.GRASS || inBuilding(x, y)) continue;
+    if (y >= AIRPORT_Y) { if (hash(x, y) > .8) flowers.push({ x, y, col: pick(["#ff5c8a", "#ffd166", "#4cc9f0"]) }); continue; }   // no trees on the airfield
     // keep the front of each door clear
     if (BUILDINGS.some(b => !b.deco && x >= b.x - 1 && x <= b.x + b.w && y >= b.y - 1 && y <= b.y + b.d + 1)) { if (hash(x, y) > .8) flowers.push({ x, y, col: pick(["#ff5c8a", "#ffd166", "#a066ff", "#4cc9f0"]) }); continue; }
     const h = hash(x, y);
@@ -550,6 +568,9 @@ const cars = [
   { x: 2, y: 10.5, vx: 3, vy: 0, col: "#ff5c8a" }, { x: 40, y: 23.5, vx: -2.6, vy: 0, col: "#4cc9f0" }, { x: 20, y: 35.5, vx: 3.4, vy: 0, col: "#ffd166" },
   { x: 11.5, y: 5, vx: 0, vy: 2.8, col: "#a066ff" }, { x: 34.5, y: 30, vx: 0, vy: -3, col: "#2ec4b6" }, { x: 22.5, y: 40, vx: 0, vy: -2.4, col: "#f94144" },
 ];
+const plane = { x: 17, y: 51.5, z: 0, vx: 0, dir: 1 };   // parked at the start of the runway, nose toward +x
+let flight = null;   // { phase: "taxi" | "away" | "land", dest, trip }
+const CLOUDS = [...Array(12)].map((_, i) => ({ x: 58 + i * 3.2 + hash(i, 1) * 3, y: 43 + hash(i, 2) * 15, z: 2.5 + hash(i, 3) * 5, s: 1.1 + hash(i, 4) }));
 const P = { x: 24.5, y: 25.5, dir: 1, walk: 0, av: AV, stepT: 0 };
 const pet = { x: 24.5, y: 26.5, dir: 1, walk: 0 };
 const cam = { x: P.x, y: P.y };
@@ -588,7 +609,7 @@ function updatePlayer(dt) {
   if (S.scene === "city") {
     let near = null;
     for (const b of BUILDINGS) if (!b.deco && Math.hypot(P.x - b.door.x, P.y - b.door.y) < 1.1) near = b;
-    const place = near ? near.name : (P.x < 10 && P.y >= 24 && P.y < 34) ? "Sunny Park" : (P.y >= 36 && P.x < 10) ? "The Lake" : "Downtown";
+    const place = near ? near.name : (P.y >= AIRPORT_Y) ? "Jules Airport" : (P.x < 10 && P.y >= 24 && P.y < 34) ? "Sunny Park" : (P.y >= 36 && P.y < 46 && P.x < 10) ? "The Lake" : (P.x >= 48 && P.y < 46) ? "Green Hills" : "Downtown";
     if (place !== S.place) { S.place = place; }
     action.near = near; action.npc = null;
     if (!near) for (const n of npcs) if (n.friend && Math.hypot(P.x - n.x, P.y - n.y) < 1.3) { action.npc = n; break; }
@@ -597,7 +618,7 @@ function updatePlayer(dt) {
 const action = { near: null, npc: null };
 const ACT = $("act");
 function updateAction() {
-  if (S.state !== "play") { ACT.hidden = true; return; }
+  if (S.state !== "play" || flight) { ACT.hidden = true; return; }
   if (S.scene === "house") { ACT.hidden = false; ACT.textContent = "🛋 Decorate"; return; }
   if (action.near) {
     const b = action.near;
@@ -634,7 +655,7 @@ function updateNpcs(dt) {
 function updateCars(dt) {
   for (const c of cars) {
     c.x += c.vx * dt; c.y += c.vy * dt;
-    if (c.x > MAP + 2) c.x = -2; if (c.x < -2) c.x = MAP + 2; if (c.y > MAP + 2) c.y = -2; if (c.y < -2) c.y = MAP + 2;
+    if (c.x > MAP + 2) c.x = -2; if (c.x < -2) c.x = MAP + 2; if (c.y > AIRPORT_Y - 1) c.y = -2; if (c.y < -2) c.y = AIRPORT_Y - 1;
     const d = Math.hypot(c.x - P.x, c.y - P.y);
     if (d < 1.6) { if (!c.honked) { SFX.honk(); c.honked = true; } const px = (P.x - c.x) / d, py = (P.y - c.y) / d; tryMove(P, px * 6 * dt, py * 6 * dt, blocked); }
     else if (d > 4) c.honked = false;
@@ -654,6 +675,7 @@ function drawGround(x0, y0, x1, y1) {
     if (t === T.WATER) { diamond(x, y, h < .5 ? "#3f8fd8" : "#4a9ae0"); if ((h + Math.sin(animT + x * 2) * .2) > .7) diamond(x + .3, y + .4, "#8ac6f0", .25); continue; }
     if (t === T.PLAZA) { diamond(x, y, (x + y) % 2 ? "#e9c9a1" : "#e0bf95"); continue; }
     if (t === T.SAND) { diamond(x, y, h < .5 ? "#f2dda4" : "#ead39a"); continue; }
+    if (t === T.TARMAC) { diamond(x, y, h < .5 ? "#5a5a66" : "#55555f"); if (y === RUNWAY.y0 + 1 && x % 2 === 0 && x > RUNWAY.x0) diamond(x + .2, y + .85, "#f4f4f4", .6, .18); if ((y === RUNWAY.y0 || y === RUNWAY.y1) && x % 2 === 1) diamond(x + .1, y + (y === RUNWAY.y0 ? .05 : .8), "#ffd166", .8, .14); continue; }
     const b = inBuilding(x, y);
     if (b) { diamond(x, y, "#8a8a92"); continue; }
     diamond(x, y, (x + y) % 2 ? "#6cbf47" : "#5fae3e");
@@ -700,6 +722,33 @@ function drawCar(c) {
   cube(c.x - w / 2 + (horiz ? .3 : .08), c.y - d / 2 + (horiz ? .08 : .3), .5, horiz ? .7 : .54, horiz ? .54 : .7, .3, "#bfe6ff", { top: shade(c.col, 1.1) });
   for (const [ox, oy] of horiz ? [[-.4, -.3], [.3, -.3], [-.4, .25], [.3, .25]] : [[-.3, -.4], [.25, -.4], [-.3, .3], [.25, .3]]) cube(c.x + ox, c.y + oy, 0, .16, .16, .18, "#222");
 }
+function drawTower() {
+  cube(12, 49.2, 0, 1.3, 1.3, 3.2, "#c9c9d4");
+  cube(11.6, 48.8, 3.2, 2.1, 2.1, .9, "#4cc9f0", { alpha: .9 });
+  cube(11.5, 48.7, 4.1, 2.3, 2.3, .2, "#8a8a99");
+  cube(12.6, 49.8, 4.3, .1, .1, .8, "#ff3b5c"); cube(12.55, 49.75, 5.1, .2, .2, .2, Math.sin(animT * 6) > 0 ? "#ff3b5c" : "#7a1a2a");
+  const sp = proj(12.65, 49.85, 5.6); ctx.font = "800 12px 'Avenir Next','Trebuchet MS',Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.beginPath(); ctx.roundRect(sp.sx - 34, sp.sy - 10, 68, 20, 8); ctx.fill(); ctx.fillStyle = "#2a2a3a"; ctx.fillText("🗼 Tower", sp.sx, sp.sy + 1);
+}
+function drawRunwayLight(x, y) { cube(x + .4, y, 0, .2, .2, .14, nightAmount() > .3 ? "#fff0a0" : "#e6e6ee"); }
+function drawCloud(c) { cube(c.x, c.y, c.z, c.s * 1.7, c.s, .5, "#ffffff", { alpha: .92, top: "#ffffff", left: "#e9eef8", right: "#d8e0f0" }); cube(c.x + .45, c.y - .3, c.z + .35, c.s, c.s * 1.4, .55, "#ffffff", { alpha: .92, top: "#ffffff", left: "#e9eef8", right: "#d8e0f0" }); }
+function drawPlane() {
+  const x = plane.x, y = plane.y, d = plane.dir, z = plane.z + .28;
+  const s = proj(x, y, 0); const sh = Math.max(.25, 1 - plane.z * .12);
+  ctx.fillStyle = `rgba(0,0,0,${.2 * sh})`; ctx.beginPath(); ctx.ellipse(s.sx, s.sy, TW * .9 * sh, TH * .55 * sh, 0, 0, Math.PI * 2); ctx.fill();
+  // wheels
+  cube(x - .1, y - .1, plane.z, .2, .2, .3, "#222"); cube(x + d * 1.1 - .1, y - .1, plane.z, .2, .2, .3, "#222");
+  // engines under the wings, then the wings, the body, the nose and the tail
+  cube(x - .3, y - 1.25, z - .12, .7, .38, .32, "#8d8d9e"); cube(x - .3, y + .87, z - .12, .7, .38, .32, "#8d8d9e");
+  cube(x - .45, y - 1.7, z + .12, .9, 3.4, .12, "#dcdcea");
+  cube(x - 1.5, y - .36, z, 3, .72, .72, "#f6f6fb");
+  cube(x + (d > 0 ? 1.5 : -2.1), y - .3, z + .06, .6, .6, .58, "#a066ff");
+  cube(x - (d > 0 ? 1.5 : -1.0), y - .07, z + .7, .5, .14, .95, "#a066ff");
+  cube(x - (d > 0 ? 1.45 : -.85), y - .95, z + .5, .3, 1.9, .1, "#dcdcea");
+  for (let i = 0; i < 6; i++) patch(x - 1.5, y - .36, z, 3, .72, 1, .3 + i * .42, .32, .22, .22, "#4cc9f0");   // windows
+  faceText(x - 1.5, y - .36, z, 3, .72, 1, .12, "JULES AIR", "#a066ff", 6);
+  if (plane.z > .2 && flight) for (let i = 0; i < 2; i++) { const px = x - d * (1.9 + i * .5), pz = z - .1 - i * .15; cube(px, y - 1.15 + i * .1, pz, .3, .3, .25, "#ffffff", { alpha: .5 - i * .2 }); cube(px, y + .95 - i * .1, pz, .3, .3, .25, "#ffffff", { alpha: .5 - i * .2 }); }
+}
 function drawPlayer() {
   const s = proj(P.x, P.y, 0); ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.beginPath(); ctx.ellipse(s.sx, s.sy, TW * .3, TH * .3, 0, 0, Math.PI * 2); ctx.fill();
   drawTeen(P, P.x, P.y, 0, P.dir, P.walk);
@@ -732,7 +781,8 @@ function drawRoom() {
   }
 }
 function drawScene() {
-  cam.x += (P.x - cam.x) * .12; cam.y += (P.y - cam.y) * .12;
+  const tgt = flight ? plane : P;
+  cam.x += (tgt.x - cam.x) * .12; cam.y += (tgt.y - cam.y) * .12;
   const c0 = proj(cam.x, cam.y);
   ctx.save();
   ctx.translate(W / 2, H / 2 + 40); ctx.scale(ZOOM, ZOOM); ctx.translate(-c0.sx, -c0.sy);
@@ -754,8 +804,15 @@ function drawScene() {
     for (const b of BUILDINGS) { const bx = b.deco ? 20.5 : b.x, by = b.deco ? 26 : b.y; if (vis(bx, by) || vis(bx + (b.w || 3), by + (b.d || 3))) q(bx + by + (b.w || 3) + (b.d || 3), () => drawBuilding(b)); }
     for (const c of cars) if (vis(c.x, c.y)) q(c.x + c.y + .8, () => drawCar(c));
     for (const n of npcs) if (vis(n.x, n.y)) q(n.x + n.y + .6, () => drawNpc(n));
-    q(P.x + P.y + .6, drawPlayer);
-    if (S.pet) q(pet.x + pet.y + .5, () => drawPet(S.pet, pet.x, pet.y, 0, pet.dir, pet.walk));
+    // the airport: tower, runway lights, the plane (even far off the map, up in the sky) and the clouds it flies through
+    if (vis(12, 49)) q(12 + 49.2 + 2.6, drawTower);
+    for (let x = RUNWAY.x0; x <= RUNWAY.x1; x += 3) { if (vis(x, RUNWAY.y0)) q(x + RUNWAY.y0 + .4, () => drawRunwayLight(x, RUNWAY.y0 - .1)); if (vis(x, RUNWAY.y1)) q(x + RUNWAY.y1 + 1.3, () => drawRunwayLight(x, RUNWAY.y1 + .85)); }
+    for (const c of CLOUDS) if (Math.abs(c.x - cam.x) < 34 && Math.abs(c.y - cam.y) < 34) q(c.x + c.y + 1.5, () => drawCloud(c));
+    if (Math.abs(plane.x - cam.x) < 40 && Math.abs(plane.y - cam.y) < 40) q(plane.x + plane.y + 3, drawPlane);
+    if (!flight) {   // during a flight you're inside the plane
+      q(P.x + P.y + .6, drawPlayer);
+      if (S.pet) q(pet.x + pet.y + .5, () => drawPet(S.pet, pet.x, pet.y, 0, pet.dir, pet.walk));
+    }
     if (S.marker) { const m = S.marker; q(m.x + m.y + 5, () => { const bob = Math.sin(animT * 4) * .15; cube(m.x - .2, m.y - .2, 2.6 + bob, .4, .4, .4, "#ffd166"); cube(m.x - .06, m.y - .06, 1.8 + bob, .12, .12, .8, "#ffd166"); }); }
   }
   for (const f of fx) q(f.x + f.y + .6, () => cube(f.x - .08, f.y - .08, f.z, .16, .16, .16, f.col));
@@ -765,8 +822,8 @@ function drawScene() {
   ctx.font = "bold 12px 'Avenir Next','Trebuchet MS',Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   const tag = (x, y, z, name, col) => { const p = proj(x, y, z); const w = ctx.measureText(name).width + 14; ctx.fillStyle = col || "rgba(0,0,0,.45)"; ctx.beginPath(); ctx.roundRect(p.sx - w / 2, p.sy - 9, w, 18, 7); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillText(name, p.sx, p.sy + 1); };
   if (S.scene === "city") for (const n of npcs) if (n.friend && Math.abs(n.x - cam.x) < 16 && Math.abs(n.y - cam.y) < 16) tag(n.x, n.y, 2.15, n.emoji + " " + n.name);
-  tag(P.x, P.y, 2.5, "⭐ " + (AV.name || "Me"), "rgba(122,68,214,.85)");
-  if (S.pet) tag(pet.x, pet.y, 1.1, S.pet.name, "rgba(0,0,0,.35)");
+  if (!flight) { tag(P.x, P.y, 2.5, "⭐ " + (AV.name || "Me"), "rgba(122,68,214,.85)"); if (S.pet) tag(pet.x, pet.y, 1.1, S.pet.name, "rgba(0,0,0,.35)"); }
+  else tag(plane.x, plane.y, plane.z + 2.4, "✈️ " + (flight.phase === "land" ? "coming home" : flight.dest.name), "rgba(122,68,214,.85)");
   for (const s of speech) { const p = proj(s.x, s.y, 2.7); ctx.font = "700 13px 'Avenir Next','Trebuchet MS',Arial"; const w = ctx.measureText(s.text).width + 18; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.roundRect(p.sx - w / 2, p.sy - 24, w, 26, 10); ctx.fill(); ctx.fillStyle = "#2a2a3a"; ctx.fillText(s.text, p.sx, p.sy - 11); }
   ctx.restore();
 }
@@ -827,7 +884,7 @@ function earn(n, why) { S.money += n; SFX.coin(); boom(P.x, P.y, "#ffd166", 8); 
 function enterPlace(b) {
   SFX.door(); checkQuest(b);
   if (b.house) { if (S.house === b.id) enterHouse(b); else offerHouse(b); return; }
-  ({ cinema: openCinema, theater: openTheater, school: openSchool, mall: openMall, cafe: openCafe, petshop: openPetShop, salon: openSalon, arcade: openArcade, pizza: openPizza, bank: openBank, icecream: openIceCream })[b.id]();
+  ({ cinema: openCinema, theater: openTheater, school: openSchool, mall: openMall, cafe: openCafe, petshop: openPetShop, salon: openSalon, arcade: openArcade, pizza: openPizza, bank: openBank, icecream: openIceCream, airport: openAirport })[b.id]();
 }
 const head = (b, extra) => `<h2>${b.icon} ${b.name}</h2>${extra || ""}`;
 
@@ -947,6 +1004,102 @@ ACTS.allowance = () => { if (S.bankDay === S.day) return; S.bankDay = S.day; ear
 function openIceCream() { modal(head(byId("icecream"), `<div class="big">🍦</div><p>One scoop is <b>$3</b>. Pick a flavor!</p><div class="row">${["🍓 Strawberry", "🍫 Chocolate", "🫐 Blueberry", "🍪 Cookie Dough", "🌈 Unicorn Swirl"].map(f => `<button class="btn alt" data-act="scoop" data-v="${f}">${f}</button>`).join("")}</div><div class="row"><button class="btn alt" data-act="close">Leave</button></div>`)); }
 ACTS.scoop = d => { if (pay(3)) { toast(`${d.v} — brain freeze! 🥶`); boom(P.x, P.y, "#ffb5e8", 6); } };
 
+/* --- the airport: type in anywhere and fly there --- */
+// Each destination has a greeting word, a couple of sentences to read, a snack and a souvenir.
+// Anything typed that isn't on the list still works: the pilot finds it.
+const DESTS = [
+  { k: ["paris", "france", "eiffel"], name: "Paris", emoji: "🗼", hi: "Bonjour!", price: 40, bg: ["#ffd9f5", "#a066ff"], lines: ["The Eiffel Tower sparkles every night with a thousand twinkly lights.", "Everyone rides a bike with a baguette in the basket 🥖"], treat: ["🥐", "a croissant", 4], gift: ["🗼", "a tiny Eiffel Tower", 15] },
+  { k: ["london", "england", "big ben", "uk"], name: "London", emoji: "🎡", hi: "Cheerio!", price: 40, bg: ["#bde0ff", "#8ecae6"], lines: ["Big Ben goes BONG every hour and the buses are red with two floors.", "The palace guards are not allowed to smile. You tried. They didn't."], treat: ["🫖", "tea and scones", 5], gift: ["🧸", "a guard teddy bear", 15] },
+  { k: ["tokyo", "japan"], name: "Tokyo", emoji: "🗾", hi: "Konnichiwa!", price: 60, bg: ["#ff70a6", "#ffd9f5"], lines: ["Cherry blossoms float down like pink confetti 🌸", "There are vending machines for EVERYTHING. Even hot soup."], treat: ["🍣", "sushi", 6], gift: ["🐱", "a lucky waving cat", 18] },
+  { k: ["hawaii", "beach", "maui", "honolulu"], name: "Hawaii", emoji: "🌺", hi: "Aloha!", price: 55, bg: ["#4cc9f0", "#ffd166"], lines: ["Warm sand, giant waves, and a rainbow over the volcano 🌈", "A sea turtle swam right past your feet. Slowly."], treat: ["🍧", "shave ice", 4], gift: ["🌺", "a flower necklace", 12] },
+  { k: ["new york", "nyc", "york", "manhattan"], name: "New York", emoji: "🗽", hi: "Hey, how ya doin'!", price: 45, bg: ["#3a506b", "#ffd166"], lines: ["The buildings are so tall you have to lean back to see the top.", "Yellow taxis honk all day. Honk honk HONK."], treat: ["🥯", "a bagel", 4], gift: ["🗽", "a Liberty crown", 15] },
+  { k: ["disney", "disneyland", "disney world", "magic kingdom"], name: "Disneyland", emoji: "🏰", hi: "Have a magical day!", price: 80, bg: ["#a066ff", "#ffd9f5"], lines: ["The castle has fireworks and a parade with dancing princesses 👑", "You rode the roller coaster 3 times and screamed every time."], treat: ["🍭", "a giant lollipop", 6], gift: ["👑", "mouse ears", 20] },
+  { k: ["moon", "space", "mars", "the moon"], name: "The Moon", emoji: "🌙", hi: "Beep boop!", price: 100, bg: ["#0b132b", "#3a506b"], lines: ["You can jump 6 times higher here! Boing, boing, boing.", "Earth looks like a little blue marble from up here 🌍"], treat: ["🧊", "freeze-dried ice cream", 8], gift: ["🪨", "a moon rock", 25] },
+  { k: ["rainbow", "rainbow land", "nora"], name: "Rainbow Land", emoji: "🌈", hi: "Hiiii!", price: 30, bg: ["#ff5c8a", "#4cc9f0"], lines: ["This is Nora's world! The grass is rainbow and the rain is glitter.", "Nora's Rainbow Restaurant serves a cake that sings 🎂"], treat: ["🎂", "singing cake", 5], gift: ["🧟", "a tiny zombie plush", 10] },
+  { k: ["egypt", "pyramid", "cairo"], name: "Egypt", emoji: "🐪", hi: "Ahlan!", price: 65, bg: ["#ffd166", "#f4a261"], lines: ["The pyramids are 4,500 years old and STILL standing.", "A camel gave you a bumpy ride and then spat. Rude."], treat: ["🍮", "sweet pudding", 4], gift: ["🐈", "a golden cat statue", 18] },
+  { k: ["australia", "sydney", "aussie"], name: "Australia", emoji: "🦘", hi: "G'day mate!", price: 70, bg: ["#ff9f1c", "#4cc9f0"], lines: ["Kangaroos hop around like giant bouncy bunnies.", "A koala fell asleep in a tree. They sleep 20 hours a day!"], treat: ["🍪", "a Tim Tam", 3], gift: ["🪃", "a boomerang", 12] },
+  { k: ["italy", "rome", "venice", "pizza"], name: "Italy", emoji: "🍕", hi: "Ciao bella!", price: 50, bg: ["#57b34a", "#ffffff"], lines: ["The streets in Venice are made of water. You ride a boat to school!", "Pizza was invented here. You checked. Twice."], treat: ["🍨", "gelato", 4], gift: ["🎭", "a Venice mask", 14] },
+  { k: ["antarctica", "south pole", "penguin", "north pole"], name: "Antarctica", emoji: "🐧", hi: "Brrr!", price: 90, bg: ["#bde0ff", "#ffffff"], lines: ["It's SO cold your eyelashes freeze. Wear all your jackets.", "A hundred penguins waddled over to say hi 🐧🐧🐧"], treat: ["☕", "hot cocoa", 3], gift: ["🐧", "a fluffy penguin toy", 15] },
+  { k: ["mexico", "cancun"], name: "Mexico", emoji: "🌮", hi: "¡Hola!", price: 45, bg: ["#ff9f1c", "#ff5c8a"], lines: ["Mariachi bands play trumpets right in the street 🎺", "There's a pyramid you can climb. 91 steps. Your legs are jelly."], treat: ["🌮", "a taco", 3], gift: ["🪅", "a piñata", 12] },
+  { k: ["africa", "kenya", "safari"], name: "Kenya", emoji: "🦁", hi: "Jambo!", price: 75, bg: ["#f4a261", "#ffd166"], lines: ["On safari you saw a lion, a giraffe and a VERY big elephant 🐘", "Giraffes have purple tongues. Like, really purple."], treat: ["🥭", "a fresh mango", 3], gift: ["🦒", "a wooden giraffe", 14] },
+  { k: ["india", "taj mahal", "mumbai", "delhi"], name: "India", emoji: "🕌", hi: "Namaste!", price: 60, bg: ["#ff70a6", "#ffd166"], lines: ["The Taj Mahal is white marble and glows pink at sunrise.", "You got henna painted on your hands: swirls and flowers ✨"], treat: ["🍛", "curry and naan", 5], gift: ["🪔", "a little brass lamp", 12] },
+  { k: ["brazil", "rio"], name: "Brazil", emoji: "🦜", hi: "Olá!", price: 65, bg: ["#57b34a", "#ffd166"], lines: ["The beach goes on forever and everyone plays soccer on it ⚽", "A parrot landed on your shoulder and said 'olá'. Really."], treat: ["🥥", "coconut water", 3], gift: ["🦜", "a rainbow parrot", 12] },
+];
+const FLIGHT_STATUS = [["BOARDING", "g"], ["ON TIME", ""], ["DELAYED", "o"], ["LAST CALL", "p"], ["GATE OPEN", "g"], ["ON TIME", ""]];
+function findDest(typed) {
+  const t = typed.toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+  const d = DESTS.find(d => d.k.some(k => t === k || t.includes(k) || (t.length >= 3 && k.length > 4 && k.startsWith(t))));
+  if (d) return d;
+  const name = typed.trim().replace(/\s+/g, " ").slice(0, 20).replace(/\b\w/g, c => c.toUpperCase());
+  return { name, emoji: pick(["🌍", "🏝", "🏔", "🌆", "🏞", "🗺"]), hi: "Hello!", price: 35, bg: pick(BGS), made: true,
+    lines: [`The pilot had never flown to ${name} before, so you read the map for her 🗺`, `${name} has the best sunsets you have ever seen. You took, like, 40 photos.`],
+    treat: ["🍦", "the local ice cream", 3], gift: ["🧲", "a fridge magnet", 8] };
+}
+function openAirport() {
+  const b = byId("airport");
+  const rows = [...DESTS].sort(() => Math.random() - .5).slice(0, 5).map(d => { const st = pick(FLIGHT_STATUS); return `<div class="br"><span>${d.emoji} ${d.name.toUpperCase()}</span><span>GATE ${ri(1, 12)}</span><span class="st ${st[1]}">${st[0]}</span></div>`; }).join("");
+  modal(head(b, `<div class="board"><div class="bh"><span>✈ DEPARTURES</span><span>${clockText()}</span></div>${rows}</div>
+    <p style="margin-top:12px"><b>Where do you want to go?</b> Type any place in the whole world… or out of it 🌙</p>
+    <input class="txt fly" id="flyTo" placeholder="Paris? Tokyo? The Moon?" maxlength="24" autocomplete="off" autocorrect="off" autocapitalize="words" enterkeyhint="go">
+    <p id="flyPrice" style="color:#7a44d6;font-weight:800;min-height:20px;margin:6px 0"></p>
+    <div class="row" style="margin-top:2px">${DESTS.slice(0, 8).map(d => `<button class="btn alt" data-act="flyPick" data-v="${d.name}" style="padding:7px 10px;font-size:13px">${d.emoji} ${d.name}</button>`).join("")}</div>
+    <div class="row"><button class="btn ok" data-act="fly" style="font-size:18px">✈️ Fly there!</button><button class="btn alt" data-act="close">Stay home</button></div>`));
+  const inp = $("flyTo");
+  const upd = () => { const v = inp.value.trim(), el = $("flyPrice"); if (!el) return; if (!v) { el.textContent = `💵 You have $${S.money}`; return; } const d = findDest(v); el.textContent = `${d.emoji} Ticket to ${d.name}: $${d.price}${d.made ? " · never heard of it, but the pilot will find it!" : ""}`; };
+  upd();
+  inp.addEventListener("input", upd);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); ACTS.fly(); } });
+}
+ACTS.flyPick = d => { const inp = $("flyTo"); if (!inp) return; inp.value = d.v; inp.dispatchEvent(new Event("input")); SFX.tap(); };
+ACTS.fly = () => {
+  const inp = $("flyTo"); const typed = inp ? inp.value.trim() : "";
+  if (!typed) { SFX.nope(); toast("Type where you want to go ✈️"); if (inp) inp.focus(); return; }
+  const dest = findDest(typed);
+  if (!pay(dest.price)) return;
+  closeModal(); if (inp) inp.blur();
+  startFlight(dest);
+};
+function startFlight(dest) {
+  flight = { phase: "taxi", dest, trip: { photo: false, gift: false } };
+  plane.x = 17; plane.z = 0; plane.vx = 0; plane.dir = 1;
+  S.place = "In the air ✈️"; $("phoneBtn").hidden = true; ACT.hidden = true; closePhone();
+  SFX.jet(); toast(`✈️ Flight to ${dest.name}: buckle up!`, 3000);
+}
+function updateFlight(dt) {
+  const f = flight; if (!f) return;
+  if (f.phase === "taxi") {
+    plane.vx = Math.min(11, plane.vx + 4.5 * dt); plane.x += plane.vx * dt;
+    if (plane.x > 38) plane.z += plane.vx * .34 * dt * Math.min(1, (plane.x - 38) / 6);
+    if (plane.x > MAP + 16) { f.phase = "away"; landAt(f.dest); }
+  } else if (f.phase === "land") {
+    plane.vx = plane.x > 46 ? -9.5 : Math.min(-4, plane.vx + 4 * dt); plane.x += plane.vx * dt;
+    const z = clamp((plane.x - 46) * .24, 0, 7); if (plane.z > 0 && z === 0) { boom(plane.x, plane.y, "#dddddd", 8); SFX.honk(); } plane.z = z;
+    if (plane.x <= 17) { plane.x = 17; plane.z = 0; plane.vx = 0; arriveHome(); }
+  }
+}
+function landAt(dest) {
+  S.place = dest.name; S.stats.trips = (S.stats.trips || 0) + 1; save(); SFX.yay();
+  renderTrip(); toast(`${dest.emoji} Welcome to ${dest.name}!`, 3000);
+  setTimeout(() => friendText(pick(FRIENDS).id, pick([`u went to ${dest.name}?? 😭 bring me something!!`, `${dest.name}!!! send pics 📸📸`, `omg is ${dest.name} as cool as it looks?? 👀`])), 3500);
+}
+function renderTrip() {
+  const d = flight.dest, t = flight.trip;
+  modal(`<div class="postcard" style="background:linear-gradient(160deg,${d.bg[0]},${d.bg[1]})"><div style="font-size:60px;line-height:1">${d.emoji}</div><h2>${esc(d.name)}</h2><div style="font-size:18px;font-weight:800;margin-top:4px">“${d.hi}”</div></div>
+    <p style="margin-top:12px">${esc(d.lines[0])}</p><p>${esc(d.lines[1])}</p>
+    <div class="row"><button class="btn alt" data-act="treat">${d.treat[0]} Eat ${esc(d.treat[1])} $${d.treat[2]}</button><button class="btn alt" data-act="tripPhoto" ${t.photo ? "disabled" : ""}>${t.photo ? "✓ Photo saved" : "📸 Take a photo"}</button><button class="btn alt" data-act="gift" ${t.gift ? "disabled" : ""}>${t.gift ? "✓ Got " + esc(d.gift[1]) : `${d.gift[0]} Buy ${esc(d.gift[1])} $${d.gift[2]}`}</button></div>
+    <div class="row"><button class="btn ok" data-act="flyHome" style="font-size:17px">🏠 Fly home</button></div>`);
+}
+ACTS.treat = () => { if (!flight) return; const d = flight.dest; if (pay(d.treat[2])) { toast(`${d.treat[0]} Mmm, ${d.treat[1]}. Delicious!`); boom(plane.x, plane.y, "#ffd166", 6); } };
+ACTS.tripPhoto = () => { if (!flight || flight.trip.photo) return; const d = flight.dest; SFX.shutter(); const c = document.createElement("canvas"); c.width = 180; c.height = 208; drawSelfie(c.getContext("2d"), 180, 208, d); S.photos.unshift(c.toDataURL("image/jpeg", .7)); S.photos = S.photos.slice(0, 8); flight.trip.photo = true; save(); renderTrip(); toast("📸 Postcard saved to Photos!"); };
+ACTS.gift = () => { if (!flight || flight.trip.gift) return; const d = flight.dest; if (!pay(d.gift[2])) return; flight.trip.gift = true; S.souvenirs.push(`${d.gift[0]} ${d.gift[1]} from ${d.name}`); save(); renderTrip(); toast(`${d.gift[0]} You got ${d.gift[1]}! It's in your 💰 Wallet.`); };
+ACTS.flyHome = () => { if (!flight) return; closeModal(); flight.phase = "land"; plane.x = 76; plane.z = 7; plane.vx = -9.5; plane.dir = -1; S.place = "In the air ✈️"; SFX.jet(); toast("✈️ Flying home to Jules City…", 3000); };
+function arriveHome() {
+  flight = null; const b = byId("airport"); plane.dir = 1;
+  P.x = b.door.x; P.y = b.door.y + .8; P.dir = 1; cam.x = P.x; cam.y = P.y; if (S.pet) { pet.x = P.x - .8; pet.y = P.y + .4; }
+  S.place = "Jules Airport"; $("phoneBtn").hidden = false; SFX.door(); boom(P.x, P.y, "#4cc9f0", 12);
+  toast("🏠 Welcome home! Your postcard is in 📱 Photos.", 3200);
+}
+
 /* ------------------------------ friends & conversations ------------------------------ */
 // A topic: the friend says `them`, you pick a reply, they answer. `invite` topics make
 // the friend walk to that place and give you a bonus when you meet them there.
@@ -1053,18 +1206,20 @@ function renderCamera() {
   $("snap").onclick = () => { audio(); SFX.shutter(); const c = document.createElement("canvas"); c.width = 180; c.height = 208; drawSelfie(c.getContext("2d"), 180, 208); S.photos.unshift(c.toDataURL("image/jpeg", .7)); S.photos = S.photos.slice(0, 8); save(); toast("📸 Saved to Photos!"); $("camBody").style.background = "#fff"; setTimeout(() => $("camBody").style.background = "", 120); };
   $("camFilter").onclick = () => { camBg = (camBg + 1) % BGS.length; drawSelfie($("camCv").getContext("2d"), 260, 300); };
 }
-function drawSelfie(c2, w, h) {
-  const gr = c2.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, BGS[camBg][0]); gr.addColorStop(1, BGS[camBg][1]); c2.fillStyle = gr; c2.fillRect(0, 0, w, h);
-  c2.font = `${w / 5}px serif`; c2.globalAlpha = .35; c2.fillText("✨", w * .08, h * .3); c2.fillText("💜", w * .68, h * .2); c2.fillText("⭐", w * .7, h * .85); c2.globalAlpha = 1;
+function drawSelfie(c2, w, h, dest) {
+  const bg = dest ? dest.bg : BGS[camBg];
+  const gr = c2.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, bg[0]); gr.addColorStop(1, bg[1]); c2.fillStyle = gr; c2.fillRect(0, 0, w, h);
+  if (dest) { c2.font = `${w / 2.6}px serif`; c2.textAlign = "center"; c2.fillText(dest.emoji, w / 2, h * .42); c2.font = `${w / 7}px serif`; c2.globalAlpha = .5; c2.fillText("✈️", w * .15, h * .18); c2.fillText("✨", w * .85, h * .3); c2.globalAlpha = 1; }
+  else { c2.font = `${w / 5}px serif`; c2.globalAlpha = .35; c2.fillText("✨", w * .08, h * .3); c2.fillText("💜", w * .68, h * .2); c2.fillText("⭐", w * .7, h * .85); c2.globalAlpha = 1; }
   const old = ctx; ctx = c2; c2.save(); c2.translate(w / 2, h * .82); c2.scale(w / 110, w / 110); drawTeen(P, 0, 0, 0, 1, 0); if (S.pet) drawPet(S.pet, .9, .3, 0, 1, 0); c2.restore(); ctx = old;
-  c2.fillStyle = "rgba(255,255,255,.85)"; c2.font = `800 ${w / 16}px 'Avenir Next','Trebuchet MS',Arial`; c2.textAlign = "center"; c2.fillText(`📍 ${S.scene === "house" ? "My House" : S.place}`, w / 2, h - 10);
+  c2.fillStyle = "rgba(255,255,255,.85)"; c2.font = `800 ${w / 16}px 'Avenir Next','Trebuchet MS',Arial`; c2.textAlign = "center"; c2.fillText(`📍 ${dest ? dest.name : S.scene === "house" ? "My House" : S.place}`, w / 2, h - 10);
 }
 function renderPhotos() { $("photoGrid").innerHTML = S.photos.length ? S.photos.map(p => `<img src="${p}">`).join("") : `<p style="grid-column:1/-1;text-align:center;color:#888">No photos yet — take a selfie in 📷 Camera!</p>`; }
 
 /* --- map --- */
 function renderMap() {
   const c2 = $("mapCv").getContext("2d"), s = 300 / MAP;
-  for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) { const t = tiles[y][x]; c2.fillStyle = t === T.ROAD ? "#4a4a58" : t === T.WALK ? "#d8d5cc" : t === T.WATER ? "#4a9ae0" : t === T.PLAZA ? "#e9c9a1" : t === T.SAND ? "#f2dda4" : "#6cbf47"; c2.fillRect(x * s, y * s, s + .5, s + .5); }
+  for (let y = 0; y < MAP; y++) for (let x = 0; x < MAP; x++) { const t = tiles[y][x]; c2.fillStyle = t === T.ROAD ? "#4a4a58" : t === T.WALK ? "#d8d5cc" : t === T.WATER ? "#4a9ae0" : t === T.PLAZA ? "#e9c9a1" : t === T.SAND ? "#f2dda4" : t === T.TARMAC ? "#55555f" : "#6cbf47"; c2.fillRect(x * s, y * s, s + .5, s + .5); }
   c2.font = "14px serif"; c2.textAlign = "center"; c2.textBaseline = "middle";
   for (const b of BUILDINGS) { if (b.deco) continue; c2.fillStyle = b.col; c2.fillRect(b.x * s, b.y * s, b.w * s, b.d * s); c2.fillText(b.icon, (b.x + b.w / 2) * s, (b.y + b.d / 2) * s); }
   for (const n of npcs) if (n.friend) { c2.fillStyle = "#ff3b5c"; c2.beginPath(); c2.arc(n.x * s, n.y * s, 3, 0, Math.PI * 2); c2.fill(); }
@@ -1078,7 +1233,8 @@ function renderWallet() {
   const h = S.house ? byId(S.house) : null;
   $("walletBody").innerHTML = `<div class="big">💵</div><p style="text-align:center;font-size:30px;font-weight:900">$${S.money}</p>
     <p>🏠 Home: <b>${h ? h.name : "none yet — houses are for sale!"}</b></p><p>🐾 Pet: <b>${S.pet ? S.pet.icon + " " + S.pet.name : "none yet"}</b></p><p>🛍 Items: <b>${S.owned.length}</b> · 🛋 Furniture: <b>${S.furniture.length}</b></p>
-    <p>🎬 Movies seen: ${S.stats.movies} · 🎓 Classes: ${S.stats.grades} · 🎭 Shows: ${S.stats.shows} · 🧋 Bobas: ${S.stats.boba}</p>
+    <p>🎬 Movies seen: ${S.stats.movies} · 🎓 Classes: ${S.stats.grades} · 🎭 Shows: ${S.stats.shows} · 🧋 Bobas: ${S.stats.boba} · ✈️ Trips: ${S.stats.trips || 0}</p>
+    ${S.souvenirs.length ? `<p>🎁 Souvenirs:<br>${S.souvenirs.map(esc).join("<br>")}</p>` : `<p style="color:#888">🎁 No souvenirs yet. Fly somewhere from ✈️ Jules Airport (bottom of the city)!</p>`}
     <p style="color:#888;font-size:13px">Earn money at school 🏫, the theater 🎭, the boba cafe 🧋, the arcade 🕹 and the bank 🏦.</p>`;
 }
 const SONGS = [{ n: "Glitter Dreams", a: "Jules", notes: [523, 659, 784, 659, 880, 784, 659, 523], bpm: 150 }, { n: "TTYL", a: "The Sparkles", notes: [440, 440, 554, 659, 554, 440, 330, 440], bpm: 170 }, { n: "Purple Boots", a: "Mia & Zoe", notes: [392, 494, 587, 494, 392, 330, 392, 494], bpm: 130 }, { n: "Zombie Night (remix)", a: "Nora", notes: [220, 220, 262, 220, 196, 220, 262, 294], bpm: 110 }];
@@ -1156,7 +1312,7 @@ function drawEditorPreview() {
 /* ------------------------------ title ------------------------------ */
 function showTitle() {
   S.state = "title"; $("phoneBtn").hidden = true; ACT.hidden = true;
-  modal(`<div style="text-align:center"><div style="font-size:44px">🏙✨</div><h2 style="font-size:30px;margin:4px 0">Jules City</h2><p>A whole city to explore. Make your character, text your friends, go to the movies, buy a house… anything!</p>
+  modal(`<div style="text-align:center"><div style="font-size:44px">🏙✨</div><h2 style="font-size:30px;margin:4px 0">Jules City</h2><p>A whole city to explore. Make your character, text your friends, go to the movies, buy a house, fly anywhere in the world… anything!</p>
     <div class="row" style="justify-content:center">${hasSave ? `<button class="btn ok" data-act="play" style="font-size:18px">▶ Keep playing</button><button class="btn alt" data-act="newgame">🆕 New game</button>` : `<button class="btn ok" data-act="makeme" style="font-size:18px">👗 Make my character</button>`}</div>
     <p style="color:#888;font-size:12px">by Jules 💜 · drag to walk · 📱 for your phone</p></div>`);
 }
@@ -1178,7 +1334,7 @@ function update(dt) {
   if (S.state !== "play") return;
   const prevDay = S.day; S.time += dt; S.day = 1 + Math.floor(S.time / DAY_LEN);
   if (S.day !== prevDay) { toast(`🌅 Day ${S.day}! Allowance is ready at the bank 🏦`, 3000); save(); }
-  if (!paused()) { updatePlayer(dt); }
+  if (!paused()) { if (flight) updateFlight(dt); else updatePlayer(dt); }
   if (S.scene === "city") { updateNpcs(dt); updateCars(dt); }
   for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt; f.vz -= 9 * dt; f.t -= dt; if (f.t <= 0 || f.z < 0) fx.splice(i, 1); }
   for (let i = speech.length - 1; i >= 0; i--) { const s = speech[i]; s.t -= dt; if (s.e) { s.x = s.e.x; s.y = s.e.y; } if (s.t <= 0) speech.splice(i, 1); }
