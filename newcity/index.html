@@ -143,6 +143,8 @@
     <b>Dad's work</b>
     <a href="../faceplant/">🍔 Face Plant</a>
   </nav>
+<script src="../players.js"></script>
+<script>window.Arcade = window.Arcade || { key: function (k) { return k; }, mountMenu: function () {} };</script>
 </div>
 <style>
   #verlink { position:fixed; right:10px; top:max(10px, env(safe-area-inset-top)); z-index:30; font-family:var(--font); }
@@ -723,7 +725,7 @@ function drawPetWorld(p, x, y, z, dir, walk, o) { const def = petDef(p.id) || p;
 const S = { state: "title", money: 150, time: 40, day: 1, house: null, furniture: [], pets: [], follow: [], owned: [], marker: null,
   place: "Downtown", scene: "city", unread: 0, photos: [], bankDay: 0, quests: [], stats: { movies: 0, grades: 0, shows: 0, boba: 0, rides: 0, swims: 0 },
   cars: [], car: null, parked: null, surfboard: false, castles: [], waterpark: false, uid: 1 };
-const SAVE_KEY = "julescity.v2", OLD_KEY = "julescity.v1";
+const SAVE_KEY = Arcade.key("julescity.v2"), OLD_KEY = Arcade.key("julescity.v1");
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify({ money: S.money, house: S.house, furniture: S.furniture, pets: S.pets, follow: S.follow, owned: S.owned, av: AV, day: S.day, bankDay: S.bankDay, stats: S.stats, photos: S.photos.slice(0, 6), cars: S.cars, car: S.car, surfboard: S.surfboard, uid: S.uid })); } catch (e) {}
 }

@@ -116,6 +116,8 @@
     <b>Dad's work</b>
     <a href="../faceplant/">🍔 Face Plant</a>
   </nav>
+<script src="../players.js"></script>
+<script>window.Arcade = window.Arcade || { key: function (k) { return k; }, mountMenu: function () {} };</script>
 </div>
 <style>
   #verlink { position:fixed; right:10px; top:max(10px, env(safe-area-inset-top)); z-index:30; font-family:var(--font); }
@@ -435,7 +437,7 @@ function drawPet(p, x, y, z, dir, walk) {
 /* ------------------------------ state ------------------------------ */
 const S = { state: "title", money: 100, time: 40, day: 1, house: null, furniture: [], pet: null, owned: [], marker: null,
   place: "Downtown", scene: "city", unread: 0, photos: [], bankDay: 0, quests: [], stats: { movies: 0, grades: 0, shows: 0, boba: 0 } };
-const SAVE_KEY = "julescity.v1";
+const SAVE_KEY = Arcade.key("julescity.v1");
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify({ money: S.money, house: S.house, furniture: S.furniture, pet: S.pet, owned: S.owned, av: AV, day: S.day, bankDay: S.bankDay, stats: S.stats, photos: S.photos.slice(0, 6) })); } catch (e) {}
 }

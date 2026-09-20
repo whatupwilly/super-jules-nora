@@ -78,6 +78,8 @@
     <b>Dad's work</b>
     <a href="../faceplant/">🍔 Face Plant</a>
   </nav>
+<script src="../players.js"></script>
+<script>window.Arcade = window.Arcade || { key: function (k) { return k; }, mountMenu: function () {} };</script>
 </div>
 <style>
   #verlink { position:fixed; right:10px; top:max(10px, env(safe-area-inset-top)); z-index:30; left:auto; bottom:auto;
@@ -3227,12 +3229,12 @@ const game = {
   inPlayground: false, savedLevel: null, savedReturn: null, treatT: 0,
   subArea: null, savedPark: null, savedParkReturn: null, enterTo: null, waterShots: [], targets: [], portalFx: [],
   levelSelect: 0,
-  pigeonsOff: (() => { try { return localStorage.getItem("magicPigeonsOff") === "1"; } catch(e) { return false; } })(),
+  pigeonsOff: (() => { try { return localStorage.getItem(Arcade.key("magicPigeonsOff")) === "1"; } catch(e) { return false; } })(),
 };
 function setPigeonsOff(off) {
   game.pigeonsOff = off;
   if (off) game.pigeons = [];
-  try { localStorage.setItem("magicPigeonsOff", off ? "1" : "0"); } catch(e) {}
+  try { localStorage.setItem(Arcade.key("magicPigeonsOff"), off ? "1" : "0"); } catch(e) {}
   SFX.select && SFX.select();
 }
 const player = { x:0, y:0, w:10, h:16, vx:0, vy:0, facing:1, grounded:false,

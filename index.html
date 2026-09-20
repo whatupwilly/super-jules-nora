@@ -163,6 +163,19 @@
   .sec-head p { color:var(--dim); font-size:14px; font-weight:600; margin-left:auto; max-width:420px; }
   @media (max-width:700px){ .sec-head p { margin-left:0; } }
 
+  /* ---------- who's playing ---------- */
+  #who { padding:26px 0 18px; }
+  .who-card {
+    display:flex; align-items:center; gap:26px; flex-wrap:wrap;
+    background:linear-gradient(120deg, rgba(139,92,246,.18), rgba(255,95,162,.14));
+    border:1px solid var(--edge); border-radius:22px; padding:22px 24px;
+  }
+  .who-copy { flex:1 1 300px; }
+  .who-card h2 { font-size:20px; font-weight:900; letter-spacing:-.01em; }
+  .who-card p { font-size:13.5px; color:#c6c2e4; font-weight:600; margin-top:6px; max-width:460px; }
+  #arcPlayers { flex:1 1 auto; justify-content:flex-end; }
+  @media (max-width:720px){ #arcPlayers { justify-content:flex-start; } }
+
   /* ---------- featured ---------- */
   .featured { display:grid; grid-template-columns:1.45fr 1fr 1fr; gap:16px; }
   @media (max-width:880px){ .featured { grid-template-columns:1fr; } }
@@ -338,6 +351,16 @@
         <div class="stat"><b>0</b><span>Downloads</span></div>
       </div>
     </div>
+
+    <section id="who">
+      <div class="who-card">
+        <div class="who-copy">
+          <h2>👋 Who's playing?</h2>
+          <p>Every player gets their own saved worlds on this device — your city, your house, your rescued pets. Switch any time, here or from the 🎮 menu inside a game.</p>
+        </div>
+        <div id="arcPlayers"></div>
+      </div>
+    </section>
 
     <section id="featured">
       <div class="sec-head">
@@ -618,5 +641,6 @@
   })();
 })();
 </script>
+<script src="players.js"></script>
 </body>
 </html>

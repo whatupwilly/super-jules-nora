@@ -28,6 +28,8 @@
     <b>Dad's work</b>
     <a href="../faceplant/">🍔 Face Plant</a>
   </nav>
+<script src="../players.js"></script>
+<script>window.Arcade = window.Arcade || { key: function (k) { return k; }, mountMenu: function () {} };</script>
 </div>
 <style>
   #verlink { position:fixed; right:10px; top:max(10px, env(safe-area-inset-top)); z-index:30;
@@ -592,7 +594,7 @@ function morning() {   // after sleeping or fainting
 // is hidden or closed. Zombies, sparks and the half-built progress bar aren't
 // saved; everything else (the map, chopped trees, your crew, the pile, the
 // house, the barn, the pets, the day and the weather) comes right back.
-const SAVE_KEY = "zombieSave", SAVE_VER = 2;   // v1 saves (home side only) are migrated on load
+const SAVE_KEY = Arcade.key("zombieSave"), SAVE_VER = 2;   // v1 saves (home side only) are migrated on load
 const CHAR_KEYS = ["type", "name", "label", "skin", "hair", "shirt", "pants", "hairStyle", "hat", "kind", "body", "belly", "ears", "tail", "patch", "stripes", "x", "y", "dir", "hp", "wood", "carry"];
 let SAVED = null;   // the save that was waiting when the page opened (drives the CONTINUE button)
 function charData(c) { const o = {}; for (const k of CHAR_KEYS) if (c[k] !== undefined) o[k] = c[k]; return o; }

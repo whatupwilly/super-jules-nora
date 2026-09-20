@@ -28,6 +28,8 @@
     <b>Dad's work</b>
     <a class="here" href="./">🍔 Face Plant</a>
   </nav>
+<script src="../players.js"></script>
+<script>window.Arcade = window.Arcade || { key: function (k) { return k; }, mountMenu: function () {} };</script>
 </div>
 <style>
   #verlink { position:fixed; right:10px; top:max(10px, env(safe-area-inset-top)); z-index:30;
@@ -1707,8 +1709,8 @@ const S = {
 };
 S.exact = false;   // 🌶 exact-build mode: the stacking order has to match the house build
 try {
-  S.best = parseFloat(localStorage.getItem("fpBestDay")) || 0;
-  S.exact = localStorage.getItem("fpExact") === "1";
+  S.best = parseFloat(localStorage.getItem(Arcade.key("fpBestDay"))) || 0;
+  S.exact = localStorage.getItem(Arcade.key("fpExact")) === "1";
 } catch (e) {}
 const hero = { x: 480, tx: 480, facing: 1, walkT: 0 };
 let queue = [];    // [{ id, tx }] — stations we'll walk to, in tap order
@@ -1785,7 +1787,7 @@ function endDay() {
   S.stars = S.perfect >= S.served ? 3 : S.perfect >= Math.ceil(S.served * 0.6) ? 2 : 1;
   if (S.dayCoins > S.best) {
     S.best = S.dayCoins;
-    try { localStorage.setItem("fpBestDay", String(S.best)); } catch (e) {}
+    try { localStorage.setItem(Arcade.key("fpBestDay"), String(S.best)); } catch (e) {}
   }
   S.state = "dayEnd";
   if (S.stars === 3) SFX.fanfare(); else SFX.star();
@@ -2665,7 +2667,7 @@ cv.addEventListener("pointerdown", e => {
     for (const c of (S.modeChips || []))
       if (x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h) {
         S.exact = c.val;
-        try { localStorage.setItem("fpExact", c.val ? "1" : "0"); } catch (err) {}
+        try { localStorage.setItem(Arcade.key("fpExact"), c.val ? "1" : "0"); } catch (err) {}
         SFX.select(); return;
       }
     for (const c of S.cards)
