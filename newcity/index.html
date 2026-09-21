@@ -1015,7 +1015,7 @@ function updatePlayer(dt) {
   const tx = Math.floor(P.x), ty = Math.floor(P.y), tile = S.scene === "city" && tiles[ty] ? tiles[ty][tx] : T.GRASS;
   if (m > .01) {
     let sp = 4;
-    if (P.swim) sp = S.surfboard ? 6.5 : 2.4;
+    if (P.swim) sp = (S.surfboard || (S.scene === "trip" && S.surfboardTrip)) ? 6.5 : 2.4;
     else if (P.drive) sp = (tile === T.ROAD || tile === T.LOT || tile === T.PLAZA) ? 10 : 5.5;
     else if (P.ride) sp = 7.5;
     sp *= Math.min(1, m); dx /= m; dy /= m;
@@ -1080,7 +1080,7 @@ function updateAction() {
   if (action.npc) { ACT.textContent = `💬 Talk to ${action.npc.name}`; return; }
   if (action.horse) { ACT.textContent = `🐴 Ride ${action.horse.def.name}`; return; }
   const w = action.what;
-  if (w && w.t === "trip" && TRIP) { const d = TRIP.dest, k = w.spot.kind; ACT.textContent = k === "treat" ? `${d.treat[0]} Eat ${d.treat[1]} $${d.treat[2]}` : k === "gift" ? (TRIP.gift ? "✓ Got it!" : `${d.gift[0]} Buy ${d.gift[1]} $${d.gift[2]}`) : k === "photo" ? (TRIP.photo ? "✓ Photo taken" : "📸 Take a photo") : w.spot.text; return; }
+  if (w && w.t === "trip" && TRIP) { const d = TRIP.dest, k = w.spot.kind; ACT.textContent = k === "act" ? w.spot.text : k === "treat" ? `${d.treat[0]} Eat ${d.treat[1]} $${d.treat[2]}` : k === "gift" ? (TRIP.gift ? "✓ Got it!" : `${d.gift[0]} Buy ${d.gift[1]} $${d.gift[2]}`) : k === "photo" ? (TRIP.photo ? "✓ Photo taken" : "📸 Take a photo") : w.spot.text; return; }
   if (w && w.t === "tripTalk") { ACT.textContent = `💬 Say hi to ${w.n.name}`; return; }
   if (w) {
     const txt = { park: "🅿️ Park the car", getIn: "🚗 Get in the car", hopOff: "🐴 Hop off", castle: "🏰 Build a sandcastle", slide: "🛝 Ride the slide!", wheel: "🎡 Ferris wheel $5", carousel: "🎠 Carousel $3", tv: "📺 Watch TV", sleep: "😴 Sleep (next day)", ridePet: "🐴 Ride" }[w.t];
@@ -2033,6 +2033,7 @@ function makeTrip(dest) {
         if (o.stripes) for (let i = 0; i < 5; i++) patch(x, y, 0, w, d, 1, 0, h * i / 5, w, h / 5 + .02, ["#ff5c8a", "#ffd166", "#57b34a", "#4cc9f0", "#a066ff"][i]);
       }, x + y + w + d);
       if (o.label) B.label(x + w / 2, y + d, h + 1.1, o.label);
+      if (o.act) t.spots.push({ x: x + w / 2, y: y + d + .7, kind: "act", text: o.act[0], fn: o.act[1] });
     },
     tree: (x, y, col, big) => { B.solid(x, y, x, y); B.thing(x + .5, y + .5, () => drawTree({ x, y, col, big }), x + y + 1.3); },
     palm: (x, y) => B.thing(x, y, () => drawPalm({ x, y }), x + y + .5),
@@ -2062,7 +2063,7 @@ const THEMES = {
       for (let i = 0; i < 10; i++) if (hash(i, Math.floor(animT * 8)) > .6) { const p = proj(10 + hash(i, 3) * 3, 6 + hash(i, 5) * 3, hash(i, 7) * 6); ell(ctx, p.sx, p.sy, 2.5, 2.5, "#fff"); }
     }, 11.5 + 7.5 + 4);
     B.landmark(11.5, 10.2, 7.4, "🗼 Eiffel Tower");
-    B.house(2, 4, 4, 3, 1.6, "#f4e1c1", "#d62828", { label: "☕ Café" }); B.house(17, 4, 4, 3, 1.6, "#ffd9a8", "#8a5a32", { label: "🥖 Boulangerie" });
+    B.house(2, 4, 4, 3, 1.6, "#f4e1c1", "#d62828", { label: "☕ Café", act: ["☕ Hot chocolate $3", () => { if (pay(3)) { toast("☕ Chocolat chaud! Ooh la la, so creamy."); P.emote = "laugh"; P.emoteT = 2; boom(P.x, P.y, "#8a5a32", 6); } }] }); B.house(17, 4, 4, 3, 1.6, "#ffd9a8", "#8a5a32", { label: "🥖 Boulangerie", act: ["🥖 Buy a baguette $2", () => { if (pay(2)) { toast("🥖 A baguette as long as your arm! Crunch."); boom(P.x, P.y, "#ffd166", 6); } }] });
     B.stall(17.5, 8.5, "#e63946", "🥐", "Croissants", "treat"); B.stall(3, 8.5, "#a066ff", "🎁", "Souvenirs", "gift");
     for (const [x, y] of [[1, 13], [5, 14], [14, 13], [21, 12], [2, 17], [8, 17]]) B.tree(x, y, "#4aa842", y > 15);
     for (const [x, y] of [[7, 3], [16, 3], [7, 10], [16, 10]]) B.lamp(x, y); B.bench(9, 12); B.bench(14, 12);
@@ -2076,7 +2077,7 @@ const THEMES = {
     B.solid(17, 2, 19.9, 4.9);
     B.thing(19, 4, () => { cube(17, 2, 0, 3, 3, 1, "#c9b48a"); cube(17.6, 2.6, 1, 1.8, 1.8, 5.5, "#d9c49a"); patch(17.6, 2.6, 1, 1.8, 1.8, 0, .35, 4.3, 1.1, 1.1, "#fff"); patch(17.6, 2.6, 1, 1.8, 1.8, 1, .35, 4.3, 1.1, 1.1, "#fff"); faceText(17.6, 2.6, 1, 1.8, 1.8, 0, 4.85, "🕓", "#222", 12); faceText(17.6, 2.6, 1, 1.8, 1.8, 1, 4.85, "🕓", "#222", 12); cone(18.5, 3.5, 6.5, 1, 1.6, "#4a6a5a", 3); cube(18.42, 3.42, 8.1, .16, .16, .8, "#ffd166"); }, 19 + 4 + 5);
     B.landmark(18.5, 6.4, 9.6, "🕰 Big Ben");
-    B.house(3, 2, 7, 3, 2.2, "#e8e2d0", "#8a8a92", { label: "👑 Palace", flat: true });
+    B.house(3, 2, 7, 3, 2.2, "#e8e2d0", "#8a8a92", { label: "👑 Palace", flat: true, act: ["👑 Wave at the King", () => { P.emote = "wave"; P.emoteT = 3; toast("👑 The King waved back from the window! …then went back to his tea."); tripSay("Guard", ["…", "(the guard's eye twitches)", "Hmph."]); }] });
     for (const gx of [5.5, 7.5]) B.local(gx, 5.6, randomAv({ shirt: "#d62828", top: "hoodie", bottom: "pants", hairStyle: "short", hairTop: "#111", hairMid: "#111", hairTip: "#111" }), { wait: 9999, dir: 1, name: "💂 Guard", talk: ["…", "(no smiling on duty)", "…hmph."] });
     B.thing(6.5, 7.5, () => { cube(6.2, 7.2, 0, .7, .7, 1.7, "#d62828"); patch(6.2, 7.2, 0, .7, .7, 1, .1, .4, .5, 1, "#bfe6ff"); cube(6.15, 7.15, 1.7, .8, .8, .1, "#8a1a1a"); }); B.label(6.5, 7.9, 2.5, "☎️ Phone box");
     B.stall(12, 12.5, "#8ecae6", "🫖", "Tea & Scones", "treat"); B.stall(4, 12.5, "#a066ff", "🧸", "Souvenirs", "gift");
@@ -2113,7 +2114,8 @@ const THEMES = {
     for (const [x, y, c] of [[3, 12.2, "#ff70a6"], [8, 12.4, "#57b34a"]]) B.thing(x, y, () => cube(x, y, .02, 1.2, .4, .06, c));
     for (const [x, y] of [[2, 7], [11, 7], [19, 11]]) B.thing(x + .5, y + .5, () => { cube(x + .45, y + .45, 0, .1, .1, 1.3, "#8a5a32"); blob(x + .5, y + .5, 1.3 + Math.sin(animT * 9 + x) * .05, 8, "#ff9f1c"); });
     B.stall(4, 5, "#ff70a6", "🍧", "Shave ice", "treat"); B.stall(9, 1.5, "#ffd166", "🌺", "Lei stand", "gift");
-    B.house(19, 1, 3, 2.5, 1.3, "#c8a06a", "#7a5a3a", { label: "🛖 Tiki hut" });
+    B.house(19, 1, 3, 2.5, 1.3, "#c8a06a", "#7a5a3a", { label: "🛖 Tiki hut", act: ["💃 Hula lesson", () => tripDance("🌺 Aloha! Sway your hips like the palm trees… everyone's dancing!", 6, 8)] });
+    B.local(20.5, 4.6, randomAv({ shirt: "#ff5c8a", bottom: "skirt", skirtA: "#57b34a", hairStyle: "long" }), { name: "🌺 Leilani", wait: 9999, dir: 1, talk: ["Aloha! Want a hula lesson? 💃", "The volcano only smokes, don't worry 🌋", "Mahalo for visiting!"] });
     for (let i = 0; i < 4; i++) B.local(rnd(1, 22), rnd(2, 12), randomAv({ shirt: pick(["#ff5c8a", "#ffd166", "#4cc9f0", "#57b34a"]), bottom: "shorts" }));
     B.critter("🐢", 6, 12.6, "walk", { speed: .5, range: 3 }); B.critter("🐬", 5, 16, "swim", { size: 30, hop: true, speed: 2.5, range: 8 }); B.critter("🐬", 15, 17, "swim", { size: 30, hop: true, speed: 2.5, range: 8 }); B.critter("🦜", 3, 3, "fly"); B.critter("🐠", 20, 16, "swim", { size: 22 });
   },
@@ -2162,7 +2164,7 @@ const THEMES = {
   "Rainbow Land": (B, t) => {
     const R = ["#ff5c8a", "#ff9f1c", "#ffd166", "#57b34a", "#4cc9f0", "#a066ff"]; t.rowCol = (x, y) => R[Math.floor(y / 2) % R.length]; t.pal.p = ["#fff", "#f4f4f4"]; t.pal.w = "#7df9ff";
     B.fill(0, 10, 23, 10, TR.P); B.fill(18, 2, 21, 4, TR.W);
-    B.house(8, 3, 6, 4, 2.2, "#ff70a6", "#ffd166", { stripes: true, door: "#7a44d6" });
+    B.house(8, 3, 6, 4, 2.2, "#ff70a6", "#ffd166", { stripes: true, door: "#7a44d6", act: ["🎉 Dance party with Nora", () => tripDance("🌈 DANCE PARTY! Even the zombies are dancing 🧟💃", 7, 5)] });
     B.thing(11, 5, () => { const p = proj(11, 5, 6); ctx.lineWidth = 7; for (let i = 0; i < 6; i++) { ctx.strokeStyle = R[i]; ctx.beginPath(); ctx.arc(p.sx, p.sy + 40, 150 - i * 8, Math.PI, Math.PI * 2); ctx.stroke(); } }, -999);
     B.landmark(11, 7.6, 3.5, "🌈 Rainbow Restaurant");
     B.stall(9, 9, "#ffd166", "🎂", "Singing cake", "treat"); B.stall(3, 13, "#57b34a", "🧟", "Zombie plushies", "gift");
@@ -2180,7 +2182,7 @@ const THEMES = {
     B.solid(11, 12, 14.9, 13.4); B.thing(13, 12.7, () => { cube(11, 12, 0, 4, 1.4, 1, "#d9b46a"); cube(14, 11.9, .9, 1.1, 1.6, 1.2, "#d9b46a"); patch(14, 11.9, .9, 1.1, 1.6, 1, .15, .5, .8, .55, "#c9a25a"); for (const ox of [.25, .65]) patch(14, 11.9, .9, 1.1, 1.6, 1, ox, .75, .16, .12, "#222"); cube(11.2, 12.2, 1, .5, .5, .4, "#d9b46a"); }, 13 + 12.7 + 3); B.label(13, 13.6, 2.8, "🐈 The Sphinx");
     for (const [x, y] of [[1.5, 12.6], [6, 13], [2, 16], [6, 16]]) B.palm(x, y);
     B.stall(17, 12.5, "#ff9f1c", "🍮", "Sweet pudding", "treat"); B.stall(8, 15.5, "#ffd166", "🐈", "Golden cats", "gift");
-    B.house(12, 15.5, 4, 3, 1.4, "#e8d4a0", "#c9a25a", { label: "🏺 Market", flat: true });
+    B.house(12, 15.5, 4, 3, 1.4, "#e8d4a0", "#c9a25a", { label: "🏺 Market", flat: true, act: ["🏺 Haggle for a scarf $5", () => { if (pay(5)) { toast("🧣 The seller said $20. You said $5. You won! 😎"); boom(P.x, P.y, "#4cc9f0", 8); } }] });
     for (let i = 0; i < 4; i++) B.local(rnd(1, 22), rnd(9, 17), randomAv({ shirt: pick(["#fff", "#4cc9f0", "#ffd166"]), top: "hoodie", bottom: "pants" }));
     B.critter("🐪", 6, 8, "walk", { size: 34, speed: .9, range: 7 }); B.critter("🐪", 20, 9, "walk", { size: 34, speed: .9, range: 7 }); B.critter("🦂", 2, 5, "walk", { size: 18 }); B.critter("🦅", 12, 4, "fly", { range: 9 });
   },
@@ -2201,7 +2203,7 @@ const THEMES = {
     B.solid(3, 2, 5.4, 4.4); B.thing(4.2, 3.2, () => { for (let i = 0; i < 6; i++) { cube(3 + i * .12, 2 + i * .06, i * .8, 1.6, 1.6, .8, i % 2 ? "#f2ecd8" : "#e8e0c8"); for (let j = 0; j < 3; j++) patch(3 + i * .12, 2 + i * .06, i * .8, 1.6, 1.6, 1, .15 + j * .5, .2, .25, .45, "#8a7a6a"); } cone(4.4, 3.4, 4.8, .7, .6, "#c9b990", 2); }, 4.2 + 3.2 + 6); B.landmark(4.2, 5.4, 6.2, "🗼 Leaning Tower");
     B.solid(14, 2, 19.9, 6.9); B.thing(17, 4.5, () => { for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, cx = 17 + Math.cos(a) * 2.4, cy = 4.5 + Math.sin(a) * 2, h = 1.6 + (Math.sin(a * 1.5 + 1) > 0 ? .9 : 0); cube(cx - .35, cy - .35, 0, .7, .7, h, "#d9c9a0"); patch(cx - .35, cy - .35, 0, .7, .7, 1, .15, .2, .4, .6, "#7a6a5a"); } cube(15.5, 3.2, 0, 3, 2.6, .3, "#c9b990"); }, 17 + 4.5 + 5); B.landmark(17, 7.4, 3.4, "🏟 Colosseum");
     B.stall(2, 12, "#ff70a6", "🍨", "Gelato", "treat"); B.stall(14, 12, "#a066ff", "🎭", "Venice masks", "gift");
-    B.house(18, 11, 4, 3, 1.6, "#f4a261", "#c1440e", { label: "🍕 Pizzeria" }); B.house(2, 15.5, 4, 3, 1.6, "#e9c46a", "#c1440e", { label: "🏠 Casa" });
+    B.house(18, 11, 4, 3, 1.6, "#f4a261", "#c1440e", { label: "🍕 Pizzeria", act: ["🍕 Spin pizza dough", () => { P.emote = "laugh"; P.emoteT = 3; toast("🍕 You spun the dough in the air… and caught it! Chef Gino is impressed."); tripSay("Gino", ["Bravissima! A natural!", "Mamma mia, perfetto!"]); SFX.yay(); earn(6, "for helping in the kitchen 🍕"); }] }); B.house(2, 15.5, 4, 3, 1.6, "#e9c46a", "#c1440e", { label: "🏠 Nonna's casa", act: ["🍝 Nonna's spaghetti (free!)", () => { toast("🍝 Nonna made you a mountain of spaghetti. Mangia, mangia!"); P.emote = "laugh"; P.emoteT = 3; boom(P.x, P.y, "#e63946", 8); }] });
     for (let i = 0; i < 4; i++) B.local(rnd(1, 9), rnd(10, 17), randomAv({ shirt: pick(["#fff", "#e63946", "#264653"]) })); B.local(13, 15, randomAv({ shirt: "#fff", bottom: "pants" }), { name: "👨‍🍳 Chef Gino", wait: 9999, talk: ["Mamma mia! Pizza was invented here!", "Ciao bella! Gelato? Sì!", "You want-a the pasta?"] });
     for (const [gx, gy, vx] of [[1, 8.5, 1.1], [14, 9.5, -1], [10.5, 2, 0]]) B.mover({ x: gx, y: gy, vx, vy: vx ? 0 : .8, draw: m => { cube(m.x - .9, m.y - .25, .05, 1.8, .5, .3, "#111"); cube(m.x - .3, m.y - .2, .35, .6, .4, .1, "#e63946"); emojiAt(m.x + .4, m.y, .3, "🎩", 14); }, update: (m, dt) => { m.x += m.vx * dt; m.y += m.vy * dt; if (m.x > 25) m.x = -2; if (m.x < -2) m.x = 25; if (m.y > 21) m.y = -2; } });
     B.critter("🐦", 6, 6, "walk", { size: 20, speed: 2 }); B.critter("🐦", 18, 11, "walk", { size: 20, speed: 2 }); B.critter("🛵", 13, 17, "walk", { size: 28, speed: 3, range: 9 });
@@ -2211,7 +2213,7 @@ const THEMES = {
     B.fill(0, 13, 23, 19, TR.W); B.fill(0, 12, 23, 12, TR.P);
     for (const [x, y, s] of [[2, 15, 1.6], [8, 17, 2.2], [15, 16, 1.4], [12, 17.5, 1.2]]) { B.solid(x, y, x + s - .01, y + s - .01); B.thing(x + s / 2, y + s / 2, () => { cube(x, y, -.2, s, s, .8 + s * .5, "#e8f4ff", { top: "#ffffff", left: "#d0e4f8", right: "#b8d4f0" }); cube(x + s * .3, y + s * .2, .6 + s * .5, s * .5, s * .5, s * .6, "#f4faff"); }, x + y + s * 2); }
     B.solid(3, 3, 5.9, 5.9); B.thing(4.5, 4.5, () => { blob(4.5, 4.5, .1, 44, "#f0f6ff"); for (let i = 0; i < 5; i++) { const p = proj(4.5, 4.5, .1); ctx.strokeStyle = "rgba(160,190,230,.5)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(p.sx, p.sy - i * 9, 44 - i * 8, 10, 0, Math.PI, Math.PI * 2); ctx.stroke(); } cube(5.4, 6, 0, 1, .8, .7, "#e8f0fb"); patch(5.4, 6, 0, 1, .8, 1, .2, 0, .6, .6, "#2a3a5a"); }, 4.5 + 4.5 + 4); B.label(4.5, 6.8, 2.2, "🧊 Igloo");
-    B.house(16, 2, 4, 3, 1.5, "#ff5c8a", "#c9c9d4", { label: "🔬 Research station", flat: true });
+    B.house(16, 2, 4, 3, 1.5, "#ff5c8a", "#c9c9d4", { label: "🔬 Research station", flat: true, act: ["🔬 Help the scientists", () => { toast("🔬 You counted 112 penguins for the scientists. They said thank you with a sticker!"); SFX.yay(); earn(10, "for science 🐧"); }] });
     B.landmark(12, 10.2, 2.2, "🐧 Penguin colony");
     B.stall(8, 8, "#8a5a32", "☕", "Hot cocoa", "treat"); B.stall(19, 8, "#4cc9f0", "🐧", "Penguin toys", "gift");
     for (let i = 0; i < 12; i++) B.critter("🐧", 9 + hash(i, 1) * 6, 7.5 + hash(i, 2) * 4, "walk", { size: 24 + hash(i, 3) * 8, speed: .8, range: 3 });
@@ -2223,7 +2225,7 @@ const THEMES = {
     t.pal.g = ["#d9c48a", "#d2bd83"]; t.pal.p = ["#c98b5a", "#c28453"]; t.pal.w = "#3d9de6";
     B.fill(0, 10, 23, 10, TR.P);
     B.solid(9, 1, 15.9, 7.9); B.thing(12.5, 4.5, () => { pyramid(9, 1, 7, 6, "#b8a47a", true); cube(11.8, 3.8, 3, 1.4, 1.4, .9, "#a8946a"); patch(11.8, 3.8, 3, 1.4, 1.4, 1, .45, 0, .5, .7, "#333"); }, 12.5 + 4.5 + 8); B.landmark(12.5, 8.6, 5, "🛕 Chichen Itza");
-    ["#ff70a6", "#ffd166", "#4cc9f0", "#57b34a", "#ff9f1c"].forEach((c, i) => B.house(1 + i * 4.4, 12, 3, 2.5, 1.5, c, "#c1440e", { flat: true }));
+    ["#ff70a6", "#ffd166", "#4cc9f0", "#57b34a", "#ff9f1c"].forEach((c, i) => B.house(1 + i * 4.4, 12, 3, 2.5, 1.5, c, "#c1440e", { flat: true, act: i === 2 ? ["💃 Join the fiesta", () => tripDance("🎺 ¡Fiesta! The mariachis play faster and faster…", 6, 6)] : null }));
     B.thing(4, 7, () => { cube(3.95, 6.95, 0, .12, .12, 2.6, "#8a6a4a"); cube(3.95, 6.95, 2.6, 1.2, .1, .08, "#8a6a4a"); const sw = Math.sin(animT * 2) * .25; for (let i = 0; i < 5; i++) blob(4.9 + sw, 7 + .02 * i, 2.1 - i * .12, 11, ["#ff5c8a", "#ffd166", "#4cc9f0", "#57b34a", "#a066ff"][i]); emojiAt(4.9 + sw, 7, 1.4, "🫏", 22); }); B.label(4.3, 7.4, 3.3, "🪅 Piñata");
     for (const [x, y] of [[1, 3], [19, 2], [21, 6], [2, 16], [20, 16]]) { B.solid(x, y, x, y); B.thing(x + .5, y + .5, () => { cube(x + .35, y + .35, 0, .3, .3, 1.6, "#57b34a"); cube(x + .05, y + .4, .7, .3, .2, .7, "#57b34a"); cube(x + .05, y + .4, 1.3, .35, .2, .2, "#57b34a"); cube(x + .65, y + .4, .5, .3, .2, .9, "#57b34a"); cube(x + .6, y + .4, 1.3, .35, .2, .2, "#57b34a"); blob(x + .5, y + .5, 1.65, 5, "#ff70a6"); }); }
     for (const [x, y] of [[6, 4], [8, 9], [16, 9]]) B.thing(x + .5, y + .5, () => { cube(x + .45, y + .45, 0, .1, .1, 2.2, "#8a6a4a"); for (let i = 0; i < 6; i++) patch(x - 1.5, y + .45, 0, 4, .1, 1, i * .66, 1.85 + Math.sin(animT * 3 + i) * .04, .5, .3, ["#ff5c8a", "#ffd166", "#4cc9f0", "#57b34a", "#a066ff", "#ff9f1c"][i]); });
@@ -2275,13 +2277,13 @@ function genericTheme(dest) {
       t.pal.g = ["#7fbf5a", "#76b553"]; t.beyond = "sea"; B.fill(0, 12, 23, 19, TR.S); B.fill(0, 15, 23, 19, TR.W); B.fill(17, 15, 23, 15, TR.S);
       for (const [x, y] of [[2, 3], [6, 1], [12, 3], [19, 2], [3, 11], [9, 12.5], [14, 12], [21, 11]]) B.palm(x, y);
       B.solid(15, 5, 16.9, 6.9); B.thing(16, 6, () => { cube(15.2, 5.2, 0, 1.6, 1.6, 4, "#fff"); for (let i = 0; i < 3; i++) cube(15.2, 5.2, .6 + i * 1.3, 1.6, 1.6, .5, "#e63946"); cube(15.1, 5.1, 4, 1.8, 1.8, .2, "#333"); blob(16, 6, 4.5, 14, hash(0, Math.floor(animT * 2)) > .5 ? "#ffd166" : "#fff"); }, 16 + 6 + 5); B.landmark(16, 8.5, 5.4, `🗺 ${dest.name} lighthouse`);
-      B.house(4, 6, 4, 3, 1.5, "#c8a06a", "#7a5a3a", { label: "🛖 Beach hut" });
+      B.house(4, 6, 4, 3, 1.5, "#c8a06a", "#7a5a3a", { label: "🛖 Beach hut", act: ["🏄 Borrow a surfboard", () => { toast("🏄 Cowabunga! Go jump in the sea, you'll zoom on the waves."); S.surfboardTrip = true; SFX.whoosh(); }] });
       B.critter("🦀", 5, 13, "walk", { size: 22, speed: 2, range: 3 }); B.critter("🐬", 6, 17, "swim", { hop: true, speed: 2.5, range: 8 }); B.critter("🦜", 10, 5, "fly"); B.critter("🐢", 18, 13.5, "walk", { speed: .5, range: 2 });
       B.umbrella(8, 13.5, "#ff5c8a"); B.umbrella(13, 13.8, "#ffd166");
     } else if (kind === "mountains") {
       t.pal.g = ["#7fbf5a", "#76b553"]; t.pal.p = ["#c9b99a", "#c2b293"]; B.fill(2, 12, 7, 15, TR.W); B.fill(0, 9, 23, 9, TR.P);
       B.solid(14, 0, 22, 6.9); B.thing(18, 3, () => { cone(18, 3, 0, 4.5, 6, "#8a8a92", 6, "#f4f8ff"); cube(16.9, 1.9, 4.5, 2.2, 2.2, .6, "#f4f8ff"); cone(12, 2, 0, 2.2, 3, "#7a7a82", 4, "#f4f8ff"); }, 18 + 3 + 10); B.landmark(18, 7.6, 7, `🏔 Mount ${dest.name}`);
-      B.house(4, 3, 5, 3.5, 1.8, "#c8a06a", "#7a3a1a", { label: "🏡 Chalet" }); B.house(10, 12, 4, 3, 1.6, "#e8e2d0", "#7a3a1a", { label: "🧀 Cheese shop" });
+      B.house(4, 3, 5, 3.5, 1.8, "#c8a06a", "#7a3a1a", { label: "🏡 Chalet", act: ["🔥 Warm up by the fire", () => { toast("🔥 Toasty! Someone handed you a mug of cocoa with a marshmallow mountain."); P.emote = "sit"; P.emoteT = 4; }] }); B.house(10, 12, 4, 3, 1.6, "#e8e2d0", "#7a3a1a", { label: "🧀 Cheese shop", act: ["🧀 Taste the cheese $2", () => { if (pay(2)) { toast("🧀 Squeaky, stinky, DELICIOUS. The shopkeeper gave you a second piece."); P.emote = "laugh"; P.emoteT = 2; } }] });
       for (const [x, y] of [[1, 7], [9, 5], [1, 16], [16, 13], [20, 11], [13, 15], [12, 17]]) B.tree(x, y, "#2e8b57", true);
       B.critter("🐐", 15, 8, "hop", { size: 26, speed: 1.5 }); B.critter("🦌", 8, 15, "walk", { size: 30 }); B.critter("🐻", 19, 14, "walk", { size: 32, speed: .6, range: 3 }); B.critter("🦆", 4, 13.5, "swim", { size: 22 }); B.critter("🦅", 10, 3, "fly", { range: 9 });
     } else {
@@ -2373,7 +2375,14 @@ function tripAct(spot) {
   else if (spot.kind === "gift") { if (t.gift) { toast("You already got one! 🎁"); return; } if (!pay(d.gift[2])) return; t.gift = true; S.souvenirs.push(`${d.gift[0]} ${d.gift[1]} from ${d.name}`); save(); boom(P.x, P.y, "#a066ff", 10); toast(`${d.gift[0]} You got ${d.gift[1]}! It's in your 💰 Wallet.`); }
   else if (spot.kind === "photo") { if (t.photo) { toast("📸 Already got that one! Check Photos."); return; } SFX.shutter(); const c = document.createElement("canvas"); c.width = 360; c.height = 416; drawSelfie(c.getContext("2d"), 180, 208, d); S.photos.unshift(c.toDataURL("image/jpeg", .7)); S.photos = S.photos.slice(0, 8); t.photo = true; save(); P.emote = "wave"; P.emoteT = 2; toast(`📸 Postcard from ${d.name} saved to Photos!`); friendText(pick(FRIENDS).id, pick([`${d.name}!!! send pics 📸📸`, `omg is ${d.name} as cool as it looks?? 👀`, `u went to ${d.name}?? 😭 bring me something!!`])); }
   else if (spot.kind === "flyHome") flyHomeFromTrip();
+  else if (spot.kind === "act") spot.fn();
 }
+// little party tricks the houses can do
+function tripDance(msg, secs, tip) {
+  P.emote = "dance"; P.emoteT = secs; for (const n of TRIP.locals) { n.emote = "dance"; n.wait = Math.max(n.wait, secs); n.walk = 0; }
+  toast(msg, 3000); let k = 0; const beat = setInterval(() => { if (!TRIP || k++ > secs * 2) { clearInterval(beat); if (TRIP) { for (const n of TRIP.locals) if (n.wait < 9000) n.emote = null; if (tip) earn(tip, "in tips 🌺"); } return; } tone(k % 2 ? 110 : 165, .12, "triangle", .1); if (k % 4 === 0) tone(440 + (k % 8) * 40, .18, "sine", .06); }, 500);
+}
+function tripSay(who, lines) { const n = TRIP.locals.find(l => l.name && l.name.includes(who)) || TRIP.locals[0]; if (n) sayAt(n, pick(lines), 3); else toast(pick(lines)); }
 function flyHomeFromTrip() {
   const d = TRIP.dest; TRIP = null; S.scene = "city"; if (P.ride) hopOff(); P.drive = null; P.swim = false; action.what = null; action.near = null; action.npc = null; action.horse = null;
   flight = { phase: "land", dest: d, trip: {} };
