@@ -1815,16 +1815,113 @@ function adoptPet(p, name) { const pet = { id: p.id, name, uid: S.uid++ }; S.pet
 function openSalon() { modal(head(byId("salon"), `<div class="big">💇‍♀️</div><p>New hair, new you! Any style, any colors, lashes, lips, everything — the salon is free for regulars ✨</p><div class="row"><button class="btn" data-act="salonGo">💜 Change my look</button><button class="btn alt" data-act="close">Leave</button></div>`)); }
 ACTS.salonGo = () => { closeModal(); openEditor(false); };
 let arc = null;
-function openArcade() { modal(head(byId("arcade"), `<div class="big">🕹</div><p><b>Glow Tap:</b> tiles light up — tap them fast! 20 seconds, every hit is a ticket, tickets turn into cash 💵</p><p>Play for <b>$5</b></p><div class="row"><button class="btn ok" data-act="arcStart">▶ Play</button><button class="btn alt" data-act="close">Leave</button></div>`)); }
+function openArcade() {
+  modal(head(byId("arcade"), `<p>Pick a game! Every game is <b>$5</b> and the prizes turn into cash 💵</p><div class="shop">
+    <div class="item" data-act="arcStart"><div class="ic">✨</div><div class="nm">Glow Tap</div><div class="pr">tap the lights</div></div>
+    <div class="item" data-act="clawStart"><div class="ic">🧸</div><div class="nm">Claw Machine</div><div class="pr">grab a prize</div></div>
+    <div class="item" data-act="whackStart"><div class="ic">🧟</div><div class="nm">Whack-a-Zombie</div><div class="pr">$2 a zombie</div></div>
+    <div class="item" data-act="hoopStart"><div class="ic">🏀</div><div class="nm">Hoops</div><div class="pr">8 shots</div></div>
+  </div><div class="row"><button class="btn alt" data-act="close">Leave</button></div>`));
+}
+ACTS.arcade = openArcade;
+function arcResult(html, again) { modal(head(byId("arcade"), `${html}<div class="row"><button class="btn" data-act="${again}">Again ($5)</button><button class="btn alt" data-act="arcade">🕹 Other games</button><button class="btn alt" data-act="close">Done</button></div>`)); }
+
+/* Glow Tap: tiles light up, tap them */
 ACTS.arcStart = () => {
   if (!pay(5)) return; arc = { score: 0, lit: -1, end: performance.now() + 20000 };
   modal(head(byId("arcade"), `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="arcGrid">${[...Array(9)].map((_, i) => `<button class="btn alt" data-act="arcTap" data-i="${i}" style="height:64px;font-size:26px;background:#22223a;box-shadow:none"></button>`).join("")}</div><p style="text-align:center;font-weight:800" id="arcInfo">Tickets: 0 · 20s</p>`));
   const light = () => { if (!arc) return; const grid = $("arcGrid"); if (!grid) return; const btns = grid.children; if (arc.lit >= 0) { btns[arc.lit].style.background = "#22223a"; btns[arc.lit].textContent = ""; } arc.lit = ri(0, 8); btns[arc.lit].style.background = pick(["#ff70a6", "#4cc9f0", "#ffd166", "#a066ff"]); btns[arc.lit].textContent = "✨"; };
   light();
-  modalTimer = setInterval(() => { if (!arc) return; const left = Math.max(0, (arc.end - performance.now()) / 1000); const info = $("arcInfo"); if (info) info.textContent = `Tickets: ${arc.score} · ${Math.ceil(left)}s`; if (left <= 0) { const s = arc.score; arc = null; clearInterval(modalTimer); modalTimer = null; if (s) earn(s, "from arcade tickets 🎟"); modal(head(byId("arcade"), `<div class="big">🎟</div><p>Time! You won <b>${s} tickets</b> = <b>$${s}</b></p><div class="row"><button class="btn" data-act="arcStart">Again ($5)</button><button class="btn alt" data-act="close">Done</button></div>`)); } }, 200);
+  modalTimer = setInterval(() => { if (!arc) return; const left = Math.max(0, (arc.end - performance.now()) / 1000); const info = $("arcInfo"); if (info) info.textContent = `Tickets: ${arc.score} · ${Math.ceil(left)}s`; if (left <= 0) { const s = arc.score; arc = null; clearInterval(modalTimer); modalTimer = null; if (s) earn(s, "from arcade tickets 🎟"); arcResult(`<div class="big">🎟</div><p>Time! You won <b>${s} tickets</b> = <b>$${s}</b></p>`, "arcStart"); } }, 200);
   arc.light = light;
 };
 ACTS.arcTap = d => { if (!arc) return; if (+d.i === arc.lit) { arc.score++; SFX.pop(); arc.light(); } else SFX.nope(); };
+
+/* Claw Machine: the claw swings back and forth, DROP it over a prize */
+let claw = null;
+const CLAW_PRIZES = [["🧸", 8], ["🦄", 40], ["🐶", 15], ["💎", 30], ["🍭", 6], ["🎀", 10], ["🐱", 15], ["⭐", 20], ["🎁", 12], ["👑", 25]];
+ACTS.clawStart = () => {
+  if (!pay(5)) return;
+  const prizes = [...CLAW_PRIZES].sort(() => Math.random() - .5).slice(0, 5);
+  claw = { x: 0, dir: 1, speed: .75, state: "swing", prizes, y: 0, got: null };
+  modal(head(byId("arcade"), `<div class="stage" id="clawStage" style="height:240px;background:linear-gradient(#2a1a58,#101020);border:4px solid #a066ff;box-sizing:border-box">
+    <div id="clawArm" style="position:absolute;top:0;left:0;width:4px;background:#ccc;height:20px;margin-left:-2px"></div>
+    <div id="clawHead" style="position:absolute;top:14px;left:0;font-size:34px;margin-left:-20px;line-height:1;transform:scaleX(-1)">🤏</div>
+    ${prizes.map((p, i) => `<div class="prz" data-i="${i}" style="position:absolute;bottom:14px;left:${13 + i * 18.5}%;font-size:34px;line-height:1;margin-left:-20px">${p[0]}</div>`).join("")}
+    <div style="position:absolute;bottom:0;left:0;right:0;height:10px;background:#333"></div>
+  </div><div class="row"><button class="btn ok" data-act="clawDrop" style="width:100%;font-size:20px">⬇️ DROP!</button></div>
+  <p style="text-align:center;color:#888;font-size:13px">Tap DROP when the claw is right over a prize. ${prizes.map(p => `${p[0]} $${p[1]}`).join(" · ")}</p>`));
+  const tok = modalRaf = {}; let last = performance.now();
+  const loop = now => {
+    if (modalRaf !== tok || !claw) return; const dt = Math.min(.05, (now - last) / 1000); last = now; const st = $("clawStage"); if (!st) return;
+    if (claw.state === "swing") { claw.x += claw.dir * claw.speed * dt; if (claw.x > .97) { claw.x = .97; claw.dir = -1; } if (claw.x < .03) { claw.x = .03; claw.dir = 1; } }
+    else if (claw.state === "down") { claw.y += 220 * dt; if (claw.y >= 160) { claw.y = 160; const cx = claw.x * st.clientWidth; let best = null, bd = 24; st.querySelectorAll(".prz").forEach(el => { const d = Math.abs(el.offsetLeft + 20 - cx); if (d < bd) { bd = d; best = el; } }); claw.got = best; claw.state = "up"; if (best) SFX.pop(); else SFX.nope(); } }
+    else if (claw.state === "up") { claw.y -= 150 * dt; if (claw.got) { claw.got.style.bottom = "auto"; claw.got.style.top = (14 + claw.y + 26) + "px"; claw.got.style.left = claw.x * 100 + "%"; } if (claw.y <= 0) { claw.y = 0; finishClaw(); return; } }
+    $("clawArm").style.left = claw.x * 100 + "%"; $("clawArm").style.height = (20 + claw.y) + "px"; $("clawHead").style.left = claw.x * 100 + "%"; $("clawHead").style.top = (14 + claw.y) + "px";
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+};
+ACTS.clawDrop = () => { if (!claw || claw.state !== "swing") return; claw.state = "down"; tone(300, .3, "triangle", .08, -150); };
+function finishClaw() {
+  const got = claw.got ? claw.prizes[+claw.got.dataset.i] : null; claw = null; modalRaf = null;
+  if (got) { SFX.yay(); earn(got[1], `for the ${got[0]}!`); arcResult(`<div class="big">${got[0]}</div><p>You grabbed the ${got[0]}! The arcade buys it back for <b>$${got[1]}</b> 🎉</p>`, "clawStart"); if (got[1] >= 30) friendText("ava", `u won the ${got[0]} from the claw?? that thing is RIGGED 😭 teach me`); }
+  else { SFX.nope(); arcResult(`<div class="big">🤏</div><p>Aww, it slipped! Those claws are so slippery. Try again?</p>`, "clawStart"); }
+}
+
+/* Whack-a-Zombie: zombies pop up, whack them. Don't whack Peach 🐶 */
+let whack = null;
+ACTS.whackStart = () => {
+  if (!pay(5)) return; whack = { score: 0, end: performance.now() + 20000, cells: new Array(9).fill(null) };
+  modal(head(byId("arcade"), `<p style="text-align:center;font-weight:800;margin:0 0 8px" id="whInfo">🧟 Whack the zombies! NOT Peach 🐶 · 20s</p><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="whGrid">${[...Array(9)].map((_, i) => `<button class="btn alt" data-act="whackTap" data-i="${i}" style="height:72px;font-size:38px;background:#5a3a1a;box-shadow:inset 0 6px 0 #3a2a10;border-radius:40px"></button>`).join("")}</div>`));
+  modalTimer = setInterval(() => {
+    if (!whack) return; const grid = $("whGrid"); if (!grid) return; const now = performance.now(), left = Math.max(0, (whack.end - now) / 1000);
+    if (Math.random() < .6) { const i = ri(0, 8); if (!whack.cells[i]) { const peach = Math.random() < .18; whack.cells[i] = { peach, until: now + (peach ? 1200 : rnd(650, 1100)) }; grid.children[i].textContent = peach ? "🐶" : "🧟"; grid.children[i].style.background = peach ? "#ffd166" : "#57b34a"; } }
+    whack.cells.forEach((c, i) => { if (c && now > c.until) { whack.cells[i] = null; grid.children[i].textContent = ""; grid.children[i].style.background = "#5a3a1a"; } });
+    const info = $("whInfo"); if (info) info.textContent = `🧟 Whacked: ${whack.score} · $${whack.score * 2} · ${Math.ceil(left)}s`;
+    if (left <= 0) { const sc = whack.score; whack = null; clearInterval(modalTimer); modalTimer = null; const cash = sc * 2; if (cash > 0) earn(cash, "whacking zombies 🧟"); arcResult(`<div class="big">${sc >= 15 ? "🏆" : "🧟"}</div><p>You whacked <b>${sc} zombies</b> = <b>$${cash}</b>${sc >= 15 ? " — zombie champion!" : ""}</p>`, "whackStart"); if (sc >= 15) friendText("nora", "u whacked MY zombies?? 😤 …ok that's kinda impressive"); }
+  }, 250);
+};
+ACTS.whackTap = d => {
+  if (!whack) return; const i = +d.i, c = whack.cells[i], grid = $("whGrid"); if (!grid) return;
+  if (!c) { SFX.nope(); return; }
+  whack.cells[i] = null; grid.children[i].style.background = "#5a3a1a";
+  if (c.peach) { grid.children[i].textContent = "😢"; whack.score = Math.max(0, whack.score - 3); SFX.nope(); toast("🐶 That was Peach! −3", 800); }
+  else { grid.children[i].textContent = "💥"; whack.score++; SFX.pop(); }
+  setTimeout(() => { if (grid.isConnected && whack && !whack.cells[i]) grid.children[i].textContent = ""; }, 300);
+};
+
+/* Hoops: stop the power bar in the green, 8 shots */
+let hoop = null;
+ACTS.hoopStart = () => {
+  if (!pay(5)) return; hoop = { shot: 0, cash: 0, streak: 0, p: 0, dir: 1, busy: false };
+  modal(head(byId("arcade"), `<div class="stage" id="hoopStage" style="height:220px;background:linear-gradient(#1a2a58,#101020)">
+    <div style="position:absolute;right:26px;top:30px;width:74px;height:60px;border:4px solid #fff;border-radius:6px;background:rgba(255,255,255,.12)"></div>
+    <div style="position:absolute;right:34px;top:80px;width:58px;height:8px;background:#ff5c1a;border-radius:4px"></div>
+    <div style="position:absolute;right:40px;top:88px;width:46px;height:28px;background:repeating-linear-gradient(45deg,#fff 0 2px,transparent 2px 7px),repeating-linear-gradient(-45deg,#fff 0 2px,transparent 2px 7px);opacity:.6"></div>
+    <div id="ball" style="position:absolute;left:36px;bottom:30px;font-size:36px;line-height:1">🏀</div>
+    <div id="hoopMsg" style="position:absolute;left:0;right:0;top:8px;text-align:center;color:#fff;font-weight:800;font-size:18px"></div>
+    <div style="position:absolute;left:12px;right:12px;bottom:8px;height:16px;background:#333;border-radius:8px;overflow:hidden"><div style="position:absolute;left:40%;width:20%;top:0;bottom:0;background:#57b34a"></div><div style="position:absolute;left:48%;width:4%;top:0;bottom:0;background:#ffd166"></div><div id="pw" style="position:absolute;left:0;top:0;bottom:0;width:5px;background:#fff"></div></div>
+  </div><div class="row"><button class="btn ok" data-act="hoopShoot" style="width:100%;font-size:20px">🏀 SHOOT!</button></div><p id="hoopInfo" style="text-align:center;font-weight:800">Shot 1 of 8 · stop the bar in the green · $4 a basket, $6 for gold</p>`));
+  const tok = modalRaf = {}; let last = performance.now();
+  const loop = now => { if (modalRaf !== tok || !hoop) return; const dt = Math.min(.05, (now - last) / 1000); last = now; if (!hoop.busy) { hoop.p += hoop.dir * 1.5 * dt; if (hoop.p > 1) { hoop.p = 1; hoop.dir = -1; } if (hoop.p < 0) { hoop.p = 0; hoop.dir = 1; } } const pw = $("pw"); if (pw) pw.style.left = `calc(${hoop.p * 100}% - 2px)`; requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+};
+ACTS.hoopShoot = () => {
+  if (!hoop || hoop.busy) return; hoop.busy = true;
+  const off = Math.abs(hoop.p - .5), gold = off < .02, made = off < .1, ball = $("ball"), st = $("hoopStage"); if (!ball || !st) return;
+  const W2 = st.clientWidth, dx = (W2 - 63) - 36 + (made ? 0 : hoop.p < .5 ? -50 : 40), dy = made ? -110 : -70;
+  const anim = ball.animate([{ transform: "translate(0,0) rotate(0)" }, { transform: `translate(${dx / 2}px, -170px) rotate(180deg)` }, { transform: `translate(${dx}px, ${dy}px) rotate(360deg)` }], { duration: 650, easing: "ease-out" });
+  anim.onfinish = () => {
+    if (!hoop) return;
+    let pts = 0; if (made) { hoop.streak++; pts = gold ? 6 : 4; if (hoop.streak >= 3) pts += 2; SFX.coin(); } else { hoop.streak = 0; SFX.nope(); }
+    hoop.cash += pts; hoop.shot++;
+    const msg = $("hoopMsg"); if (msg) msg.textContent = gold ? "🌟 SWISH! +$6" : made ? (hoop.streak >= 3 ? `🔥 ON FIRE! +$${pts}` : "✅ Basket! +$4") : "❌ Clank!";
+    if (hoop.shot >= 8) { const cash = hoop.cash; hoop = null; modalRaf = null; if (cash) earn(cash, "shooting hoops 🏀"); setTimeout(() => arcResult(`<div class="big">${cash >= 36 ? "🏆" : "🏀"}</div><p>8 shots, <b>$${cash}</b> won${cash >= 36 ? " — MVP!" : ""}</p>`, "hoopStart"), 500); return; }
+    const info = $("hoopInfo"); if (info) info.textContent = `Shot ${hoop.shot + 1} of 8 · $${hoop.cash} so far`;
+    hoop.busy = false;
+  };
+};
 function openPizza() { modal(head(byId("pizza"), `<div class="big">🍕</div><p>Mmm, smells amazing.</p><div class="row"><button class="btn alt" data-act="slice">🍕 A slice $6</button><button class="btn" data-act="party">🎉 Pizza party $25</button><button class="btn alt" data-act="close">Leave</button></div>`)); }
 ACTS.slice = () => { if (pay(6)) { toast("🍕 Yum!"); boom(P.x, P.y, "#f94144", 6); } };
 ACTS.party = () => { if (!pay(25)) return; closeModal(); SFX.yay(); toast("🎉 PIZZA PARTY! Everyone's coming!", 3000); for (const n of npcs) if (n.friend) { n.goal = { x: byId("pizza").door.x + rnd(-2, 2), y: byId("pizza").door.y + rnd(.5, 2) }; } friendText("lily", "PIZZA PARTY?? omw 🍕🏃‍♀️"); friendText("nora", "save me a slice!!! 🍕"); };
@@ -2627,7 +2724,7 @@ function renderWallet() {
     <p>🏠 Home: <b>${h ? h.name : "none yet — houses are for sale!"}</b></p><p>🐾 Pets: <b>${S.pets.length ? S.pets.map(p => petDef(p.id).icon + " " + p.name).join(", ") : "none yet"}</b></p><p>🚗 Cars: <b>${S.cars.length ? S.cars.map(c => carType(c.type).icon + " " + carType(c.type).name).join(", ") : "none yet"}</b></p><p>🛍 Items: <b>${S.owned.length}</b> · 🛋 Furniture: <b>${S.furniture.length}</b>${S.surfboard ? " · 🏄 Surfboard" : ""}</p>
     <p>🎬 Movies: ${S.stats.movies} · 🎓 Classes: ${S.stats.grades} · 🎭 Shows: ${S.stats.shows} · 🧋 Bobas: ${S.stats.boba} · 🐴 Rides: ${S.stats.rides} · 🏊 Swims: ${S.stats.swims} · ✈️ Trips: ${S.stats.trips || 0}</p>
     ${S.souvenirs.length ? `<p>🎁 Souvenirs:<br>${S.souvenirs.map(esc).join("<br>")}</p>` : `<p style="color:#888">🎁 No souvenirs yet. Fly somewhere from ✈️ Jules Airport, past the ranch on the right!</p>`}
-    <p style="color:#888;font-size:13px">Earn money at school 🏫, the theater 🎭, the boba cafe 🧋, the hospital 🏥, the arcade 🕹, the roller rink 🛼 and the bank 🏦.</p>`;
+    <p style="color:#888;font-size:13px">Earn money at school 🏫, the theater 🎭, the boba cafe 🧋, the hospital 🏥, the arcade 🕹 (four games!), the roller rink 🛼 and the bank 🏦.</p>`;
 }
 const SONGS = [{ n: "Glitter Dreams", a: "Jules", notes: [523, 659, 784, 659, 880, 784, 659, 523], bpm: 150 }, { n: "TTYL", a: "The Sparkles", notes: [440, 440, 554, 659, 554, 440, 330, 440], bpm: 170 }, { n: "Purple Boots", a: "Mia & Zoe", notes: [392, 494, 587, 494, 392, 330, 392, 494], bpm: 130 }, { n: "Beach Day", a: "Lily", notes: [587, 740, 880, 740, 587, 740, 988, 880], bpm: 140 }, { n: "Zombie Night (remix)", a: "Nora", notes: [220, 220, 262, 220, 196, 220, 262, 294], bpm: 110 }];
 let songTimer = null, playing = -1;
