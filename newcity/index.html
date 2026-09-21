@@ -121,6 +121,20 @@
   #mapCv { width:100%; border-radius:14px; background:#7dbb61; touch-action:manipulation; }
   .song { display:flex; align-items:center; gap:10px; background:#fff; border-radius:14px; padding:10px; margin-bottom:8px; }
   .song.playing { background:#e9e6ff; }
+  /* ---- phone games ---- */
+  #games .appBody { display:grid; grid-template-columns:1fr 1fr; gap:10px; align-content:start; padding:12px; }
+  .gtile { background:#fff; border-radius:18px; padding:12px 8px 10px; text-align:center; box-shadow:0 3px 10px rgba(0,0,0,.08); }
+  .gtile .gi { width:58px; height:58px; margin:0 auto 6px; border-radius:18px; font-size:32px; line-height:58px; box-shadow:0 4px 10px rgba(0,0,0,.15); }
+  .gtile .gn { font-weight:900; font-size:14px; color:#333; } .gtile .gb { font-size:11px; color:#888; } .gtile .gs { font-size:12px; font-weight:800; color:#7a44d6; margin-top:4px; }
+  #play .appBody { padding:0; display:flex; flex-direction:column; overflow:hidden; }
+  #playHud { font:800 13px var(--font); text-align:center; padding:5px; background:#fff; color:#5a3aa8; flex:none; }
+  #playCv { flex:1; width:100%; min-height:0; display:block; touch-action:none; }
+  #playCv[hidden] { display:none; }
+  #playHtml { flex:1; overflow:auto; padding:10px; min-height:0; }
+  #playHtml[hidden] { display:none; }
+  .memGrid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .memCard { border:0; aspect-ratio:1; border-radius:14px; font-size:30px; background:linear-gradient(160deg,#a066ff,#4f8cff); box-shadow:0 3px 8px rgba(0,0,0,.15); transition:transform .15s; }
+  .memCard.up { background:#fff; transform:scale(1.04); } .memCard.done { background:#e9ffe6; box-shadow:none; opacity:.85; }
   /* ---- airport ---- */
   .board { background:#111; color:#ffd166; border-radius:12px; padding:8px 10px; font:800 13px "Courier New",Courier,monospace; letter-spacing:.04em; }
   .board .bh { color:#fff; font-size:12px; margin-bottom:4px; border-bottom:1px dashed #444; padding-bottom:4px; display:flex; justify-content:space-between; }
@@ -204,6 +218,8 @@
   <div class="app" id="music"><div class="appTop"><button data-back>‹ Back</button><span>🎵 Music</span></div><div class="appBody" id="musicBody"></div></div>
   <div class="app" id="garage"><div class="appTop"><button data-back>‹ Back</button><span>🚗 Garage</span></div><div class="appBody" id="garageBody"></div></div>
   <div class="app" id="petsApp"><div class="appTop"><button data-back>‹ Back</button><span>🐾 My Pets</span></div><div class="appBody" id="petsBody"></div></div>
+  <div class="app" id="games"><div class="appTop"><button data-back>‹ Back</button><span>🎮 Games</span></div><div class="appBody" id="gamesGrid"></div></div>
+  <div class="app" id="play"><div class="appTop"><button data-to="games">‹ Games</button><span id="playName"></span><button id="playRetry" style="margin-left:auto" title="Restart">↻</button></div><div class="appBody"><div id="playHud"></div><canvas id="playCv"></canvas><div id="playHtml" hidden></div></div></div>
 </div></div></div>
 
 <script>
@@ -736,7 +752,7 @@ const S = { state: "title", money: 150, time: 40, day: 1, house: null, furniture
   cars: [], car: null, parked: null, surfboard: false, castles: [], waterpark: false, uid: 1, souvenirs: [] };
 const SAVE_KEY = Arcade.key("julescity.v2"), OLD_KEY = Arcade.key("julescity.v1");
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ money: S.money, house: S.house, furniture: S.furniture, pets: S.pets, follow: S.follow, owned: S.owned, av: AV, day: S.day, bankDay: S.bankDay, stats: S.stats, photos: S.photos.slice(0, 6), cars: S.cars, car: S.car, surfboard: S.surfboard, uid: S.uid, souvenirs: S.souvenirs })); } catch (e) {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ money: S.money, house: S.house, furniture: S.furniture, pets: S.pets, follow: S.follow, owned: S.owned, av: AV, day: S.day, bankDay: S.bankDay, stats: S.stats, photos: S.photos.slice(0, 6), cars: S.cars, car: S.car, surfboard: S.surfboard, uid: S.uid, souvenirs: S.souvenirs, hi: S.hi })); } catch (e) {}
 }
 function load() {
   try {
@@ -746,7 +762,7 @@ function load() {
       d = o; d.pets = o.pet ? [{ id: o.pet.kind === "kitten" ? "tabby" : o.pet.kind === "bunny" ? "bunny" : o.pet.name === "Pug" ? "pug" : "golden", name: o.pet.name, uid: 1 }] : []; d.follow = d.pets.map(p => p.uid); d.uid = 2;
     }
     S.money = d.money ?? 150; S.house = d.house ?? null; S.furniture = d.furniture || []; S.pets = d.pets || []; S.follow = d.follow || []; S.owned = d.owned || [];
-    S.day = d.day || 1; S.time = (S.day - 1) * 240 + 40; S.bankDay = d.bankDay || 0; S.stats = Object.assign(S.stats, d.stats || {}); S.photos = d.photos || []; S.cars = d.cars || []; S.car = d.car ?? null; S.surfboard = !!d.surfboard; S.uid = d.uid || (S.pets.length + 2); S.souvenirs = d.souvenirs || [];
+    S.day = d.day || 1; S.time = (S.day - 1) * 240 + 40; S.bankDay = d.bankDay || 0; S.stats = Object.assign(S.stats, d.stats || {}); S.photos = d.photos || []; S.cars = d.cars || []; S.car = d.car ?? null; S.surfboard = !!d.surfboard; S.uid = d.uid || (S.pets.length + 2); S.souvenirs = d.souvenirs || []; S.hi = d.hi || {};
     if (d.av) { Object.assign(AV, JULES, d.av); if (d.av.skirt && !d.av.bottom) AV.bottom = d.av.skirt === "solid" ? "skirt" : d.av.skirt; }
     return true;
   } catch (e) { return false; }
@@ -2812,7 +2828,7 @@ function renderWallet() {
     <p>🏠 Home: <b>${h ? h.name : "none yet — houses are for sale!"}</b></p><p>🐾 Pets: <b>${S.pets.length ? S.pets.map(p => petDef(p.id).icon + " " + p.name).join(", ") : "none yet"}</b></p><p>🚗 Cars: <b>${S.cars.length ? S.cars.map(c => carType(c.type).icon + " " + carType(c.type).name).join(", ") : "none yet"}</b></p><p>🛍 Items: <b>${S.owned.length}</b> · 🛋 Furniture: <b>${S.furniture.length}</b>${S.surfboard ? " · 🏄 Surfboard" : ""}</p>
     <p>🎬 Movies: ${S.stats.movies} · 🎓 Classes: ${S.stats.grades} · 🎭 Shows: ${S.stats.shows} · 🧋 Bobas: ${S.stats.boba} · 🐴 Rides: ${S.stats.rides} · 🏊 Swims: ${S.stats.swims} · ✈️ Trips: ${S.stats.trips || 0}</p>
     ${S.souvenirs.length ? `<p>🎁 Souvenirs:<br>${S.souvenirs.map(esc).join("<br>")}</p>` : `<p style="color:#888">🎁 No souvenirs yet. Fly somewhere from ✈️ Jules Airport, past the ranch on the right!</p>`}
-    <p style="color:#888;font-size:13px">Earn money at school 🏫, the theater 🎭, the boba cafe 🧋, the hospital 🏥, the arcade 🕹 (four games!), the roller rink 🛼 and the bank 🏦.</p>`;
+    <p style="color:#888;font-size:13px">Earn money at school 🏫, the theater 🎭, the boba cafe 🧋, the hospital 🏥, the arcade 🕹 (four games!), the roller rink 🛼 and the bank 🏦. Or beat a high score in 🎮 Games!</p>`;
 }
 const SONGS = [{ n: "Glitter Dreams", a: "Jules", notes: [523, 659, 784, 659, 880, 784, 659, 523], bpm: 150 }, { n: "TTYL", a: "The Sparkles", notes: [440, 440, 554, 659, 554, 440, 330, 440], bpm: 170 }, { n: "Purple Boots", a: "Mia & Zoe", notes: [392, 494, 587, 494, 392, 330, 392, 494], bpm: 130 }, { n: "Beach Day", a: "Lily", notes: [587, 740, 880, 740, 587, 740, 988, 880], bpm: 140 }, { n: "Zombie Night (remix)", a: "Nora", notes: [220, 220, 262, 220, 196, 220, 262, 294], bpm: 110 }];
 let songTimer = null, playing = -1;
@@ -2831,20 +2847,161 @@ function renderPets() {
 }
 
 /* --- the phone shell --- */
-const APPS = [["msgs", "💬", "Messages", "#2ec4b6"], ["calls", "📞", "Phone", "#57b34a"], ["camera", "📷", "Camera", "#555"], ["photos", "🖼", "Photos", "#ff9f1c"], ["map", "🗺", "Map", "#4f8cff"], ["wallet", "💰", "Wallet", "#ffd166"], ["music", "🎵", "Music", "#ff3b5c"], ["garage", "🚗", "Garage", "#3a86ff"], ["petsApp", "🐾", "Pets", "#ff70a6"], ["avatar", "👗", "Avatar", "#a066ff"], ["close", "🏙", "City", "#7a44d6"]];
+const APPS = [["msgs", "💬", "Messages", "#2ec4b6"], ["calls", "📞", "Phone", "#57b34a"], ["camera", "📷", "Camera", "#555"], ["photos", "🖼", "Photos", "#ff9f1c"], ["map", "🗺", "Map", "#4f8cff"], ["wallet", "💰", "Wallet", "#ffd166"], ["music", "🎵", "Music", "#ff3b5c"], ["garage", "🚗", "Garage", "#3a86ff"], ["petsApp", "🐾", "Pets", "#ff70a6"], ["games", "🎮", "Games", "#ff5e8a"], ["avatar", "👗", "Avatar", "#a066ff"], ["close", "🏙", "City", "#7a44d6"]];
 $("homeGrid").innerHTML = APPS.map(a => `<div class="icon" data-app="${a[0]}"><div class="ic" style="background:${a[3]}">${a[1]}</div>${a[2]}${a[0] === "msgs" ? '<span class="badge" id="badgeMsgs" hidden></span>' : ""}</div>`).join("");
 $("homeGrid").addEventListener("click", e => { const el = e.target.closest("[data-app]"); if (!el) return; audio(); SFX.tap(); const a = el.dataset.app; if (a === "close") closePhone(); else if (a === "avatar") { closePhone(); openEditor(false); } else showApp(a); });
 function showApp(id) {
   if (call && id !== "call") hangUp();
   document.querySelectorAll(".app").forEach(a => a.classList.toggle("on", a.id === id));
-  if (id === "msgs") renderMsgList(); if (id === "calls") renderCallList(); if (id === "camera") renderCamera(); if (id === "photos") renderPhotos(); if (id === "map") renderMap(); if (id === "wallet") renderWallet(); if (id === "music") renderMusic(); if (id === "garage") renderGarage(); if (id === "petsApp") renderPets();
+  if (id === "msgs") renderMsgList(); if (id === "calls") renderCallList(); if (id === "camera") renderCamera(); if (id === "photos") renderPhotos(); if (id === "map") renderMap(); if (id === "wallet") renderWallet(); if (id === "music") renderMusic(); if (id === "garage") renderGarage(); if (id === "petsApp") renderPets(); if (id === "games") renderGames(); if (id !== "play") stopGame();
 }
 document.querySelectorAll("[data-back]").forEach(b => b.addEventListener("click", () => { SFX.tap(); showApp("home"); }));
 document.querySelectorAll("[data-to]").forEach(b => b.addEventListener("click", () => { SFX.tap(); showApp(b.dataset.to); }));
 function openPhone() { audio(); $("phone").hidden = false; joy.id = null; joy.dx = joy.dy = 0; $("phoneBtn").classList.remove("ring"); if (incomingCall) startCall(incomingCall, true); else showApp("home"); }
-function closePhone() { if (call) hangUp(); $("phone").hidden = true; }
+function closePhone() { if (call) hangUp(); stopGame(); $("phone").hidden = true; }
 $("phoneBtn").addEventListener("click", openPhone);
 $("phone").addEventListener("pointerdown", e => { if (e.target === $("phone")) closePhone(); });
+
+/* --- 🎮 phone games: five little video games you play right on the phone --- */
+// Each game draws into the phone's canvas (or, for Memory Match, builds HTML).
+// High scores live in S.hi and a new record pays $5. The city is paused while
+// the phone is open, so the games get the whole screen to themselves.
+S.hi = S.hi || {};
+const PG = { id: null, g: null, raf: 0, last: 0, W: 0, H: 0, c: null, state: "idle", overAt: 0, brag: {}, hudTxt: "" };
+const GAMES = {
+  flap: { name: "Sparkle Flap", icon: "🦄", col: "#a066ff", blurb: "tap to fly", brag: [10, "mia", "I got 10 on Sparkle Flap 🦄 …u got MORE?? 😭"],
+    start(g) { g.y = PG.H * .45; g.vy = 0; g.pipes = []; g.t = 0; g.next = .4; g.stars = [...Array(24)].map(() => [Math.random() * PG.W, Math.random() * PG.H * .8, rnd(1, 3)]); },
+    down(g) { g.vy = -330; tone(500, .1, "sine", .07, 400); },
+    key(g, k) { if (k === " " || k === "arrowup") this.down(g); },
+    tick(g, dt) {
+      const W = PG.W, H = PG.H; g.t += dt; g.vy += 950 * dt; g.y += g.vy * dt; g.next -= dt;
+      if (g.next <= 0) { g.next = 1.55; g.pipes.push({ x: W + 40, cy: rnd(H * .28, H * .68), gap: 78, hit: false }); }
+      for (const p of g.pipes) { p.x -= 150 * dt; if (!p.hit && p.x + 28 < W * .3) { p.hit = true; g.score++; SFX.pop(); } if (Math.abs(p.x - W * .3) < 28 + 14 && (g.y - 14 < p.cy - p.gap || g.y + 14 > p.cy + p.gap)) g.over = true; }
+      g.pipes = g.pipes.filter(p => p.x > -60);
+      if (g.y > H - 38 || g.y < -10) g.over = true;
+    },
+    draw(g, c) {
+      const W = PG.W, H = PG.H; const sky = c.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, "#2a1a58"); sky.addColorStop(1, "#7a44d6"); c.fillStyle = sky; c.fillRect(0, 0, W, H);
+      c.fillStyle = "#fff"; for (const s of g.stars || []) { c.globalAlpha = .4 + .6 * Math.abs(Math.sin(g.t * 2 + s[0])); c.beginPath(); c.arc(s[0], s[1], s[2], 0, 7); c.fill(); } c.globalAlpha = 1;
+      for (const p of g.pipes) { const cols = ["#ff3b5c", "#ff9f1c", "#ffd166", "#57b34a", "#4f8cff", "#a066ff"]; for (let i = 0; i < 6; i++) { c.fillStyle = cols[i]; const x = p.x - 28 + i * 56 / 6; c.fillRect(x, 0, 56 / 6 + .5, p.cy - p.gap); c.fillRect(x, p.cy + p.gap, 56 / 6 + .5, H); } c.fillStyle = "#fff"; c.fillRect(p.x - 32, p.cy - p.gap - 10, 64, 10); c.fillRect(p.x - 32, p.cy + p.gap, 64, 10); }
+      c.fillStyle = "#57b34a"; c.fillRect(0, H - 26, W, 26); c.fillStyle = "#3e8f32"; c.fillRect(0, H - 26, W, 5);
+      c.save(); c.translate(W * .3, g.y); c.rotate(clamp(g.vy / 600, -.5, .8)); c.scale(-1, 1); c.font = "34px serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("🦄", 0, 0); c.restore();
+      if (PG.state === "play" && g.t < 1.2) { c.fillStyle = "rgba(255,255,255,.8)"; c.font = "800 13px " + FONT; c.textAlign = "center"; c.fillText("tap tap tap to fly ✨", W / 2, H * .82); }
+    } },
+  boba: { name: "Boba Catch", icon: "🧋", col: "#ff70a6", blurb: "drag the cup", brag: [30, "zoe", "boba catch is so hard 🧋 how do u get 30?? 😩"],
+    start(g) { g.cx = PG.W / 2; g.items = []; g.lives = 3; g.spd = 1; g.spawn = .5; g.t = 0; g.flash = 0; },
+    down(g, x) { g.cx = clamp(x, 30, PG.W - 30); }, move(g, x) { g.cx = clamp(x, 30, PG.W - 30); },
+    key(g, k) { if (k === "arrowleft") g.cx = clamp(g.cx - 26, 30, PG.W - 30); if (k === "arrowright") g.cx = clamp(g.cx + 26, 30, PG.W - 30); },
+    tick(g, dt) {
+      const W = PG.W, H = PG.H; g.t += dt; g.spd += dt * .025; g.spawn -= dt; g.flash = Math.max(0, g.flash - dt);
+      if (g.spawn <= 0) { g.spawn = .75 / g.spd; const r = Math.random(); g.items.push({ x: rnd(18, W - 18), y: -20, v: rnd(110, 170) * g.spd, e: r < .22 ? "🧟" : r < .34 ? "🍓" : r < .42 ? "🥭" : "🟣", pts: r < .22 ? 0 : r < .42 ? 3 : 1 }); }
+      for (const it of g.items) { it.y += it.v * dt; if (!it.got && it.y > H - 92 && it.y < H - 50 && Math.abs(it.x - g.cx) < 34) { it.got = true; if (it.pts) { g.score += it.pts; SFX.pop(); } else { g.lives--; g.flash = .35; SFX.nope(); if (g.lives <= 0) g.over = true; } } }
+      g.items = g.items.filter(it => !it.got && it.y < H + 30);
+    },
+    draw(g, c) {
+      const W = PG.W, H = PG.H; c.fillStyle = g.flash > 0 ? "#ffd1dc" : "#ffe8f4"; c.fillRect(0, 0, W, H);
+      c.fillStyle = "#fff"; c.font = "800 12px " + FONT; c.textAlign = "left"; for (let i = 0; i < 6; i++) { c.fillStyle = "rgba(255,255,255,.7)"; c.beginPath(); c.arc((i * 61 + g.t * 12) % (W + 40) - 20, 40 + (i % 3) * 30, 14, 0, 7); c.fill(); }
+      c.fillStyle = "#c9a06a"; c.fillRect(0, H - 44, W, 44); c.fillStyle = "#a8834f"; c.fillRect(0, H - 44, W, 5);
+      c.font = "26px serif"; c.textAlign = "center"; c.textBaseline = "middle"; for (const it of g.items) c.fillText(it.e, it.x, it.y);
+      c.fillStyle = "rgba(160,102,255,.35)"; c.beginPath(); c.moveTo(g.cx - 32, H - 96); c.lineTo(g.cx + 32, H - 96); c.lineTo(g.cx + 26, H - 40); c.lineTo(g.cx - 26, H - 40); c.closePath(); c.fill();
+      c.strokeStyle = "#7a44d6"; c.lineWidth = 3; c.stroke(); c.fillStyle = "#ff70a6"; c.fillRect(g.cx + 4, H - 130, 7, 44); c.fillStyle = "#3a1a5a"; for (let i = 0; i < Math.min(8, g.score); i++) { c.beginPath(); c.arc(g.cx - 18 + (i % 4) * 12, H - 50 - Math.floor(i / 4) * 11, 5, 0, 7); c.fill(); }
+      c.font = "18px serif"; c.textAlign = "left"; c.fillText("❤️".repeat(Math.max(0, g.lives)) + "🤍".repeat(Math.max(0, 3 - g.lives)), 8, 22);
+      if (PG.state === "play" && g.t < 2) { c.fillStyle = "#7a44d6"; c.font = "800 13px " + FONT; c.textAlign = "center"; c.fillText("catch the boba, NOT the zombies 🧟", W / 2, H * .5); }
+    } },
+  run: { name: "Peach Run", icon: "🐶", col: "#ffd166", blurb: "tap to jump", brag: [400, "ava", "Peach ran 400 on ur phone game?? that pug is an ATHLETE 🐶💨"],
+    start(g) { g.y = 0; g.vy = 0; g.obs = []; g.spd = 250; g.dist = 0; g.jumps = 0; g.next = 1.2; g.t = 0; g.def = petDef("pug"); g.hills = [...Array(8)].map((_, i) => [i * 90, rnd(30, 70)]); },
+    down(g) { if (g.jumps < 2) { g.vy = g.jumps ? -470 : -560; g.jumps++; SFX.jump(); } },
+    key(g, k) { if (k === " " || k === "arrowup") this.down(g); },
+    tick(g, dt) {
+      const W = PG.W, H = PG.H, gy = H - 48; g.t += dt; g.dist += g.spd * dt; g.spd += 5 * dt; g.score = Math.floor(g.dist / 12);
+      g.vy += 1500 * dt; g.y -= g.vy * dt; if (g.y <= 0) { g.y = 0; g.vy = 0; g.jumps = 0; }
+      g.next -= dt; if (g.next <= 0) { g.next = rnd(.75, 1.6) * 250 / g.spd + .35; const r = Math.random(); g.obs.push(r < .2 ? { x: W + 30, e: "💵", h: rnd(70, 130), w: 22, coin: true } : { x: W + 30, e: pick(["🚧", "🪵", "🐈‍⬛", "🧟", "🌵"]), h: 0, w: 26 }); }
+      const px = 70, pw = 22, ph = 30, py = g.y;
+      for (const o of g.obs) { o.x -= g.spd * dt; if (!o.hit && Math.abs(o.x - px) < (o.w + pw) / 2) { const oy = o.h, oh = 28; if (py < oy + oh && py + ph > oy) { o.hit = true; if (o.coin) { g.score += 5; g.dist += 60; SFX.coin(); } else g.over = true; } } }
+      g.obs = g.obs.filter(o => o.x > -40 && !(o.hit && o.coin));
+    },
+    draw(g, c) {
+      const W = PG.W, H = PG.H, gy = H - 48; const sky = c.createLinearGradient(0, 0, 0, gy); sky.addColorStop(0, "#bde0ff"); sky.addColorStop(1, "#fff4d6"); c.fillStyle = sky; c.fillRect(0, 0, W, H);
+      c.fillStyle = "#ffd166"; c.beginPath(); c.arc(W - 50, 50, 24, 0, 7); c.fill();
+      c.fillStyle = "#9ad48a"; for (const h of g.hills) { const x = ((h[0] - g.dist * .25) % (W + 180) + W + 180) % (W + 180) - 90; c.beginPath(); c.ellipse(x, gy, 90, h[1], 0, Math.PI, 0); c.fill(); }
+      c.fillStyle = "#6cbf47"; c.fillRect(0, gy, W, H - gy); c.fillStyle = "#4e9b34"; c.fillRect(0, gy, W, 5); c.fillStyle = "#c9a06a"; c.fillRect(0, gy + 18, W, H - gy - 18);
+      c.font = "28px serif"; c.textAlign = "center"; c.textBaseline = "bottom"; for (const o of g.obs) c.fillText(o.e, o.x, gy + 2 - o.h);
+      drawPet2D(c, 70, gy + 2 - g.y, 1.3, g.def, false, g.y > 0 ? 0 : g.t * 9, {});
+      if (PG.state === "play" && g.t < 2) { c.fillStyle = "#5a3aa8"; c.font = "800 13px " + FONT; c.textAlign = "center"; c.fillText("tap to jump · tap again to double jump 🐶", W / 2, H * .3); }
+    } },
+  snake: { name: "Glitter Snake", icon: "🐍", col: "#57b34a", blurb: "swipe to steer", brag: [12, "lily", "how is ur glitter snake SO long 🐍✨ mine keeps crashing"],
+    start(g) { g.cols = 13; g.cell = PG.W / g.cols; g.rows = Math.floor((PG.H - 4) / g.cell); g.body = [[6, Math.floor(g.rows / 2)], [5, Math.floor(g.rows / 2)], [4, Math.floor(g.rows / 2)]]; g.dir = [1, 0]; g.want = [1, 0]; g.acc = 0; g.step = .19; g.t = 0; g.sw = null; this.food(g); },
+    food(g) { do { g.food = [ri(0, g.cols - 1), ri(0, g.rows - 1)]; } while (g.body.some(b => b[0] === g.food[0] && b[1] === g.food[1])); g.fe = pick(["🍬", "🍓", "🧁", "🍭", "🍩"]); },
+    turn(g, d) { if (d[0] !== -g.dir[0] || d[1] !== -g.dir[1]) g.want = d; },
+    down(g, x, y) { g.sw = [x, y]; }, move(g, x, y) { if (!g.sw) return; const dx = x - g.sw[0], dy = y - g.sw[1]; if (Math.hypot(dx, dy) < 18) return; this.turn(g, Math.abs(dx) > Math.abs(dy) ? [Math.sign(dx), 0] : [0, Math.sign(dy)]); g.sw = null; }, up(g) { g.sw = null; },
+    key(g, k) { const m = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[k]; if (m) this.turn(g, m); },
+    tick(g, dt) {
+      g.t += dt; g.acc += dt; if (g.acc < g.step) return; g.acc = 0; g.dir = g.want; const h = [g.body[0][0] + g.dir[0], g.body[0][1] + g.dir[1]];
+      if (h[0] < 0 || h[1] < 0 || h[0] >= g.cols || h[1] >= g.rows || g.body.some(b => b[0] === h[0] && b[1] === h[1])) { g.over = true; return; }
+      g.body.unshift(h); if (h[0] === g.food[0] && h[1] === g.food[1]) { g.score++; g.step = Math.max(.08, g.step * .96); SFX.pop(); this.food(g); } else g.body.pop();
+    },
+    draw(g, c) {
+      const W = PG.W, H = PG.H, s = g.cell; c.fillStyle = "#16102a"; c.fillRect(0, 0, W, H); c.fillStyle = "#1f1838"; for (let y = 0; y < g.rows; y++) for (let x = 0; x < g.cols; x++) if ((x + y) % 2) c.fillRect(x * s, y * s, s, s);
+      c.font = `${s * .8}px serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(g.fe, (g.food[0] + .5) * s, (g.food[1] + .5) * s + 1);
+      g.body.forEach((b, i) => { c.fillStyle = `hsl(${(g.t * 120 + i * 24) % 360},90%,${i ? 62 : 75}%)`; const p = i ? 1.5 : .5; c.beginPath(); c.roundRect ? c.roundRect(b[0] * s + p, b[1] * s + p, s - p * 2, s - p * 2, s * .3) : c.rect(b[0] * s + p, b[1] * s + p, s - p * 2, s - p * 2); c.fill(); });
+      const h = g.body[0]; c.fillStyle = "#16102a"; c.beginPath(); c.arc((h[0] + .35 + g.dir[0] * .15) * s, (h[1] + .35 + g.dir[1] * .15) * s, s * .09, 0, 7); c.arc((h[0] + .65 + g.dir[0] * .15) * s, (h[1] + .65 + g.dir[1] * .15) * s, s * .09, 0, 7); c.fill();
+      if (PG.state === "play" && g.t < 2) { c.fillStyle = "#fff"; c.font = "800 13px " + FONT; c.textAlign = "center"; c.fillText("swipe to steer 🐍 eat the candy", W / 2, H * .85); }
+    } },
+  memory: { name: "Memory Match", icon: "🃏", col: "#4f8cff", blurb: "find the pairs", html: true, brag: [90, "sofia", "u got 90 on memory match?? ur brain is a computer 🧠✨"],
+    start(g) { g.misses = 0; g.pairs = 0; g.open = []; g.lock = false; const e = ["🦄", "🧋", "🐶", "🌈", "🍕", "🎀", "🐴", "✨"]; g.cards = [...e, ...e].map(x => ({ e: x, up: false, done: false })); for (let i = g.cards.length - 1; i > 0; i--) { const j = ri(0, i); [g.cards[i], g.cards[j]] = [g.cards[j], g.cards[i]]; } this.render(g); },
+    render(g) { const root = $("playHtml"); root.innerHTML = `<div class="memGrid">${g.cards.map((cd, i) => `<button class="memCard ${cd.up || cd.done ? "up" : ""} ${cd.done ? "done" : ""}" data-i="${i}">${cd.up || cd.done ? cd.e : "💜"}</button>`).join("")}</div><p style="text-align:center;font-weight:800;color:#5a3aa8;margin:8px 0">Pairs ${g.pairs}/8 · Misses ${g.misses}</p>${PG.state === "over" ? `<div class="big">${g.newBest ? "🏆" : "🎉"}</div><p style="text-align:center;font-weight:800;margin:0 0 8px">${g.newBest ? "New high score!" : "You found them all!"}<br>Score ${g.score} · Best ${S.hi.memory || 0}</p><div class="row"><button class="btn" id="memAgain">Play again</button></div>` : ""}`; const ag = $("memAgain"); if (ag) ag.addEventListener("click", () => { SFX.tap(); startGame(); }); root.querySelectorAll(".memCard").forEach(b => b.addEventListener("click", () => this.flip(g, +b.dataset.i))); },
+    flip(g, i) { const cd = g.cards[i]; if (g.lock || cd.up || cd.done || PG.state !== "play") return; SFX.tap(); cd.up = true; g.open.push(i); this.render(g); if (g.open.length === 2) { const [a, b] = g.open.map(k => g.cards[k]); g.lock = true; setTimeout(() => { if (a.e === b.e) { a.done = b.done = true; g.pairs++; SFX.pop(); } else { g.misses++; } a.up = b.up = false; g.open = []; g.lock = false; if (g.pairs === 8) { g.score = Math.max(10, 100 - g.misses * 5); g.over = true; pgOver(); } this.render(g); }, a.e === b.e ? 350 : 750); } },
+  },
+};
+const FONT = "'Avenir Next','Trebuchet MS',Arial";
+function renderGames() {
+  $("gamesGrid").innerHTML = `<p style="grid-column:1/-1;margin:0 0 2px;font-size:13px;color:#666">Beat your high score and win <b>$5</b> 🏆</p>` + Object.entries(GAMES).map(([id, gm]) => `<div class="gtile" data-game="${id}"><div class="gi" style="background:${gm.col}">${gm.icon}</div><div class="gn">${gm.name}</div><div class="gb">${gm.blurb}</div><div class="gs">🏆 ${S.hi[id] || 0}</div></div>`).join("");
+  $("gamesGrid").querySelectorAll("[data-game]").forEach(el => el.addEventListener("click", () => { audio(); SFX.tap(); openGame(el.dataset.game); }));
+}
+function openGame(id) { PG.id = id; showApp("play"); $("playName").textContent = `${GAMES[id].icon} ${GAMES[id].name}`; requestAnimationFrame(() => startGame()); }
+function startGame() {
+  const gm = GAMES[PG.id]; if (!gm) return; stopGame(false); const cv = $("playCv"), html = $("playHtml"); cv.hidden = !!gm.html; html.hidden = !gm.html;
+  PG.g = { score: 0, over: false }; PG.state = gm.html ? "play" : "ready"; PG.hudTxt = "";
+  if (!gm.html) { const r = cv.getBoundingClientRect(); const dpr = Math.min(2, window.devicePixelRatio || 1); PG.W = Math.max(100, r.width); PG.H = Math.max(100, r.height); cv.width = PG.W * dpr; cv.height = PG.H * dpr; PG.c = cv.getContext("2d"); PG.c.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  gm.start(PG.g); hud();
+  if (!gm.html) { PG.last = performance.now(); PG.raf = requestAnimationFrame(pgFrame); }
+}
+function stopGame(clear) { cancelAnimationFrame(PG.raf); PG.raf = 0; if (clear !== false) { PG.state = "idle"; PG.g = null; } }
+function hud() { const t = PG.g ? `Score ${PG.g.score} · Best ${S.hi[PG.id] || 0}` : ""; if (t !== PG.hudTxt) { PG.hudTxt = t; $("playHud").textContent = t; } }
+function pgFrame(now) {
+  const gm = GAMES[PG.id], g = PG.g, c = PG.c; if (!gm || !g || !c) return; const dt = Math.min(.05, (now - PG.last) / 1000); PG.last = now;
+  if (PG.state === "play") { gm.tick(g, dt); if (g.over) pgOver(); }
+  gm.draw(g, c); hud();
+  const W = PG.W, H = PG.H;
+  if (PG.state !== "play") {
+    c.fillStyle = "rgba(20,10,50,.55)"; c.fillRect(0, 0, W, H); c.fillStyle = "#fff"; c.textAlign = "center"; c.textBaseline = "middle";
+    c.font = "56px serif"; c.fillText(PG.state === "over" ? (g.newBest ? "🏆" : "💜") : gm.icon, W / 2, H * .34);
+    c.font = "900 24px " + FONT; c.fillText(PG.state === "over" ? (g.newBest ? "New high score!" : "Game over") : gm.name, W / 2, H * .34 + 54);
+    c.font = "800 16px " + FONT; c.fillText(PG.state === "over" ? `Score ${g.score} · Best ${S.hi[PG.id] || 0}` : gm.blurb, W / 2, H * .34 + 84);
+    if (Math.floor(now / 500) % 2 === 0) { c.font = "800 15px " + FONT; c.fillStyle = "#ffd166"; c.fillText(PG.state === "over" ? "tap to play again" : "tap to start", W / 2, H * .34 + 120); }
+  }
+  PG.raf = requestAnimationFrame(pgFrame);
+}
+function pgOver() {
+  const g = PG.g; if (!g || PG.state === "over") return; PG.state = "over"; PG.overAt = performance.now(); if (!GAMES[PG.id].html) SFX.nope();
+  const best = S.hi[PG.id] || 0; if (g.score > best) { S.hi[PG.id] = g.score; g.newBest = true; SFX.yay(); earn(5, "new high score! 🏆"); } else save();
+  const gm = GAMES[PG.id]; if (gm.brag && g.score >= gm.brag[0] && !PG.brag[PG.id]) { PG.brag[PG.id] = true; setTimeout(() => friendText(gm.brag[1], gm.brag[2]), 1500); }
+  hud();
+}
+function pgPointer(e) {
+  const gm = GAMES[PG.id], g = PG.g; if (!gm || !g || gm.html) return; const r = $("playCv").getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (e.type === "pointerdown") { audio(); if (PG.state === "ready") { PG.state = "play"; PG.last = performance.now(); } else if (PG.state === "over") { if (performance.now() - PG.overAt > 600) startGame(); return; } if (gm.down) gm.down(g, x, y); }
+  else if (e.type === "pointermove") { if (PG.state === "play" && gm.move && (e.buttons || e.pointerType === "touch")) gm.move(g, x, y); }
+  else if (gm.up) gm.up(g, x, y);
+}
+["pointerdown", "pointermove", "pointerup", "pointercancel"].forEach(t => $("playCv").addEventListener(t, pgPointer));
+$("playRetry").addEventListener("click", () => { SFX.tap(); startGame(); });
+window.addEventListener("keydown", e => {
+  if (!PG.g || $("phone").hidden || !$("play").classList.contains("on")) return; const k = e.key.toLowerCase(), gm = GAMES[PG.id];
+  if (!["arrowup", "arrowdown", "arrowleft", "arrowright", " ", "enter"].includes(k)) return; e.preventDefault(); e.stopImmediatePropagation();
+  if (PG.state === "ready") { PG.state = "play"; PG.last = performance.now(); } else if (PG.state === "over") { if (performance.now() - PG.overAt > 600) startGame(); return; }
+  if (gm.key) gm.key(PG.g, k);
+}, true);
 function talkTo(n) {
   P.dir = n.x > P.x ? 0 : n.x < P.x ? 2 : (n.y > P.y ? 1 : 3); n.wait = 8; n.walk = 0;
   sayAt(n, pick(["hiii Jules! 👋", "omg hey! 💜", "ur outfit!! ✨", "wanna text later? 📱"]), 3);
