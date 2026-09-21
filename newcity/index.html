@@ -2089,7 +2089,7 @@ function tripWater(x, y) { return tripTile(x, y) === TR.W; }
 function tripBlocked(x, y) {
   const tx = Math.floor(x), ty = Math.floor(y);
   if (tripTile(x, y) < 0) return true;
-  if (TRIP.solids.has(tx + "," + ty)) return true;
+  if (TRIP.solids.has(tx + "," + ty) && !TRIP.solids.has(Math.floor(P.x) + "," + Math.floor(P.y))) return true;   // (if you're somehow inside something, you can always walk out)
   if ((P.drive || P.ride) && tripWater(x, y)) return true;
   return false;
 }
@@ -2153,6 +2153,7 @@ function makeTrip(dest, variant) {
     B.spot(19.3, 15.4, "flyHome", "✈️ Fly home", true);
   }
   P.x = t.start ? t.start.x : 18.5; P.y = t.start ? t.start.y : 14.3; P.dir = 3;
+  if (!tripLand(P.x, P.y)) { const free = randomTripTile(P, 3) || randomTripTile({ x: t.w / 2, y: t.d / 2 }, 12); if (free) { P.x = free.x; P.y = free.y; } }
 }
 // --- the destinations ---
 const THEMES = {
@@ -2304,7 +2305,7 @@ const THEMES = {
     B.stall(2, 9.5, "#ff70a6", "🧁", "Cakey's cupcakes", "treat"); B.stall(18, 9.5, "#a066ff", "🐱", "Cat ears", "gift");
     for (const [x, y] of [[1, 2], [3, 5], [19, 2], [21, 5], [2, 15], [15, 15]]) B.tree(x, y, pick(["#ffb5e8", "#c77dff", "#ff70a6"]), y < 6);
     B.thing(4.5, 14.5, () => { cube(4, 14, 0, 1.2, 1.2, .8, "#ffd166"); blob(4.6, 14.6, .8, 24, "#ff9ad5", .8); blob(4.6, 14.6, 1.3, 14, "#fff"); blob(4.6, 14.6, 1.6, 5, "#ff3b5c"); }, 4.5 + 14.5 + 2); B.solid(4, 14, 5, 15); B.label(4.6, 15.2, 2.4, "🧁 Giant cupcake");
-    B.thing(19, 14, () => { cube(18.5, 13.5, 0, 1.4, 1.4, 1.1, "#c9a06a"); patch(18.5, 13.5, 0, 1.4, 1.4, 1, .1, .3, 1.2, .5, "#a2703c"); emojiAt(19.2, 14.2, 1.1, "📦", 26); }); B.solid(18, 13, 19, 14); B.label(19.2, 14.8, 2.2, "📦 Dollhouse delivery");
+    B.thing(21.7, 13.2, () => { cube(21, 12.5, 0, 1.4, 1.4, 1.1, "#c9a06a"); patch(21, 12.5, 0, 1.4, 1.4, 1, .1, .3, 1.2, .5, "#a2703c"); emojiAt(21.7, 13.2, 1.1, "📦", 26); }); B.solid(21, 12, 22, 13); B.label(21.7, 13.8, 2.2, "📦 Dollhouse delivery");
     B.car(0, 8.5, "#ff70a6", "cruiser", 2.6, 0, -3, 26, 0, 0);
     for (let i = 0; i < 3; i++) B.local(rnd(1, 22), rnd(13, 17), randomAv({ shirt: pick(["#ff70a6", "#a066ff", "#4cc9f0"]), hairStyle: pick(["pigtails", "long", "bun"]) }));
     B.critter("🐱", 3, 13, "walk"); B.critter("🐱", 20, 16, "walk"); B.critter("🐈", 16, 13, "walk"); B.critter("🦋", 8, 15, "fly", { size: 22, range: 6 }); B.critter("🐀", 5, 10, "walk", { size: 24, speed: 2, range: 6 });
@@ -2408,7 +2409,7 @@ const THEMES = {
     t.pal.g = ["#d9c48a", "#d2bd83"]; t.pal.p = ["#c98b5a", "#c28453"]; t.pal.w = "#3d9de6";
     B.fill(0, 10, 23, 10, TR.P);
     B.solid(9, 1, 15.9, 7.9); B.thing(12.5, 4.5, () => { pyramid(9, 1, 7, 6, "#b8a47a", true); cube(11.8, 3.8, 3, 1.4, 1.4, .9, "#a8946a"); patch(11.8, 3.8, 3, 1.4, 1.4, 1, .45, 0, .5, .7, "#333"); }, 12.5 + 4.5 + 8); B.landmark(12.5, 8.6, 5, "🛕 Chichen Itza");
-    ["#ff70a6", "#ffd166", "#4cc9f0", "#57b34a", "#ff9f1c"].forEach((c, i) => B.house(1 + i * 4.4, 12, 3, 2.5, 1.5, c, "#c1440e", { flat: true, act: i === 2 ? ["💃 Join the fiesta", () => tripDance("🎺 ¡Fiesta! The mariachis play faster and faster…", 6, 6)] : null }));
+    ["#ff70a6", "#ffd166", "#4cc9f0", "#57b34a", "#ff9f1c"].forEach((c, i) => B.house(1 + i * 4.4, 11.5, 3, 2, 1.5, c, "#c1440e", { flat: true, act: i === 2 ? ["💃 Join the fiesta", () => tripDance("🎺 ¡Fiesta! The mariachis play faster and faster…", 6, 6)] : null }));
     B.thing(4, 7, () => { cube(3.95, 6.95, 0, .12, .12, 2.6, "#8a6a4a"); cube(3.95, 6.95, 2.6, 1.2, .1, .08, "#8a6a4a"); const sw = Math.sin(animT * 2) * .25; for (let i = 0; i < 5; i++) blob(4.9 + sw, 7 + .02 * i, 2.1 - i * .12, 11, ["#ff5c8a", "#ffd166", "#4cc9f0", "#57b34a", "#a066ff"][i]); emojiAt(4.9 + sw, 7, 1.4, "🫏", 22); }); B.label(4.3, 7.4, 3.3, "🪅 Piñata");
     for (const [x, y] of [[1, 3], [19, 2], [21, 6], [2, 16], [20, 16]]) { B.solid(x, y, x, y); B.thing(x + .5, y + .5, () => { cube(x + .35, y + .35, 0, .3, .3, 1.6, "#57b34a"); cube(x + .05, y + .4, .7, .3, .2, .7, "#57b34a"); cube(x + .05, y + .4, 1.3, .35, .2, .2, "#57b34a"); cube(x + .65, y + .4, .5, .3, .2, .9, "#57b34a"); cube(x + .6, y + .4, 1.3, .35, .2, .2, "#57b34a"); blob(x + .5, y + .5, 1.65, 5, "#ff70a6"); }); }
     for (const [x, y] of [[6, 4], [8, 9], [16, 9]]) B.thing(x + .5, y + .5, () => { cube(x + .45, y + .45, 0, .1, .1, 2.2, "#8a6a4a"); for (let i = 0; i < 6; i++) patch(x - 1.5, y + .45, 0, 4, .1, 1, i * .66, 1.85 + Math.sin(animT * 3 + i) * .04, .5, .3, ["#ff5c8a", "#ffd166", "#4cc9f0", "#57b34a", "#a066ff", "#ff9f1c"][i]); });
@@ -2420,14 +2421,14 @@ const THEMES = {
   },
   "Kenya": (B, t) => {
     t.pal.g = ["#d9c46a", "#d2bd63"]; t.pal.p = ["#c9a06a", "#c29963"]; t.pal.w = "#3d9de6";
-    B.fill(14, 12, 18, 15, TR.W); B.fill(0, 9, 23, 9, TR.P); B.fill(8, 0, 8, 19, TR.P);
+    B.fill(13, 12, 17, 15, TR.W); B.fill(0, 9, 23, 9, TR.P); B.fill(8, 0, 8, 19, TR.P);
     B.solid(17, 0, 23, 4.9); B.thing(20, 2, () => cone(20, 2, 0, 4.2, 5.5, "#8a7a6a", 6, "#f4f8ff"), 20 + 2 + 9); B.thing(20, 2, () => cube(18.6, .6, 4.1, 2.8, 2.8, .5, "#f4f8ff"), 20 + 2 + 9.1); B.landmark(19.5, 6.2, 6.4, "🏔 Kilimanjaro");
     for (const [x, y] of [[2, 2], [5, 5], [12, 3], [2, 13], [11, 16], [20, 8]]) { B.solid(x, y, x, y); B.thing(x + .5, y + .5, () => { shadow(x + .5, y + .5, 30); cube(x + .4, y + .4, 0, .2, .2, 2.2, "#7a5a3a"); cube(x + .1, y + .55, 1.4, .12, .12, .9, "#7a5a3a"); blob(x + .5, y + .5, 2.2, 34, "#6a9a4a", .35); blob(x + .2, y + .3, 2.5, 22, "#7aaa5a", .35); }, x + y + 1.3); }
     B.solid(4, 10, 5.4, 11.4); B.thing(4.7, 10.7, () => { for (const [ox, oy] of [[0, 0], [1.2, 0], [0, 1.2], [1.2, 1.2]]) cube(4 + ox, 10 + oy, 0, .15, .15, 2.4, "#8a6a4a"); cube(3.9, 9.9, 2.4, 1.6, 1.6, .12, "#a2703c"); cube(3.9, 9.9, 2.52, 1.6, .08, .5, "#a2703c"); cube(3.9, 9.9, 2.52, .08, 1.6, .5, "#a2703c"); cube(3.9, 9.9, 3.2, 1.6, 1.6, .12, "#c9a06a"); }, 4.7 + 10.7 + 3); B.label(4.7, 11.6, 4.2, "🔭 Safari lookout");
     B.stall(10, 12, "#ff9f1c", "🥭", "Fresh mangoes", "treat"); B.stall(1, 15.5, "#c9a06a", "🦒", "Wooden giraffes", "gift");
     B.car(8.5, 2, "#c9a06a", "suv", 0, 2, 0, 0, -3, 22);
     for (let i = 0; i < 3; i++) B.local(rnd(1, 12), rnd(10, 17), randomAv({ shirt: pick(["#c9a06a", "#57b34a", "#ff9f1c"]), top: "tee" }));
-    B.critter("🦁", 14, 5, "walk", { size: 34, speed: .7, range: 4 }); B.critter("🦒", 10, 5, "walk", { size: 40, speed: .8, range: 5 }); B.critter("🦒", 16, 8, "walk", { size: 36, speed: .8, range: 5 }); B.critter("🐘", 20, 12, "walk", { size: 40, speed: .5, range: 4 }); B.critter("🦓", 3, 7, "walk", { size: 30, speed: 1.5, range: 6 }); B.critter("🦓", 6, 8, "walk", { size: 30, speed: 1.5, range: 6 }); B.critter("🦛", 15.5, 13.5, "swim", { size: 34, speed: .3, range: 2 }); B.critter("🦅", 12, 10, "fly", { range: 10 });
+    B.critter("🦁", 14, 5, "walk", { size: 34, speed: .7, range: 4 }); B.critter("🦒", 10, 5, "walk", { size: 40, speed: .8, range: 5 }); B.critter("🦒", 16, 8, "walk", { size: 36, speed: .8, range: 5 }); B.critter("🐘", 20, 12, "walk", { size: 40, speed: .5, range: 4 }); B.critter("🦓", 3, 7, "walk", { size: 30, speed: 1.5, range: 6 }); B.critter("🦓", 6, 8, "walk", { size: 30, speed: 1.5, range: 6 }); B.critter("🦛", 14.5, 13.5, "swim", { size: 34, speed: .3, range: 2 }); B.critter("🦅", 12, 10, "fly", { range: 10 });
   },
   "India": (B, t) => {
     t.pal.g = ["#e0c88a", "#d9c183"]; t.pal.p = ["#f2c6a0", "#ebbf99"]; t.pal.w = "#4aa3c9";
