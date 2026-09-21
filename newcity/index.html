@@ -2000,6 +2000,7 @@ const DESTS = [
   { k: ["disney", "disneyland", "disney world", "magic kingdom"], name: "Disneyland", emoji: "🏰", hi: "Have a magical day!", price: 80, bg: ["#a066ff", "#ffd9f5"], lines: ["The castle has fireworks and a parade with dancing princesses 👑", "You rode the roller coaster 3 times and screamed every time."], treat: ["🍭", "a giant lollipop", 6], gift: ["👑", "mouse ears", 20] },
   { k: ["moon", "space", "mars", "the moon"], name: "The Moon", emoji: "🌙", hi: "Beep boop!", price: 100, bg: ["#0b132b", "#3a506b"], lines: ["You can jump 6 times higher here! Boing, boing, boing.", "Earth looks like a little blue marble from up here 🌍"], treat: ["🧊", "freeze-dried ice cream", 8], gift: ["🪨", "a moon rock", 25] },
   { k: ["rainbow", "rainbow land", "nora"], name: "Rainbow Land", emoji: "🌈", hi: "Hiiii!", price: 30, bg: ["#ff5c8a", "#4cc9f0"], lines: ["This is Nora's world! The grass is rainbow and the rain is glitter.", "Nora's Rainbow Restaurant serves a cake that sings 🎂"], treat: ["🎂", "singing cake", 5], gift: ["🧟", "a tiny zombie plush", 10] },
+  { k: ["gabby", "gabbys dollhouse", "gabby cat land", "cat land", "dollhouse", "gabby land"], name: "Gabby Cat Land", emoji: "🐱", hi: "A-meow-zing!", price: 45, bg: ["#ff9ad5", "#a066ff"], lines: ["Gabby's Dollhouse is a giant pink cat-shaped house full of cat friends 🐱", "Go inside and visit every room: Cakey's kitchen, MerCat's spa, DJ Catnip's music room, and the Fairy Tale Garden up top!"], treat: ["🧁", "one of Cakey's cupcakes", 4], gift: ["🐱", "a cat-ears headband", 15] },
   { k: ["egypt", "pyramid", "cairo"], name: "Egypt", emoji: "🐪", hi: "Ahlan!", price: 65, bg: ["#ffd166", "#f4a261"], lines: ["The pyramids are 4,500 years old and STILL standing.", "A camel gave you a bumpy ride and then spat. Rude."], treat: ["🍮", "sweet pudding", 4], gift: ["🐈", "a golden cat statue", 18] },
   { k: ["australia", "sydney", "aussie"], name: "Australia", emoji: "🦘", hi: "G'day mate!", price: 70, bg: ["#ff9f1c", "#4cc9f0"], lines: ["Kangaroos hop around like giant bouncy bunnies.", "A koala fell asleep in a tree. They sleep 20 hours a day!"], treat: ["🍪", "a Tim Tam", 3], gift: ["🪃", "a boomerang", 12] },
   { k: ["italy", "rome", "venice"], name: "Italy", emoji: "🍕", hi: "Ciao bella!", price: 50, bg: ["#57b34a", "#ffffff"], lines: ["The streets in Venice are made of water. You ride a boat to school!", "Pizza was invented here. You checked. Twice."], treat: ["🍨", "gelato", 4], gift: ["🎭", "a Venice mask", 14] },
@@ -2026,7 +2027,7 @@ function openAirport() {
     <p style="margin-top:12px"><b>Where do you want to go?</b> Type any place in the whole world… or out of it 🌙</p>
     <input class="txt fly" id="flyTo" placeholder="Paris? Tokyo? The Moon?" maxlength="24" autocomplete="off" autocorrect="off" autocapitalize="words" enterkeyhint="go">
     <p id="flyPrice" style="color:#7a44d6;font-weight:800;min-height:20px;margin:6px 0"></p>
-    <div class="row" style="margin-top:2px">${DESTS.slice(0, 8).map(d => `<button class="btn alt" data-act="flyPick" data-v="${d.name}" style="padding:7px 10px;font-size:13px">${d.emoji} ${d.name}</button>`).join("")}</div>
+    <div class="row" style="margin-top:2px">${DESTS.slice(0, 9).map(d => `<button class="btn alt" data-act="flyPick" data-v="${d.name}" style="padding:7px 10px;font-size:13px">${d.emoji} ${d.name}</button>`).join("")}</div>
     <div class="row"><button class="btn ok" data-act="fly" style="font-size:18px">✈️ Fly there!</button><button class="btn alt" data-act="close">Stay home</button></div>`));
   const inp = $("flyTo");
   const upd = () => { const v = inp.value.trim(), el = $("flyPrice"); if (!el) return; if (!v) { el.textContent = `💵 You have $${S.money}`; return; } const d = findDest(v); el.textContent = `${d.emoji} Ticket to ${d.name}: $${d.price}${d.made ? " · never heard of it, but the pilot will find it!" : ""}`; };
@@ -2082,7 +2083,7 @@ function arriveHome() {
 // landmark, a snack stall, a souvenir stall, locals, animals, weather, and the plane to fly home.
 const TR = { G: 0, W: 1, P: 2, T: 3, S: 4 };   // ground, water, path, tarmac, second ground (sand/dirt)
 const TRIP_W = 24, TRIP_D = 20;
-let TRIP = null;
+let TRIP = null, tripMemo = null;   // tripMemo remembers the photo/souvenir for the place you're visiting
 function tripTile(x, y) { const tx = Math.floor(x), ty = Math.floor(y); if (!TRIP || tx < 0 || ty < 0 || tx >= TRIP.w || ty >= TRIP.d) return -1; return TRIP.tiles[ty][tx]; }
 function tripWater(x, y) { return tripTile(x, y) === TR.W; }
 function tripBlocked(x, y) {
@@ -2100,8 +2101,9 @@ function pyramid(x, y, base, levels, col, stairs) { const h = .5; for (let i = 0
 function skyscraper(x, y, w, d, h, col) { cube(x, y, 0, w, d, h, col); const lit = nightAmount() > .3; for (let i = 0; i < Math.floor(h / .9); i++) { for (let j = 0; j < Math.floor(d / .8); j++) patch(x, y, 0, w, d, 0, .2 + j * .8, .3 + i * .9, .4, .5, hash(i, j) > .35 ? "#ffe9a0" : "#5a7fa8"); for (let j = 0; j < Math.floor(w / .8); j++) patch(x, y, 0, w, d, 1, .2 + j * .8, .3 + i * .9, .4, .5, hash(j, i) > .35 ? "#ffe9a0" : "#5a7fa8"); } }
 function randomAv(o) { const boy = Math.random() < .45, hc = pick(HAIRS); return mkAv(Object.assign({ skin: pick(["#f3cba5", "#c68642", "#8d5524", "#f8ddc2", "#e0ac69"]), hairStyle: boy ? pick(["short", "spiky", "curly"]) : pick(["long", "wavy", "pony", "bob", "braids", "bun"]), bangs: boy ? "none" : pick(["side", "straight", "curtain"]), hairTop: hc, hairMid: hc, hairTip: hc, lashes: !boy, lips: boy ? "none" : "#e2607e", blush: !boy, eyeCol: pick(["#3a6fd8", "#57b34a", "#2a1a10", "#8a5a32"]), shirt: pick(CITIZEN_COLS), top: "tee", bottom: boy ? "pants" : pick(["skirt", "pants", "shorts"]), skirtA: pick(CITIZEN_COLS), shoes: "sneakers" }, o || {})); }
 
-function makeTrip(dest) {
-  const t = TRIP = { dest, w: TRIP_W, d: TRIP_D, tiles: [], things: [], locals: [], critters: [], moving: [], spots: [], solids: new Set(), parts: [], photo: false, gift: false, t: 0, fw: 0,
+function makeTrip(dest, variant) {
+  if (!tripMemo || tripMemo.name !== dest.name) tripMemo = { name: dest.name, photo: false, gift: false };
+  const t = TRIP = { dest, variant, w: TRIP_W, d: TRIP_D, tiles: [], things: [], locals: [], critters: [], moving: [], spots: [], solids: new Set(), parts: [], photo: tripMemo.photo, gift: tripMemo.gift, t: 0, fw: 0, inside: false, start: null, plane: null,
     pal: { g: ["#6cbf47", "#68ba44"], s: ["#f4e0a8", "#f2dea5"], p: ["#d9d6cd", "#d2cfc6"], w: "#3d9de6", t: ["#5a5a66", "#55555f"] }, beyond: "same", space: false, lowG: false, weather: null, fireworks: null, sky: null };
   for (let y = 0; y < t.d; y++) t.tiles.push(new Array(t.w).fill(TR.G));
   const B = {
@@ -2110,6 +2112,8 @@ function makeTrip(dest) {
     thing: (x, y, fn, key) => t.things.push({ x, y, key: key === undefined ? x + y + 1 : key, fn }),
     label: (x, y, z, text) => t.things.push({ x, y, key: x + y + 60, fn: () => pillAt(x, y, z, text) }),
     spot: (x, y, kind, text, show) => t.spots.push({ x, y, kind, text, show }),
+    act: (x, y, text, fn, show) => t.spots.push({ x, y, kind: "act", text, fn, show }),
+    room: (x0, y0, w, d, floor, wall, label) => { for (let y = y0; y < y0 + d; y++) for (let x = x0; x < x0 + w; x++) t.cols[y + "," + x] = floor; B.thing(x0, y0, () => { cube(x0 - .2, y0 - .2, 0, w + .4, .2, 1.5, wall); cube(x0 - .2, y0 - .2, 0, .2, d + .4, 1.5, wall); }, x0 + y0 - 1); if (label) B.label(x0 + w / 2, y0 + .2, 2.2, label); },
     landmark: (x, y, z, text) => { B.label(x, y, z, text); B.spot(x, y + .2, "photo", text, true); },
     stall: (x, y, col, icon, name, kind) => {
       B.solid(x, y, x + 1.5, y + .8);
@@ -2142,11 +2146,13 @@ function makeTrip(dest) {
     mover: (m) => t.moving.push(m),
     car: (x, y, col, type, vx, vy, x0, x1, y0, y1) => t.moving.push({ x, y, col, type, vx, vy, x0, x1, y0, y1, dir: vx > 0 ? 0 : vx < 0 ? 2 : vy > 0 ? 1 : 3, draw: m => drawCar(m), update: (m, dt) => { m.x += m.vx * dt; m.y += m.vy * dt; if (m.vx && m.x > m.x1) m.x = m.x0; if (m.vx && m.x < m.x0) m.x = m.x1; if (m.vy && m.y > m.y1) m.y = m.y0; if (m.vy && m.y < m.y0) m.y = m.y1; } }),
   };
-  (THEMES[dest.name] || genericTheme(dest))(B, t);
-  // the plane waits on a little pad in the bottom-right corner
-  B.fill(17, 15, 23, 19, TR.T); t.plane = { x: 20.5, y: 17.5 }; B.solid(19, 16, 22, 19);
-  B.spot(19.3, 15.4, "flyHome", "✈️ Fly home", true);
-  P.x = 18.5; P.y = 14.3; P.dir = 3;
+  t.cols = {};
+  (THEMES[variant ? dest.name + ":" + variant : dest.name] || genericTheme(dest))(B, t);
+  if (!t.inside) {   // the plane waits on a little pad in the bottom-right corner
+    B.fill(17, 15, 23, 19, TR.T); t.plane = { x: 20.5, y: 17.5 }; B.solid(19, 16, 22, 19);
+    B.spot(19.3, 15.4, "flyHome", "✈️ Fly home", true);
+  }
+  P.x = t.start ? t.start.x : 18.5; P.y = t.start ? t.start.y : 14.3; P.dir = 3;
 }
 // --- the destinations ---
 const THEMES = {
@@ -2270,6 +2276,86 @@ const THEMES = {
     for (let i = 0; i < 3; i++) B.local(rnd(2, 21), rnd(11, 16), randomAv({ shirt: pick(R), skirtA: pick(R) }), { emote: "dance" });
     B.critter("🧟", 4, 12, "walk", { speed: .7 }); B.critter("🧟", 17, 14, "walk", { speed: .7 }); B.critter("🧟", 20, 5, "walk", { speed: .7 }); B.critter("🐶", 13, 12, "walk", { speed: 2.5, range: 7 }); B.critter("🦄", 6, 15, "hop", { size: 32 }); B.critter("🐷", 19, 3, "swim", { size: 24 });
     t.weather = { kind: "glitter", n: 40, col: "#fff" };
+  },
+  "Gabby Cat Land": (B, t) => {
+    t.pal.g = ["#e9c9f7", "#e2c0f2"]; t.pal.p = ["#fff5fb", "#f6ecfa"]; t.pal.w = "#7df9ff"; t.sky = ["#ffd9f5", "#bde0ff"];
+    B.fill(0, 8, 23, 8, TR.P); B.fill(11, 8, 12, 14, TR.P); B.fill(0, 12, 23, 12, TR.P);
+    // the Dollhouse: a big pink cat-shaped house with ears, a cat face on the front and a heart on top
+    B.solid(6, 1, 15.9, 6.9);
+    B.thing(11, 4, () => {
+      const pk = "#ff9ad5", pu = "#a066ff", H = 5.2;
+      cube(6, 1, 0, 10, 6, H, pk);                                               // the house
+      cube(5.8, .8, H, 10.4, 6.4, .3, pu); cube(6.6, 1.6, H + .3, 8.8, 4.8, .5, pk); cube(6.4, 1.4, H + .8, 9.2, 5.2, .25, pu);   // roof
+      for (const ex of [7.3, 14.7]) { cone(ex, 2.3, H + 1.05, 1.1, 1.8, pu, 3); cone(ex, 2.3, H + 1.05, .6, 1.2, "#ffb5e8", 3); }   // ears
+      for (const ex of [1.6, 6.4]) { patch(6, 1, 0, 10, 6, 1, ex, 3.1, 2, 1.5, "#fff"); patch(6, 1, 0, 10, 6, 1, ex + .55, 3.3, .95, 1.05, "#3a3a4a"); patch(6, 1, 0, 10, 6, 1, ex + .75, 3.85, .32, .32, "#fff"); }   // eyes
+      patch(6, 1, 0, 10, 6, 1, 4.5, 2.55, 1, .5, "#ff5c8a"); patch(6, 1, 0, 10, 6, 1, 4.85, 2.25, .3, .3, "#ff5c8a");   // nose
+      patch(6, 1, 0, 10, 6, 1, 4.1, 1.95, .8, .12, "#d63384"); patch(6, 1, 0, 10, 6, 1, 5.1, 1.95, .8, .12, "#d63384");   // smile
+      for (const [wx, wy] of [[.5, 2.7], [.8, 2.4], [.5, 2.1], [8.1, 2.7], [7.8, 2.4], [8.1, 2.1]]) patch(6, 1, 0, 10, 6, 1, wx, wy, 1.4, .09, "#5a3aa8");   // whiskers
+      patch(6, 1, 0, 10, 6, 1, .9, 2.2, .7, .6, "#ff70a6"); patch(6, 1, 0, 10, 6, 1, 8.4, 2.2, .7, .6, "#ff70a6");   // cheeks
+      patch(6, 1, 0, 10, 6, 1, 4.2, 0, 1.6, 1.5, "#d63384"); patch(6, 1, 0, 10, 6, 1, 4.9, .65, .2, .2, "#ffd166");   // the door
+      for (const ox of [1.2, 7.7]) patch(6, 1, 0, 10, 6, 1, ox, .3, 1.1, .9, "#bfe6ff");                                     // downstairs windows
+      for (let i = 0; i < 4; i++) for (const wz of [.6, 2, 3.4]) patch(6, 1, 0, 10, 6, 0, .6 + i * 1.4, wz, .8, .8, "#bfe6ff");   // side windows
+      emojiAt(11, 4, H + 2.1, "💖", 30);
+    }, 11 + 4 + 12);
+    B.label(11, 7.2, 7.6, "🏠 Gabby's Dollhouse"); B.spot(11, 8.6, "photo", "🏠 Gabby's Dollhouse", true);
+    B.act(11.2, 7.6, "🚪 Go inside the dollhouse", () => enterTrip(t.dest, "inside"), true);
+    B.thing(11, 2, () => { const p = proj(11, 1, 7); ctx.lineWidth = 6; ["#ff5c8a", "#ff9f1c", "#ffd166", "#57b34a", "#4cc9f0", "#a066ff"].forEach((c, i) => { ctx.strokeStyle = c; ctx.beginPath(); ctx.arc(p.sx, p.sy + 30, 190 - i * 7, Math.PI, Math.PI * 2); ctx.stroke(); }); }, -999);
+    B.local(12.6, 7.8, mkAv({ skin: "#f3cba5", hairStyle: "pigtails", bangs: "straight", hairTop: "#5a3a1a", hairMid: "#5a3a1a", hairTip: "#5a3a1a", eyeCol: "#3a6fd8", shirt: "#ff70a6", top: "tee", bottom: "skirt", skirtA: "#a066ff", shoes: "sneakers" }), { name: "🐱 Gabby", wait: 9999, dir: 1, talk: ["Hi! Welcome to my dollhouse! 🐱", "A-meow-zing! Come inside and meet everybody!", "Pinch, pinch, pinch… a-tiny-me! ✨", "Cakey made cupcakes! 🧁"] });
+    B.stall(2, 9.5, "#ff70a6", "🧁", "Cakey's cupcakes", "treat"); B.stall(18, 9.5, "#a066ff", "🐱", "Cat ears", "gift");
+    for (const [x, y] of [[1, 2], [3, 5], [19, 2], [21, 5], [2, 15], [15, 15]]) B.tree(x, y, pick(["#ffb5e8", "#c77dff", "#ff70a6"]), y < 6);
+    B.thing(4.5, 14.5, () => { cube(4, 14, 0, 1.2, 1.2, .8, "#ffd166"); blob(4.6, 14.6, .8, 24, "#ff9ad5", .8); blob(4.6, 14.6, 1.3, 14, "#fff"); blob(4.6, 14.6, 1.6, 5, "#ff3b5c"); }, 4.5 + 14.5 + 2); B.solid(4, 14, 5, 15); B.label(4.6, 15.2, 2.4, "🧁 Giant cupcake");
+    B.thing(19, 14, () => { cube(18.5, 13.5, 0, 1.4, 1.4, 1.1, "#c9a06a"); patch(18.5, 13.5, 0, 1.4, 1.4, 1, .1, .3, 1.2, .5, "#a2703c"); emojiAt(19.2, 14.2, 1.1, "📦", 26); }); B.solid(18, 13, 19, 14); B.label(19.2, 14.8, 2.2, "📦 Dollhouse delivery");
+    B.car(0, 8.5, "#ff70a6", "cruiser", 2.6, 0, -3, 26, 0, 0);
+    for (let i = 0; i < 3; i++) B.local(rnd(1, 22), rnd(13, 17), randomAv({ shirt: pick(["#ff70a6", "#a066ff", "#4cc9f0"]), hairStyle: pick(["pigtails", "long", "bun"]) }));
+    B.critter("🐱", 3, 13, "walk"); B.critter("🐱", 20, 16, "walk"); B.critter("🐈", 16, 13, "walk"); B.critter("🦋", 8, 15, "fly", { size: 22, range: 6 }); B.critter("🐀", 5, 10, "walk", { size: 24, speed: 2, range: 6 });
+    t.weather = { kind: "hearts", n: 14 };
+  },
+  "Gabby Cat Land:inside": (B, t) => {
+    t.inside = true; t.beyond = "void"; t.sky = ["#ffd9f5", "#ffb5e8"]; t.placeName = "Gabby's Dollhouse"; t.start = { x: 8.5, y: 18.4 };
+    t.pal.g = ["#f4e1f7", "#efd8f2"]; t.pal.p = ["#fff5fb", "#f6ecfa"];
+    B.fill(0, 6, 23, 6, TR.P); B.fill(0, 13, 23, 13, TR.P); B.fill(8, 1, 8, 19, TR.P); B.fill(16, 1, 16, 19, TR.P); B.fill(0, 0, 23, 0, TR.P);
+    B.label(12, .3, 3.2, "🏠 Gabby's Dollhouse · walk into any room");
+    // the Fairy Tale Garden is up top
+    B.room(0, 1, 23, 5, "#8fd18f", "#57b34a", null); B.label(4, 1.4, 2.6, "🧚 Fairy Tale Garden");
+    for (const [x, y] of [[1, 2], [3, 4], [12, 2], [18, 4], [21, 2], [15, 4]]) B.thing(x + .5, y + .5, () => { for (let i = 0; i < 3; i++) diamond(x + .2 + i * .25, y + .3 + (i % 2) * .3, ["#ff5c8a", "#ffd166", "#a066ff", "#4cc9f0"][(x + i) % 4], .22); });
+    B.solid(9, 2, 10.9, 3.9); B.thing(10, 3, () => { cube(9.8, 2.8, 0, .4, .4, 1.6, "#a2703c"); blob(10, 3, 1.6, 30, "#ff9ad5"); blob(9.8, 2.8, 2.0, 20, "#ffb5e8"); blob(10.1, 3.1, 2.4, 12, "#fff"); for (let i = 0; i < 5; i++) blob(9.4 + hash(i, 1) * 1.2, 2.4 + hash(i, 2) * 1.2, 1.5 + hash(i, 3), 3.5, "#ffd166"); }, 10 + 3 + 3); B.label(10, 4.2, 3.2, "🌸 Fairy tree");
+    B.thing(6, 3, () => { const p = proj(6, 2, 3.2); ctx.lineWidth = 4; ["#ff5c8a", "#ff9f1c", "#ffd166", "#57b34a", "#4cc9f0", "#a066ff"].forEach((c, i) => { ctx.strokeStyle = c; ctx.beginPath(); ctx.arc(p.sx, p.sy + 20, 70 - i * 5, Math.PI, Math.PI * 2); ctx.stroke(); }); }, 6 + 3 + 2);
+    B.critter("🧚", 5, 3, "fly", { size: 30, range: 4 }); B.label(5, 3, 3.6, "🧚 Kitty Fairy"); B.critter("🦋", 19, 3, "fly", { size: 20, range: 5 });
+    B.act(13.5, 4.6, "🧚 Grow a magic flower", () => { toast("🧚 Kitty Fairy sprinkled fairy dust… a giant flower bloomed! She gave you 5 magic coins ✨"); for (let i = 0; i < 12; i++) TRIP.parts.push({ x: P.x + rnd(-1, 1), y: P.y + rnd(-1, 1), z: .5, vx: 0, vy: 0, vz: rnd(1, 2.5), r: 3, col: pick(["#ff5c8a", "#ffd166", "#a066ff"]), g: 1, life: 1.6 }); SFX.yay(); earn(5, "magic coins ✨"); }, true);
+    // middle floor: Music Room, Craft Room, Gabby's Bedroom
+    B.room(0, 7, 8, 6, "#c77dff", "#5a3aa8", "🎧 DJ Catnip's Music Room");
+    B.solid(1, 7, 3.9, 7.9); B.thing(2.5, 7.5, () => { cube(1, 7.2, 0, 3, .8, .9, "#3a3a4a"); cube(1.3, 7.3, .9, 1, .6, .12, "#111"); cube(2.7, 7.3, .9, 1, .6, .12, "#111"); blob(1.8, 7.6, 1.02, 7, "#ffd166"); blob(3.2, 7.6, 1.02, 7, "#4cc9f0"); }, 2.5 + 7.5 + 2);
+    for (const sx of [.3, 6.2]) { B.solid(sx, 7.2, sx + 1, 8); B.thing(sx + .5, 7.5, () => { cube(sx, 7.2, 0, 1, .8, 1.6, "#222"); blob(sx + .5, 7.6, .5, 9, "#555"); blob(sx + .5, 7.6, 1.15, 12, "#555"); }); }
+    B.thing(4, 10, () => { const c = ["#ff5c8a", "#4cc9f0", "#ffd166", "#a066ff"][Math.floor(animT * 4) % 4]; blob(4, 10, 2.6, 13, "#e8e8f0"); blob(4, 10, 2.6, 6, c); for (let i = 0; i < 4; i++) diamond(1 + i * 1.6 + Math.sin(animT * 3 + i) * .3, 9 + i * .4, c, .5); }, 4 + 10 + 3);
+    B.critter("🐱", 2.5, 9, "walk", { size: 30, range: 2 }); B.label(2.5, 9.6, 2.2, "🎧 DJ Catnip");
+    B.act(4, 11.8, "🎧 Dance party with DJ Catnip", () => tripDance("🎧 DJ Catnip says: let's get this dance party started! 🐱🎶", 6, 0), true);
+    B.room(9, 7, 7, 6, "#ffd9f5", "#ff70a6", "🎨 Baby Box's Craft Room");
+    B.solid(10, 8, 13.9, 9.4); B.thing(12, 8.7, () => { cube(10, 8, .55, 4, 1.4, .1, "#c69a5a"); for (const [ox, oy] of [[10.1, 8.1], [13.8, 8.1], [10.1, 9.3], [13.8, 9.3]]) cube(ox, oy, 0, .12, .12, .55, "#8a6a4a"); for (let i = 0; i < 5; i++) blob(10.5 + i * .7, 8.7, .75, 5, ["#ff5c8a", "#ffd166", "#57b34a", "#4cc9f0", "#a066ff"][i]); emojiAt(13.2, 8.6, .65, "✂️", 16); emojiAt(11, 9.1, .65, "🖍️", 16); }, 12 + 8.7 + 2);
+    B.critter("📦", 12, 11, "hop", { size: 32, range: 2, speed: 1 }); B.label(12, 11.6, 2.4, "📦 Baby Box");
+    B.act(10, 11.8, "🎨 Make a craft with Baby Box", () => { if (S.souvenirs.some(x => x.includes("Baby Box"))) { toast("🎨 Baby Box says: you already made the best craft ever!"); return; } S.souvenirs.push("🎨 a glitter craft from Baby Box (Gabby's Dollhouse)"); save(); SFX.yay(); boom(P.x, P.y, "#ff70a6", 10); toast("🎨 Glue, glitter, googly eyes… you made a cat craft! It's in your 💰 Wallet."); }, true);
+    B.room(17, 7, 6, 6, "#ffb5e8", "#a066ff", "🛏 Gabby's Bedroom");
+    B.solid(17.5, 7.5, 19.9, 9.9); B.thing(18.7, 8.7, () => { cube(17.5, 7.5, 0, 2.4, 2.6, .5, "#c69a5a"); cube(17.6, 7.6, .5, 2.2, 2.4, .2, "#ff9ad5"); cube(17.7, 7.7, .7, 2, .7, .25, "#fff"); emojiAt(18.7, 9.2, .7, "😴", 24); }, 18.7 + 8.7 + 3); B.label(18.7, 10.3, 2.2, "😴 Pillow Cat");
+    B.thing(21.5, 8, () => { cube(21.2, 7.6, 0, .8, .6, .9, "#fff"); patch(21.2, 7.6, 0, .8, .6, 1, .1, .1, .6, .7, "#bfe6ff"); for (let i = 0; i < 3; i++) blob(21.2 + i * .35, 8.6, 1.2 - i * .1, 4, ["#ff5c8a", "#ffd166", "#4cc9f0"][i]); });
+    B.act(19, 11.8, "📖 Story time with Pillow Cat", () => { P.emote = "sit"; P.emoteT = 5; toast("📖 Pillow Cat told a bedtime story about a brave little kitty… zzz… 😴"); tone(392, .4, "sine", .06); tone(330, .5, "sine", .06, 0, .4); }, true);
+    // ground floor: Kitchen, Bathroom, Play Room
+    B.room(0, 14, 8, 6, "#fff0b3", "#ffb5e8", "🧁 Cakey's Kitchen");
+    B.solid(.5, 14.2, 5.9, 15); B.thing(3, 14.6, () => { cube(.5, 14.2, 0, 4, .9, .9, "#ff9ad5"); cube(.55, 14.25, .9, 3.9, .8, .08, "#fff"); cube(4.6, 14.2, 0, 1.3, .9, 1.1, "#c9c9d4"); patch(4.6, 14.2, 0, 1.3, .9, 1, .2, .25, .9, .55, "#3a3a4a"); for (let i = 0; i < 4; i++) emojiAt(1 + i * .9, 14.6, 1, "🧁", 16); }, 3 + 14.6 + 2);
+    B.critter("🧁", 3, 16.5, "hop", { size: 34, range: 2, speed: 1.2 }); B.label(3, 17.1, 2.6, "🧁 Cakey Cat");
+    B.act(5, 18.6, "🧁 Bake cupcakes with Cakey", () => { toast("🧁 Cakey says: sprinkle party! You made 12 cupcakes and ate… three 😋"); P.emote = "laugh"; P.emoteT = 3; for (let i = 0; i < 8; i++) TRIP.parts.push({ x: P.x + rnd(-1, 1), y: P.y + rnd(-1, 1), z: .3, vx: 0, vy: 0, vz: rnd(1, 2), r: 0, e: "🧁", col: "#fff", g: 1, life: 1.4 }); SFX.pop(); }, true);
+    B.room(9, 14, 7, 6, "#bde0ff", "#7df9ff", "🛁 MerCat's Spa");
+    B.solid(9.5, 14.3, 12.4, 15.9); B.thing(11, 15, () => { cube(9.5, 14.3, 0, 3, 1.6, .7, "#fff"); diamond(9.7, 14.5, "#7df9ff", 2.6, 1.2); for (let i = 0; i < 6; i++) { const k = (animT * .5 + i * .17) % 1; blob(9.9 + hash(i, 4) * 2.2, 14.6 + hash(i, 5) * .9, .7 + k * 1.2, 4 + k * 4, `rgba(255,255,255,${.8 - k * .7})`); } emojiAt(11, 15.1, .55, "🧜‍♀️", 30); }, 11 + 15 + 2); B.label(11, 16.2, 2.4, "🧜‍♀️ MerCat");
+    B.thing(14.5, 14.5, () => { cube(14.2, 14.3, 0, 1, .4, 1.4, "#fff"); patch(14.2, 14.3, 0, 1, .4, 1, .1, .5, .8, .8, "#dbe6f5"); emojiAt(14.7, 14.7, 1.5, "🐚", 16); });
+    B.act(11, 18.6, "🛁 Spa day with MerCat", () => { toast("🛁 MerCat says: relax, meow… bubbles, cucumber slices and a seashell facial! 🧖"); P.emote = "laugh"; P.emoteT = 4; for (let i = 0; i < 16; i++) TRIP.parts.push({ x: P.x + rnd(-1.5, 1.5), y: P.y + rnd(-1.5, 1.5), z: .2, vx: 0, vy: 0, vz: rnd(.6, 1.4), r: rnd(3, 7), col: "rgba(200,240,255,.85)", g: 0, life: 2.5 }); SFX.splash(); }, true);
+    B.room(17, 14, 6, 6, "#b5e48c", "#ffd166", "🐼 Pandy's Play Room");
+    B.solid(20.5, 14.3, 22.4, 16); B.thing(21.5, 15, () => { cube(20.6, 14.3, 0, 1.6, .8, 1.5, "#ffd166"); cube(20.4, 15.1, .1, 2, 1, .2, "#4cc9f0"); for (let i = 0; i < 4; i++) cube(20.4 + i * .4, 15.1 + i * .22, .3 + i * .28, 1.6 - i * .3, .5, .12, "#ff5c8a"); }, 21.5 + 15 + 2);
+    [["#ff5c8a", 17.5, 15], ["#4cc9f0", 18.2, 15.2], ["#ffd166", 17.8, 16], ["#a066ff", 18.6, 16.3]].forEach(([c, x, y], i) => B.thing(x, y, () => cube(x, y, i === 3 ? .5 : 0, .5, .5, .5, c)));
+    B.critter("🐼", 19.5, 17.5, "hop", { size: 34, range: 2.5, speed: 1.6 }); B.label(19.5, 18.1, 2.4, "🐼 Pandy Paws");
+    B.act(21, 18.6, "🤗 Big Pandy hug", () => { toast("🤗 Pandy Paws gave you the biggest, squishiest hug! Best friends forever 💜"); P.emote = "heart"; P.emoteT = 3; boom(P.x, P.y, "#ff70a6", 10); SFX.yay(); }, true);
+    // Gabby and CatRat wander the halls; the front door takes you back outside
+    B.local(12, 13.5, mkAv({ skin: "#f3cba5", hairStyle: "pigtails", bangs: "straight", hairTop: "#5a3a1a", hairMid: "#5a3a1a", hairTip: "#5a3a1a", eyeCol: "#3a6fd8", shirt: "#ff70a6", top: "tee", bottom: "skirt", skirtA: "#a066ff", shoes: "sneakers" }), { name: "🐱 Gabby", talk: ["Which room should we visit next? 🐱", "DJ Catnip is playing my favorite song! 🎧", "MerCat's spa is so relaxing 🛁", "Cakey's cupcakes are the BEST 🧁"] });
+    B.critter("🐀", 16.5, 6.5, "walk", { size: 24, speed: 2.2, range: 7 }); B.label(16.5, 6.5, 2, "🐀 CatRat");
+    B.act(8.5, 19.2, "🚪 Go back outside", () => enterTrip(t.dest), true);
+    t.weather = { kind: "hearts", n: 10 };
   },
   "Egypt": (B, t) => {
     t.pal.g = ["#e8cf8c", "#e2c985"]; t.pal.p = ["#d9b46a", "#d2ad63"]; t.pal.w = "#3d9de6";
@@ -2430,7 +2516,7 @@ function updateTrip(dt) {
   }
   for (const m of t.moving) m.update(m, dt);
   // weather: petals, snow, glitter, rain
-  if (t.weather) { const w = t.weather; while (t.parts.filter(p => p.w).length < w.n) t.parts.push({ w: true, x: rnd(-2, t.w + 2), y: rnd(-2, t.d + 2), z: rnd(2, 7), vx: w.kind === "rain" ? 0 : rnd(-.3, .3), vy: w.kind === "rain" ? 0 : rnd(-.3, .3), vz: w.kind === "rain" ? -9 : w.kind === "snow" ? -.7 : -1, r: w.kind === "rain" ? 1.2 : w.kind === "glitter" ? 1.5 : 2.5, col: w.col || "#bfe6ff", g: 0, life: 99 }); }
+  if (t.weather) { const w = t.weather; while (t.parts.filter(p => p.w).length < w.n) t.parts.push({ w: true, x: rnd(-2, t.w + 2), y: rnd(-2, t.d + 2), z: rnd(2, 7), vx: w.kind === "rain" ? 0 : rnd(-.3, .3), vy: w.kind === "rain" ? 0 : rnd(-.3, .3), vz: w.kind === "rain" ? -9 : w.kind === "snow" ? -.7 : -1, r: w.kind === "rain" ? 1.2 : w.kind === "glitter" ? 1.5 : 2.5, col: w.col || "#bfe6ff", e: w.kind === "hearts" ? pick(["💗", "💜", "✨"]) : null, g: 0, life: 99 }); }
   if (t.fireworks) { t.fw -= dt; if (t.fw <= 0) { t.fw = rnd(1.5, 3); const col = pick(["#ff5c8a", "#ffd166", "#4cc9f0", "#a066ff", "#fff"]), fx0 = t.fireworks.x + rnd(-3, 3), fy0 = t.fireworks.y + rnd(-1, 3); for (let i = 0; i < 18; i++) { const a = rnd(0, Math.PI * 2), s = rnd(1, 3); t.parts.push({ x: fx0, y: fy0, z: t.fireworks.z, vx: Math.cos(a) * s, vy: Math.sin(a) * s, vz: rnd(-1, 3), r: 2.5, col, g: 4, life: rnd(.8, 1.4) }); } SFX.pop(); } }
   if (t.notes) { if (Math.random() < dt * 2) t.parts.push({ x: t.notes.x + rnd(-1.5, 1.5), y: t.notes.y, z: 1.5, vx: 0, vy: 0, vz: 1.2, r: 0, e: pick(["🎵", "🎶"]), col: "#fff", g: 0, life: 1.6 }); }
   for (let i = t.parts.length - 1; i >= 0; i--) { const p = t.parts[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vz -= p.g * dt; p.life -= dt; if (p.z < 0 || p.life <= 0) t.parts.splice(i, 1); }
@@ -2446,6 +2532,7 @@ function drawTrip() {
     else if (k === TR.P) diamond(x, y, (x + y) % 2 ? pal.p[0] : pal.p[1]);
     else if (k === TR.T) { diamond(x, y, h < .5 ? pal.t[0] : pal.t[1]); if (x === 20 && y % 2) diamond(x + .4, y + .2, "#f4f4f4", .2, .6); }
     else if (k === TR.S) diamond(x, y, h < .5 ? pal.s[0] : pal.s[1]);
+    else if (inside && t.cols[y + "," + x]) diamond(x, y, t.cols[y + "," + x]);
     else if (t.rowCol && inside) diamond(x, y, t.rowCol(x, y));
     else diamond(x, y, h < .5 ? pal.g[0] : pal.g[1]);
   }
@@ -2453,24 +2540,24 @@ function drawTrip() {
   for (const m of t.moving) q(m.x + m.y + 1, () => m.draw(m));
   for (const n of t.locals) q(n.x + n.y + .6, () => drawNpc(n));
   for (const c of t.critters) q(c.x + c.y + .6, () => { if (c.mode !== "fly") shadow(c.x, c.y, c.size * .5); emojiAt(c.x, c.y, c.z, c.e, c.size); });
-  q(t.plane.x + t.plane.y + 3, () => drawPlaneAt(t.plane.x, t.plane.y, 0, 1, false));
+  if (t.plane) q(t.plane.x + t.plane.y + 3, () => drawPlaneAt(t.plane.x, t.plane.y, 0, 1, false));
   for (const s of t.spots) if (s.show) q(s.x + s.y + 8, () => { const bob = Math.sin(animT * 3) * .12; const txt = s.kind === "photo" ? (t.photo ? "✓ photo taken" : "📸 photo spot") : s.text; pillAt(s.x, s.y, 1.6 + bob, txt, "rgba(122,68,214,.9)", "#fff"); });
   for (const p of t.parts) q(p.x + p.y + 3, () => { const pr = proj(p.x, p.y, p.z); if (p.e) { ctx.font = "18px serif"; ctx.textAlign = "center"; ctx.fillText(p.e, pr.sx, pr.sy); } else if (p.w && TRIP.weather.kind === "rain") { ctx.strokeStyle = "rgba(200,220,255,.7)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(pr.sx, pr.sy); ctx.lineTo(pr.sx, pr.sy + 8); ctx.stroke(); } else ell(ctx, pr.sx, pr.sy, p.r, p.r, p.col); });
   q(P.x + P.y + .6 + (P.drive ? .3 : 0), drawPlayer);
   drawFollowers();
 }
-function enterTrip(dest) {
-  flight = null; S.scene = "trip"; makeTrip(dest);
-  cam.x = P.x; cam.y = P.y; cam.z = 0; P.swim = false; P.z = 0; P.vz = 0;
+function enterTrip(dest, variant) {
+  flight = null; S.scene = "trip"; makeTrip(dest, variant); action.what = null;
+  cam.x = P.x; cam.y = P.y; cam.z = 0; P.swim = false; P.z = 0; P.vz = 0; if (P.ride) hopOff(); P.drive = null;
   for (const uid of S.follow) { const f = followerOf(uid); f.x = P.x - .8; f.y = P.y - .4; }
-  $("stack").hidden = false; S.place = dest.name; save();
-  toast(`${dest.emoji} Walk around ${dest.name}! Find the snack stall, the souvenirs and the photo spot. ✈️ The plane flies you home.`, 4200);
+  $("stack").hidden = false; S.place = TRIP.placeName || dest.name; save(); SFX.door();
+  if (!variant) toast(`${dest.emoji} Walk around ${dest.name}! Find the snack stall, the souvenirs and the photo spot. ✈️ The plane flies you home.`, 4200);
 }
 function tripAct(spot) {
   const d = TRIP.dest, t = TRIP;
   if (spot.kind === "treat") { if (pay(d.treat[2])) { toast(`${d.treat[0]} Mmm, ${d.treat[1]}. Delicious!`); boom(P.x, P.y, "#ffd166", 6); P.emote = "laugh"; P.emoteT = 2; } }
-  else if (spot.kind === "gift") { if (t.gift) { toast("You already got one! 🎁"); return; } if (!pay(d.gift[2])) return; t.gift = true; S.souvenirs.push(`${d.gift[0]} ${d.gift[1]} from ${d.name}`); save(); boom(P.x, P.y, "#a066ff", 10); toast(`${d.gift[0]} You got ${d.gift[1]}! It's in your 💰 Wallet.`); }
-  else if (spot.kind === "photo") { if (t.photo) { toast("📸 Already got that one! Check Photos."); return; } SFX.shutter(); const c = document.createElement("canvas"); c.width = 360; c.height = 416; drawSelfie(c.getContext("2d"), 180, 208, d); S.photos.unshift(c.toDataURL("image/jpeg", .7)); S.photos = S.photos.slice(0, 8); t.photo = true; save(); P.emote = "wave"; P.emoteT = 2; toast(`📸 Postcard from ${d.name} saved to Photos!`); friendText(pick(FRIENDS).id, pick([`${d.name}!!! send pics 📸📸`, `omg is ${d.name} as cool as it looks?? 👀`, `u went to ${d.name}?? 😭 bring me something!!`])); }
+  else if (spot.kind === "gift") { if (t.gift) { toast("You already got one! 🎁"); return; } if (!pay(d.gift[2])) return; t.gift = tripMemo.gift = true; S.souvenirs.push(`${d.gift[0]} ${d.gift[1]} from ${d.name}`); save(); boom(P.x, P.y, "#a066ff", 10); toast(`${d.gift[0]} You got ${d.gift[1]}! It's in your 💰 Wallet.`); }
+  else if (spot.kind === "photo") { if (t.photo) { toast("📸 Already got that one! Check Photos."); return; } SFX.shutter(); const c = document.createElement("canvas"); c.width = 360; c.height = 416; drawSelfie(c.getContext("2d"), 180, 208, d); S.photos.unshift(c.toDataURL("image/jpeg", .7)); S.photos = S.photos.slice(0, 8); t.photo = tripMemo.photo = true; save(); P.emote = "wave"; P.emoteT = 2; toast(`📸 Postcard from ${d.name} saved to Photos!`); friendText(pick(FRIENDS).id, pick([`${d.name}!!! send pics 📸📸`, `omg is ${d.name} as cool as it looks?? 👀`, `u went to ${d.name}?? 😭 bring me something!!`])); }
   else if (spot.kind === "flyHome") flyHomeFromTrip();
   else if (spot.kind === "act") spot.fn();
 }
