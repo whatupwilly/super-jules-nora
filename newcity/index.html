@@ -219,7 +219,7 @@
   <div class="app" id="garage"><div class="appTop"><button data-back>‹ Back</button><span>🚗 Garage</span></div><div class="appBody" id="garageBody"></div></div>
   <div class="app" id="petsApp"><div class="appTop"><button data-back>‹ Back</button><span>🐾 My Pets</span></div><div class="appBody" id="petsBody"></div></div>
   <div class="app" id="games"><div class="appTop"><button data-back>‹ Back</button><span>🎮 Games</span></div><div class="appBody" id="gamesGrid"></div></div>
-  <div class="app" id="play"><div class="appTop"><button data-to="games">‹ Games</button><span id="playName"></span><button id="playRetry" style="margin-left:auto" title="Restart">↻</button></div><div class="appBody"><div id="playHud"></div><canvas id="playCv"></canvas><div id="playHtml" hidden></div></div></div>
+  <div class="app" id="play"><div class="appTop"><span id="playName"></span><button id="playRetry" style="margin-left:auto" title="Restart">↻ Retry</button><button id="playQuit" style="background:#ffe3e8;color:#c8102e">✕ Quit</button></div><div class="appBody"><div id="playHud"></div><canvas id="playCv"></canvas><div id="playHtml" hidden></div></div></div>
 </div></div></div>
 
 <script>
@@ -2860,7 +2860,7 @@ document.querySelectorAll("[data-to]").forEach(b => b.addEventListener("click", 
 function openPhone() { audio(); $("phone").hidden = false; joy.id = null; joy.dx = joy.dy = 0; $("phoneBtn").classList.remove("ring"); if (incomingCall) startCall(incomingCall, true); else showApp("home"); }
 function closePhone() { if (call) hangUp(); stopGame(); $("phone").hidden = true; }
 $("phoneBtn").addEventListener("click", openPhone);
-$("phone").addEventListener("pointerdown", e => { if (e.target === $("phone")) closePhone(); });
+$("phone").addEventListener("pointerdown", e => { if (e.target === $("phone") && !$("play").classList.contains("on")) closePhone(); });
 
 /* --- 🎮 phone games: five little video games you play right on the phone --- */
 // Each game draws into the phone's canvas (or, for Memory Match, builds HTML).
@@ -2990,12 +2990,13 @@ function pgOver() {
 }
 function pgPointer(e) {
   const gm = GAMES[PG.id], g = PG.g; if (!gm || !g || gm.html) return; const r = $("playCv").getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-  if (e.type === "pointerdown") { audio(); if (PG.state === "ready") { PG.state = "play"; PG.last = performance.now(); } else if (PG.state === "over") { if (performance.now() - PG.overAt > 600) startGame(); return; } if (gm.down) gm.down(g, x, y); }
+  if (e.type === "pointerdown") { audio(); try { $("playCv").setPointerCapture(e.pointerId); } catch (err) {} if (PG.state === "ready") { PG.state = "play"; PG.last = performance.now(); } else if (PG.state === "over") { if (performance.now() - PG.overAt > 600) startGame(); return; } if (gm.down) gm.down(g, x, y); }
   else if (e.type === "pointermove") { if (PG.state === "play" && gm.move && (e.buttons || e.pointerType === "touch")) gm.move(g, x, y); }
   else if (gm.up) gm.up(g, x, y);
 }
 ["pointerdown", "pointermove", "pointerup", "pointercancel"].forEach(t => $("playCv").addEventListener(t, pgPointer));
 $("playRetry").addEventListener("click", () => { SFX.tap(); startGame(); });
+$("playQuit").addEventListener("click", () => { SFX.tap(); showApp("games"); });
 window.addEventListener("keydown", e => {
   if (!PG.g || $("phone").hidden || !$("play").classList.contains("on")) return; const k = e.key.toLowerCase(), gm = GAMES[PG.id];
   if (!["arrowup", "arrowdown", "arrowleft", "arrowright", " ", "enter"].includes(k)) return; e.preventDefault(); e.stopImmediatePropagation();
