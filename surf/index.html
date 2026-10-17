@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Surfing Summer — by Jules</title>
+<style>
+  :root { --sat: env(safe-area-inset-top, 10px); --sab: env(safe-area-inset-bottom, 10px); --font:"Avenir Next","Trebuchet MS",Arial,sans-serif; }
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#2aa7c7; font-family:var(--font);
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; touch-action:none; }
+  input { -webkit-user-select:text; user-select:text; }
+  canvas#game { display:block; width:100vw; height:100vh; touch-action:none; }
+  button { font-family:var(--font); cursor:pointer; }
+  .ov { position:fixed; inset:0; z-index:40; background:rgba(10,40,70,.45); display:flex; align-items:center; justify-content:center; padding:10px; }
+  .ov[hidden] { display:none; }
+  .ov.clear { background:none; pointer-events:none; }
+  .ov.clear .card { pointer-events:auto; }
+  .card { background:rgba(255,255,255,.97); border-radius:24px; width:min(520px, 96vw); max-height:min(90vh, 760px); overflow:auto; box-shadow:0 20px 60px rgba(0,30,60,.45);
+    padding:18px; box-sizing:border-box; color:#13395a; -webkit-overflow-scrolling:touch; }
+  .card h1 { margin:0 0 4px; font-size:34px; color:#0b6e8a; letter-spacing:-.02em; }
+  .card h2 { margin:0 0 6px; font-size:22px; color:#0b6e8a; }
+  .card p { margin:6px 0; font-size:15px; line-height:1.35; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .btn { border:0; border-radius:14px; padding:12px 16px; font:800 15px var(--font); background:#0ea5c6; color:#fff; box-shadow:0 4px 0 #0b7f99; }
+  .btn:active { transform:translateY(3px); box-shadow:none; }
+  .btn.alt { background:#e3f4f9; color:#0b6e8a; box-shadow:0 4px 0 #bfe3ee; }
+  .btn.sun { background:#ff9f43; box-shadow:0 4px 0 #d97a1f; }
+  .btn.pink { background:#ff5fa2; box-shadow:0 4px 0 #d13f80; }
+  .btn.big { font-size:19px; padding:14px 22px; }
+  .btn:disabled { opacity:.5; box-shadow:none; transform:none; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:8px; }
+  .tile { background:#eaf7fb; border-radius:16px; padding:8px 6px; text-align:center; border:3px solid transparent; position:relative; }
+  .tile.on { border-color:#ff9f43; background:#fff3e4; }
+  .tile.own { border-color:#7fd3e6; }
+  .tile canvas { width:84px; height:96px; display:block; margin:0 auto; }
+  .tile .nm { font-weight:800; font-size:12px; margin-top:4px; }
+  .tile .pr { font-size:12px; color:#0b7f99; font-weight:800; }
+  .tile .sub { font-size:10px; color:#6b8ba3; }
+  .tile .lock { position:absolute; top:4px; right:6px; font-size:14px; }
+  .lbl { font-weight:800; font-size:12px; color:#5b7a93; margin:10px 0 4px; text-transform:uppercase; letter-spacing:.06em; }
+  .sw { display:inline-block; width:34px; height:34px; border-radius:10px; border:3px solid #fff; box-shadow:0 0 0 2px #cfe3ec; margin:3px; vertical-align:middle; }
+  .sw.on { box-shadow:0 0 0 3px #ff9f43; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chips button { border:0; border-radius:999px; padding:8px 12px; font:800 13px var(--font); background:#e3f4f9; color:#0b6e8a; }
+  .chips button.on { background:#0ea5c6; color:#fff; }
+  input.txt { font:800 18px var(--font); border:2px solid #bfe3ee; border-radius:12px; padding:8px 10px; width:160px; }
+  .stat { display:inline-block; background:#eaf7fb; border-radius:12px; padding:6px 10px; font-weight:800; font-size:14px; margin:2px; }
+  .tabs { display:flex; gap:6px; margin-bottom:8px; }
+  .tabs button { border:0; border-radius:999px; padding:8px 14px; font:800 14px var(--font); background:#e3f4f9; color:#0b6e8a; }
+  .tabs button.on { background:#ff9f43; color:#fff; }
+  .judge { display:inline-block; background:#fff; border:2px solid #bfe3ee; border-radius:14px; padding:8px 10px; margin:3px; text-align:center; min-width:70px; }
+  .judge b { display:block; font-size:24px; color:#0b6e8a; }
+  .judge span { font-size:11px; color:#5b7a93; }
+  .place { display:flex; justify-content:space-between; padding:6px 10px; border-radius:10px; background:#eaf7fb; margin:3px 0; font-weight:800; font-size:14px; }
+  .place.me { background:#fff3e4; border:2px solid #ff9f43; }
+  #portrait { width:120px; height:150px; display:block; margin:0 auto; }
+  #hud { position:fixed; left:0; right:0; top:0; z-index:20; pointer-events:none; }
+  #hud[hidden] { display:none; }
+  #pauseBtn { position:fixed; right:12px; top:max(50px, calc(var(--sat) + 44px)); z-index:21; width:44px; height:44px; border-radius:22px; border:2px solid rgba(255,255,255,.7); background:rgba(10,40,70,.45); color:#fff; font-size:18px; }
+  #pauseBtn[hidden] { display:none; }
+  #toast { position:fixed; left:50%; top:calc(var(--sat) + 52px); transform:translateX(-50%); z-index:60; background:rgba(10,40,70,.9); color:#fff;
+    border-radius:16px; padding:10px 16px; font:700 14px var(--font); max-width:86vw; box-shadow:0 8px 24px rgba(0,0,0,.3); transition:opacity .3s; pointer-events:none; }
+  #toast[hidden] { display:none; }
+  #help { position:fixed; left:50%; bottom:max(14px, var(--sab)); transform:translateX(-50%); z-index:20; background:rgba(255,255,255,.85); color:#13395a; border-radius:14px; padding:8px 14px; font:800 13px var(--font); pointer-events:none; text-align:center; max-width:92vw; }
+  #help[hidden] { display:none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="verlink">
+  <button id="gamesBtn" type="button">🎮 Games</button>
+  <nav id="gamesMenu" hidden>
+    <a href="../" style="background:linear-gradient(90deg,#ffe8f4,#e6f0ff);color:#5b3fa8">🏠 All Games</a>
+    <b>Super Young Sisters</b>
+    <a href="../classic/">🕹 Classic</a><a href="../hd/">✨ HD</a><a href="../fortnite/">⚡ Battle</a><a href="../realistic/">🌿 Real</a>
+    <b>More magic</b>
+    <a href="../magic/">🌈 Magic Heroes</a><a href="../bubble/">🫧 Bubble</a><a href="../life/">🏡 Magic Life</a><a href="../kart/">🏎 Magic Kart</a><a href="../tennis/">🎾 Magic Tennis</a>
+    <b>Jules's city</b>
+    <a href="../city/">🏙 Jules City</a><a href="../newcity/">✨ New City</a><a class="here" href="./">🏄 Surfing Summer</a>
+    <b>Nora's new world</b>
+    <a href="../zombie/">🧟 Zombie Night</a>
+    <b>Dad's work</b>
+    <a href="../faceplant/">🍔 Face Plant</a>
+  </nav>
+<script src="../players.js"></script>
+<script>window.Arcade = window.Arcade || { key: function (k) { return k; }, mountMenu: function () {} };</script>
+</div>
+<style>
+  #verlink { position:fixed; right:10px; top:max(10px, env(safe-area-inset-top)); z-index:30; font-family:var(--font); }
+  #gamesBtn { font:800 14px var(--font); color:#fff; background:rgba(40,50,70,.55); border:2px solid rgba(255,255,255,.55);
+    border-radius:999px; padding:7px 14px; -webkit-user-select:none; user-select:none; }
+  #gamesMenu[hidden] { display:none; }
+  #gamesMenu { position:absolute; right:0; top:calc(100% + 6px); background:#ffffff; border-radius:14px; padding:8px; min-width:176px;
+    box-shadow:0 10px 28px rgba(0,0,0,.28); display:flex; flex-direction:column; gap:2px; }
+  #gamesMenu b { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#8a94a6; margin:6px 8px 2px; font-weight:800; }
+  #gamesMenu a { display:block; padding:7px 10px; border-radius:9px; color:#2a3a55; text-decoration:none; font-weight:700; font-size:14px; }
+  #gamesMenu a:hover, #gamesMenu a:active { background:#eef3fb; }
+  #gamesMenu a.here { background:#ffd166; color:#7a4b12; }
+</style>
+
+<div id="hud" hidden></div>
+<button id="pauseBtn" type="button" hidden>⏸</button>
+<div id="help" hidden></div>
+<div id="toast" hidden></div>
+<div id="modal" class="ov" hidden><div class="card" id="modalCard"></div></div>
+
+<script>
+"use strict";
+/* SURFING SUMMER — Jules's surfing game. Pick any Magic Hero or make your own surfer,
+   buy a board and a bathing suit, then ride big curling waves seen from behind the
+   surfer: airs, backflips, twirls, cutbacks, barrels, floaters and hang tens. Sign up
+   for contests on the beach board and win trophies and money. Dolphins, turtles,
+   whales and seagulls keep you company. Part two will add the boat, the mask and
+   the underwater world. */
+const cv = document.getElementById("game"), g = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = window.innerWidth; H = window.innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px"; }
+window.addEventListener("resize", resize); window.addEventListener("orientationchange", () => setTimeout(resize, 200)); resize();
+
+/* ------------------------------ helpers ------------------------------ */
+const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1)), pick = a => a[Math.floor(Math.random() * a.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), lerp = (a, b, t) => a + (b - a) * t, $ = id => document.getElementById(id);
+const smooth = t => t * t * (3 - 2 * t);
+function hash(x, y) { let n = (x * 374761393 + y * 668265263) | 0; n = (n ^ (n >> 13)) * 1274126177; return ((n ^ (n >> 16)) & 1023) / 1023; }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function rgb(col) { const n = parseInt(col.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function hex(r, gg, b) { return "#" + [r, gg, b].map(v => clamp(Math.round(v), 0, 255).toString(16).padStart(2, "0")).join(""); }
+function mix(a, b, t) { const A = rgb(a), B = rgb(b); return hex(lerp(A[0], B[0], t), lerp(A[1], B[1], t), lerp(A[2], B[2], t)); }
+function shade(col, k) { const [r, gg, b] = rgb(col); return hex(r * k, gg * k, b * k); }
+function tint(col, k) { const [r, gg, b] = rgb(col); return hex(r + (255 - r) * k, gg + (255 - gg) * k, b + (255 - b) * k); }
+function alpha(col, a) { const [r, gg, b] = rgb(col); return `rgba(${r},${gg},${b},${a})`; }
+function rr(c, x, y, w, h, r, col) { c.fillStyle = col; c.beginPath(); c.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2)); c.fill(); }
+function ell(c, x, y, rx, ry, col) { c.fillStyle = col; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); c.fill(); }
+function limb(c, x0, y0, x1, y1, w, col) { c.strokeStyle = col; c.lineWidth = w; c.lineCap = "round"; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); }
+let toastT = null;
+function toast(text, ms) { const t = $("toast"); t.textContent = text; t.hidden = false; t.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => { t.style.opacity = 0; setTimeout(() => t.hidden = true, 300); }, ms || 2200); }
+
+/* ------------------------------ sound: a real ocean, made of noise ------------------------------ */
+let AC = null, ocean = null;
+function audio() {
+  if (AC) { if (AC.state === "suspended") AC.resume(); return; }
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  // waves: pink-ish noise through a low-pass whose cutoff and volume swell slowly, like sets rolling in
+  const len = AC.sampleRate * 4, buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
+  let b0 = 0, b1 = 0, b2 = 0; for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; b0 = .997 * b0 + w * .03; b1 = .985 * b1 + w * .02; b2 = .95 * b2 + w * .01; d[i] = (b0 + b1 + b2 + w * .005) * 3; }
+  const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
+  const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 700; lp.Q.value = .6;
+  const gain = AC.createGain(); gain.gain.value = 0;
+  src.connect(lp); lp.connect(gain); gain.connect(AC.destination); src.start();
+  ocean = { gain, lp, level: 0 };
+}
+function setOcean(level) { if (ocean) ocean.level = level; }
+function tone(freq, dur, type, vol, slide, delay) { if (!AC) return; const o = AC.createOscillator(), gn = AC.createGain(), t0 = AC.currentTime + (delay || 0); o.type = type || "sine"; o.frequency.setValueAtTime(freq, t0); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), t0 + dur); gn.gain.setValueAtTime(vol || .1, t0); gn.gain.exponentialRampToValueAtTime(.0001, t0 + dur); o.connect(gn); gn.connect(AC.destination); o.start(t0); o.stop(t0 + dur + .05); }
+function noise(dur, vol, hp, delay) { if (!AC) return; const n = Math.floor(AC.sampleRate * dur), buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n); const s = AC.createBufferSource(); s.buffer = buf; const f = AC.createBiquadFilter(); f.type = hp ? "highpass" : "lowpass"; f.frequency.value = hp || 900; const gn = AC.createGain(); const t0 = AC.currentTime + (delay || 0); gn.gain.setValueAtTime(vol, t0); gn.gain.exponentialRampToValueAtTime(.0001, t0 + dur); s.connect(f); f.connect(gn); gn.connect(AC.destination); s.start(t0); }
+const SFX = {
+  tap: () => tone(700, .05, "square", .05, 200), buy: () => [523, 659, 784].forEach((f, i) => tone(f, .12, "triangle", .1, 0, i * .08)),
+  nope: () => tone(220, .18, "sawtooth", .08, -80), yay: () => [523, 659, 784, 1046].forEach((f, i) => tone(f, .18, "square", .08, 0, i * .09)),
+  whoosh: () => noise(.35, .25, 1800), splash: () => { noise(.5, .5, 0); tone(90, .3, "sine", .2, -40); for (let i = 0; i < 5; i++) tone(600 + Math.random() * 600, .05, "sine", .05, 0, .05 + i * .04); },
+  trick: n => { for (let i = 0; i < n; i++) tone(880 + i * 180, .09, "triangle", .08, 0, i * .07); }, land: () => { noise(.2, .25, 0); tone(300, .08, "triangle", .08); },
+  cheer: () => { noise(1.4, .35, 2500); for (let i = 0; i < 8; i++) tone(500 + Math.random() * 500, .12, "sine", .04, 0, Math.random() * .9); },
+  gull: () => { tone(1800, .14, "sine", .05, -500); tone(1700, .16, "sine", .05, -600, .18); }, dolphin: () => { for (let i = 0; i < 6; i++) tone(2400 + Math.random() * 800, .03, "square", .04, 0, i * .05); },
+  ding: () => { tone(1568, .08, "sine", .1); tone(2093, .14, "sine", .1, 0, .09); }, horn: () => { tone(330, .25, "sawtooth", .08); tone(415, .3, "sawtooth", .08, 0, .1); },
+};
+
+/* ------------------------------ save ------------------------------ */
+const SAVE_KEY = Arcade.key("surfSave");
+const S = { state: "title", hero: null, custom: null, board: "foamie", suit: { style: "onepiece", pattern: "solid", col: "#ff5fa2", col2: "#ffffff" },
+  ownedBoards: ["foamie"], ownedStyles: ["onepiece"], ownedPatterns: ["solid"], money: 50, trophies: { beginner: 0, intermediate: 0, advanced: 0, pro: 0 }, best: 0, bestTrick: "", runs: 0, tier: 0 };
+function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ hero: S.hero, custom: S.custom, board: S.board, suit: S.suit, ownedBoards: S.ownedBoards, ownedStyles: S.ownedStyles, ownedPatterns: S.ownedPatterns, money: S.money, trophies: S.trophies, best: S.best, bestTrick: S.bestTrick, runs: S.runs, tier: S.tier })); } catch (e) {} }
+function load() { try { const d = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); if (!d) return false; Object.assign(S, d); S.trophies = Object.assign({ beginner: 0, intermediate: 0, advanced: 0, pro: 0 }, d.trophies || {}); return true; } catch (e) { return false; } }
+const hasSave = load();
+
+/* ------------------------------ the surfers ------------------------------ */
+// Every Magic Hero as a surfer: same hair, same colors, their own little hat or ears, their own signature suit.
+const HEROES = [
+  { id: "jules", name: "Jules", skin: "#f3cba5", hair: ["#2f6bff", "#151527", "#8a2be2"], style: "long", eye: "#3a6fd8", acc: "none", suit: { style: "onepiece", pattern: "sparkles", col: "#7b3fe4", col2: "#ffffff" } },
+  { id: "nora", name: "Nora", skin: "#fce0c2", hair: ["#241a20", "#463440"], style: "pigtails", eye: "#2a1c12", acc: "flower", suit: { style: "bikini", pattern: "stars", col: "#46cdc6", col2: "#7a4fc8" } },
+  { id: "rosalina", name: "Princess Rosalina", skin: "#fce0c2", hair: ["#fff2bc", "#f6e08c"], style: "wavy", eye: "#357fd1", acc: "crown", suit: { style: "onepiece", pattern: "waves", col: "#46cdc6", col2: "#9ef0e6" } },
+  { id: "chunmi", name: "Chun Mi", skin: "#fce0c2", hair: ["#1a1418", "#3a3038"], style: "long", eye: "#2a2026", acc: "band", suit: { style: "rashguard", pattern: "solid", col: "#1f4fc8", col2: "#35b8cc" } },
+  { id: "sparkle", name: "Sparkle", skin: "#fdf8ff", hair: ["#ff5e6c", "#ffd23e", "#5ecb6a", "#4aa6f0", "#9b6cff"], style: "wavy", eye: "#2a1c3a", acc: "horn", suit: { style: "onepiece", pattern: "rainbow", col: "#ff5e6c", col2: "#9b6cff" } },
+  { id: "icy", name: "Icy", skin: "#f8ddc2", hair: ["#23272f", "#3a4049"], style: "bob", eye: "#16181d", acc: "bow", suit: { style: "onepiece", pattern: "dots", col: "#3f8fe0", col2: "#ffffff" } },
+  { id: "misty", name: "Misty", skin: "#ffe8c0", hair: ["#fdf6e3", "#e8d5a8"], style: "pony", eye: "#2a1c0e", acc: "moon", suit: { style: "bikini", pattern: "sparkles", col: "#f2c14e", col2: "#ffffff" } },
+  { id: "cutie", name: "Cutie", skin: "#fdf6ee", hair: ["#e63b3b", "#b21f1f"], style: "curly", eye: "#2a1c12", acc: "antennae", suit: { style: "onepiece", pattern: "dots", col: "#41a64b", col2: "#3f8fe0" } },
+  { id: "squishy", name: "Squishy", skin: "#f8ddc2", hair: ["#ff7a9c", "#ffe14d", "#7fe07a", "#5ec8f0", "#b58cff"], style: "bun", eye: "#2a1c22", acc: "none", suit: { style: "boardshorts", pattern: "rainbow", col: "#e6b16a", col2: "#ff7a9c" } },
+  { id: "appy", name: "Appy", skin: "#f3cba5", hair: ["#f0564a", "#c22c24"], style: "short", eye: "#241a12", acc: "leaf", suit: { style: "onepiece", pattern: "hearts", col: "#f0564a", col2: "#ffd94d" } },
+  { id: "bamboo", name: "Bamboo", skin: "#f7efe2", hair: ["#ec8a44", "#d2622e"], style: "bob", eye: "#140f0c", acc: "panda", suit: { style: "wetsuit", pattern: "stripes", col: "#2c211c", col2: "#d2622e" } },
+  { id: "northern", name: "Northern Light", skin: "#fcfdff", hair: ["#ffffff", "#d6e0f0"], style: "long", eye: "#181320", acc: "foxears", suit: { style: "onepiece", pattern: "tiedye", col: "#8ef0c8", col2: "#c69bff" } },
+];
+const SKINS = ["#f8ddc2", "#f3cba5", "#e0ac69", "#c68642", "#8d5524", "#5c3a1e"];
+const HAIR_COLS = ["#2f6bff", "#151527", "#8a2be2", "#ff4fd8", "#f7d774", "#d64c2a", "#5a3a1a", "#2ec4b6", "#ffffff", "#ff3b5c", "#57b34a", "#ff9f1c", "#8a5a32", "#ffb5e8"];
+const EYES = ["#3a6fd8", "#57b34a", "#2a1a10", "#8a5a32", "#8a2be2", "#4cc9f0", "#ff70a6"];
+const STYLES = [["long", "Long"], ["wavy", "Beach waves"], ["pony", "Ponytail"], ["pigtails", "Pigtails"], ["bob", "Bob"], ["curly", "Curly"], ["braids", "Braids"], ["bun", "Bun"], ["short", "Short"]];
+const ACCS = [["none", "None"], ["flower", "🌸 Flower"], ["bow", "🎀 Bow"], ["shades", "🕶 Shades"], ["crown", "👑 Crown"], ["cap", "🧢 Cap"]];
+function defaultCustom() { return { id: "custom", name: "", skin: "#f3cba5", hair: ["#ff4fd8", "#8a2be2"], style: "wavy", eye: "#3a6fd8", acc: "none", freckles: false, suit: null }; }
+function look() { return S.hero === "custom" ? (S.custom || defaultCustom()) : (HEROES.find(h => h.id === S.hero) || HEROES[0]); }
+function surferName() { const l = look(); return l.name || "Me"; }
+
+/* ------------------------------ boards and bathing suits ------------------------------ */
+const BOARDS = [
+  { id: "foamie", name: "Foamie", icon: "🏄", price: 0, col: "#7fd3e6", stripe: "#ffffff", len: 1.0, speed: .9, turn: 1.1, air: .8, stable: 1.4, blurb: "Soft and steady. Hard to fall off!" },
+  { id: "fish", name: "Fish", icon: "🐟", price: 120, col: "#ffd166", stripe: "#ff9f43", len: .9, speed: 1.0, turn: 1.3, air: .9, stable: 1.0, blurb: "Turns on a dime. Great for cutbacks." },
+  { id: "shortboard", name: "Shortboard", icon: "⚡", price: 150, col: "#ffffff", stripe: "#ff5fa2", len: .95, speed: 1.1, turn: 1.15, air: 1.0, stable: .9, blurb: "Fast and snappy." },
+  { id: "longboard", name: "Longboard", icon: "🌴", price: 200, col: "#c69a5a", stripe: "#ffffff", len: 1.35, speed: .95, turn: .8, air: .7, stable: 1.3, hang: 2, blurb: "Smooth glide. Hang tens score double!" },
+  { id: "airmachine", name: "Air Machine", icon: "🚀", price: 350, col: "#8b5cf6", stripe: "#7fe0ff", len: .9, speed: 1.05, turn: 1.1, air: 1.45, stable: .8, blurb: "Launches HUGE airs." },
+  { id: "progun", name: "Pro Gun", icon: "🏆", price: 600, col: "#111827", stripe: "#ffd166", len: 1.05, speed: 1.3, turn: 1.0, air: 1.2, stable: 1.0, blurb: "The fastest board in the water." },
+];
+const board = () => BOARDS.find(b => b.id === S.board) || BOARDS[0];
+const SUIT_STYLES = [
+  { id: "onepiece", name: "One-piece", icon: "🩱", price: 0 }, { id: "bikini", name: "Bikini", icon: "👙", price: 40 }, { id: "boardshorts", name: "Tank + shorts", icon: "🩳", price: 50 },
+  { id: "rashguard", name: "Rash guard", icon: "👕", price: 60 }, { id: "wetsuit", name: "Wetsuit", icon: "🤿", price: 120 },
+];
+const PATTERNS = [
+  { id: "solid", name: "Solid", icon: "⬜", price: 0 }, { id: "stripes", name: "Stripes", icon: "🦓", price: 25 }, { id: "dots", name: "Polka dots", icon: "🔵", price: 25 }, { id: "stars", name: "Stars", icon: "⭐", price: 40 },
+  { id: "hearts", name: "Hearts", icon: "💗", price: 40 }, { id: "flowers", name: "Flowers", icon: "🌺", price: 60 }, { id: "waves", name: "Waves", icon: "🌊", price: 60 }, { id: "tiedye", name: "Tie-dye", icon: "🌀", price: 80 },
+  { id: "rainbow", name: "Rainbow", icon: "🌈", price: 90 }, { id: "sparkles", name: "Sparkles", icon: "✨", price: 100 },
+];
+const SUIT_COLS = ["#ff5fa2", "#ff9f43", "#ffd166", "#7fe07a", "#2ec4b6", "#4aa6f0", "#7b3fe4", "#ffffff", "#111827", "#ff3b5c", "#ffb5e8", "#46cdc6"];
+const patCache = {};
+function patternFill(c, id, col, col2) {
+  const key = id + col + col2; if (patCache[key]) return patCache[key];
+  const pc = document.createElement("canvas"); pc.width = pc.height = 24; const p = pc.getContext("2d");
+  p.fillStyle = col; p.fillRect(0, 0, 24, 24);
+  if (id === "stripes") { p.fillStyle = col2; p.fillRect(0, 0, 24, 6); p.fillRect(0, 12, 24, 6); }
+  else if (id === "dots") { p.fillStyle = col2; for (const [x, y] of [[6, 6], [18, 18], [18, 6], [6, 18]]) { p.beginPath(); p.arc(x, y, 3, 0, Math.PI * 2); p.fill(); } }
+  else if (id === "stars" || id === "sparkles" || id === "hearts" || id === "flowers") { p.font = "11px serif"; p.textAlign = "center"; p.textBaseline = "middle"; const e = id === "stars" ? "⭐" : id === "sparkles" ? "✨" : id === "hearts" ? "💗" : "🌸"; p.fillText(e, 6, 6); p.fillText(e, 18, 18); if (id === "sparkles") { p.fillStyle = "rgba(255,255,255,.7)"; for (let i = 0; i < 6; i++) { p.beginPath(); p.arc(hash(i, 1) * 24, hash(i, 2) * 24, 1, 0, Math.PI * 2); p.fill(); } } }
+  else if (id === "waves") { p.strokeStyle = col2; p.lineWidth = 2.5; for (let r = 0; r < 2; r++) { p.beginPath(); for (let x = 0; x <= 24; x += 2) { const y = 6 + r * 12 + Math.sin(x / 24 * Math.PI * 2) * 3; if (x) p.lineTo(x, y); else p.moveTo(x, y); } p.stroke(); } }
+  else if (id === "rainbow") { const R = ["#ff5e6c", "#ff9f43", "#ffd23e", "#5ecb6a", "#4aa6f0", "#9b6cff"]; for (let i = 0; i < 6; i++) { p.fillStyle = R[i]; p.fillRect(0, i * 4, 24, 4); } }
+  else if (id === "tiedye") { for (let i = 0; i < 4; i++) { const gr = p.createRadialGradient(hash(i, 3) * 24, hash(i, 4) * 24, 0, hash(i, 3) * 24, hash(i, 4) * 24, 12); gr.addColorStop(0, i % 2 ? col2 : "#ffffff"); gr.addColorStop(1, alpha(col, 0)); p.fillStyle = gr; p.fillRect(0, 0, 24, 24); } }
+  const pat = c.createPattern(pc, "repeat"); patCache[key] = pat; return pat;
+}
+function currentSuit() { const l = look(); return S.suit || l.suit; }
+
+/* ------------------------------ drawing a surfer (smooth, Roblox-ish, no bumps) ------------------------------ */
+// (c, x, y) is where the feet are; sc scales a figure about 110 units tall.
+// pose: { crouch 0..1, face ±1, spin (deg, fake Y-axis), flip (deg), arms: "surf"|"up"|"grab"|"tumble"|"wave", board: bool, lean (deg) }
+function hairGrad(c, cols, y0, y1) { const gr = c.createLinearGradient(0, y0, 0, y1); cols.forEach((col, i) => gr.addColorStop(cols.length === 1 ? 0 : i / (cols.length - 1), col)); return gr; }
+function drawSurfer(c, x, y, sc, L, pose) {
+  pose = pose || {}; const cr = pose.crouch || 0, face = pose.face || 1, spin = ((pose.spin || 0) % 360 + 360) % 360, suit = pose.suit || currentSuit();
+  let sx = Math.cos(spin * Math.PI / 180); const back = sx < 0; if (Math.abs(sx) < .12) sx = .12 * Math.sign(sx || 1);
+  c.save(); c.translate(x, y); c.rotate(((pose.flip || 0) + (pose.lean || 0)) * Math.PI / 180);
+  if (pose.board) drawBoard(c, 0, 4, sc * (board().len), pose.lean2 || 0);
+  c.scale(sc * Math.abs(sx) * face, sc);
+  const skin = L.skin, skinD = shade(L.skin, .82), hipY = -44 + cr * 12, shY = -82 + cr * 16, headY = -98 + cr * 16;
+  const suitFill = patternFill(c, suit.pattern, suit.col, suit.col2), st = suit.style;
+  // hair behind
+  const H2 = L.style, hairB = hairGrad(c, L.hair, headY - 18, headY + 40);
+  c.fillStyle = hairB;
+  if (H2 === "long" || H2 === "wavy") { c.beginPath(); c.moveTo(-15, headY - 6); c.quadraticCurveTo(-20, headY + 26, -14, headY + 44); if (H2 === "wavy") for (let i = 0; i < 5; i++) c.quadraticCurveTo(-14 + i * 7 + 3, headY + 50, -14 + (i + 1) * 7, headY + 44); else c.lineTo(14, headY + 44); c.quadraticCurveTo(20, headY + 26, 15, headY - 6); c.closePath(); c.fill(); }
+  if (H2 === "pony") { c.beginPath(); c.moveTo(-6 * face, headY - 12); c.quadraticCurveTo(-26 * face, headY - 4, -22 * face, headY + 30); c.quadraticCurveTo(-14 * face, headY + 34, -10 * face, headY + 6); c.closePath(); c.fill(); }
+  if (H2 === "pigtails") for (const s2 of [-1, 1]) { c.beginPath(); c.ellipse(s2 * 20, headY + 14, 6, 16, s2 * .25, 0, Math.PI * 2); c.fill(); }
+  if (H2 === "braids") for (const s2 of [-1, 1]) { for (let i = 0; i < 4; i++) { c.beginPath(); c.ellipse(s2 * 17, headY + 4 + i * 9, 4.5, 5.5, 0, 0, Math.PI * 2); c.fill(); } }
+  if (H2 === "curly") for (let i = 0; i < 7; i++) { c.beginPath(); c.arc(-18 + i * 6, headY + 12 + Math.abs(3 - i) * 3, 7, 0, Math.PI * 2); c.fill(); }
+  // legs (bent knees when crouching)
+  const kneeY = lerp(-22, -16, cr), legW = 9;
+  limb(c, -9, hipY + 2, -14 - cr * 6, kneeY, legW, skinD); limb(c, -14 - cr * 6, kneeY, -12, 0, legW, skin);
+  limb(c, 9, hipY + 2, 14 + cr * 6, kneeY, legW, skinD); limb(c, 14 + cr * 6, kneeY, 12, 0, legW, skin);
+  if (st === "wetsuit" || st === "boardshorts" || st === "rashguard") { c.fillStyle = suitFill; for (const s2 of [-1, 1]) { c.beginPath(); c.moveTo(s2 * 4, hipY); c.lineTo(s2 * (15 + cr * 6), kneeY + (st === "wetsuit" ? 10 : -2)); c.lineTo(s2 * (15 + cr * 6) - s2 * 9, kneeY + (st === "wetsuit" ? 12 : 0)); c.lineTo(0, hipY + 4); c.closePath(); c.fill(); } }
+  // body
+  c.fillStyle = skin; c.beginPath(); c.moveTo(-12, shY); c.quadraticCurveTo(-15, hipY - 10, -13, hipY + 4); c.lineTo(13, hipY + 4); c.quadraticCurveTo(15, hipY - 10, 12, shY); c.closePath(); c.fill();
+  // the bathing suit
+  c.fillStyle = suitFill;
+  if (st === "onepiece" || st === "wetsuit" || st === "rashguard" || st === "boardshorts") { const top = st === "onepiece" ? shY + 6 : shY - 1; c.beginPath(); c.moveTo(-12, top); c.quadraticCurveTo(-15, hipY - 10, -13, hipY + 5); c.lineTo(13, hipY + 5); c.quadraticCurveTo(15, hipY - 10, 12, top); c.closePath(); c.fill(); if (st === "onepiece") { c.strokeStyle = suit.col; c.lineWidth = 3; for (const s2 of [-1, 1]) { c.beginPath(); c.moveTo(s2 * 8, shY + 7); c.lineTo(s2 * 5, shY - 2); c.stroke(); } } }
+  if (st === "bikini") { rr(c, -13, hipY - 6, 26, 11, 4, suitFill); rr(c, -12, shY + 4, 24, 10, 5, suitFill); c.strokeStyle = suit.col; c.lineWidth = 2.5; for (const s2 of [-1, 1]) { c.beginPath(); c.moveTo(s2 * 7, shY + 5); c.lineTo(s2 * 4, shY - 3); c.stroke(); } }
+  if (st === "boardshorts") { c.fillStyle = suit.col2; c.beginPath(); c.moveTo(-12, shY + 2); c.lineTo(12, shY + 2); c.lineTo(12, hipY - 8); c.lineTo(-12, hipY - 8); c.closePath(); c.fill(); }
+  // arms
+  const A = pose.arms || "surf";
+  if (A === "surf") { limb(c, -11, shY + 4, -26, shY + 18 - cr * 6, 8, skin); limb(c, 11, shY + 4, 24, shY - 10, 8, skin); }
+  else if (A === "up") { limb(c, -11, shY + 4, -22, shY - 28, 8, skin); limb(c, 11, shY + 4, 22, shY - 28, 8, skin); }
+  else if (A === "grab") { limb(c, -11, shY + 4, -8, shY + 34 - cr * 8, 8, skin); limb(c, 11, shY + 4, 24, shY - 8, 8, skin); }
+  else if (A === "wave") { limb(c, -11, shY + 4, -20, shY + 18, 8, skin); limb(c, 11, shY + 4, 22, shY - 26 + Math.sin(Date.now() / 120) * 4, 8, skin); }
+  else { limb(c, -11, shY + 4, -28, shY - 6, 8, skin); limb(c, 11, shY + 4, 26, shY + 14, 8, skin); }
+  if (st === "wetsuit" || st === "rashguard") { c.fillStyle = suitFill; limb(c, -11, shY + 4, A === "up" ? -17 : -19, A === "up" ? shY - 12 : shY + 11, 9, "rgba(0,0,0,0)"); c.strokeStyle = suitFill; c.lineWidth = 9; c.beginPath(); c.moveTo(-11, shY + 4); c.lineTo(A === "up" ? -17 : -19, A === "up" ? shY - 12 : shY + 11); c.moveTo(11, shY + 4); c.lineTo(A === "up" ? 17 : 18, A === "up" ? shY - 12 : shY - 3); c.stroke(); }
+  // head
+  ell(c, 0, headY, 15, 16, skin);
+  // face (hidden when spun around)
+  if (!back) {
+    const eyeY = headY + 1, eyeX = 6;
+    ell(c, -eyeX, eyeY, 3.2, 4, "#fff"); ell(c, eyeX, eyeY, 3.2, 4, "#fff"); ell(c, -eyeX + .5, eyeY + .5, 2, 2.6, L.eye); ell(c, eyeX + .5, eyeY + .5, 2, 2.6, L.eye); ell(c, -eyeX + 1.2, eyeY - .6, .8, .8, "#fff"); ell(c, eyeX + 1.2, eyeY - .6, .8, .8, "#fff");
+    c.strokeStyle = "#2a1a10"; c.lineWidth = 1.4; for (const s2 of [-1, 1]) { c.beginPath(); c.moveTo(s2 * eyeX - 3, eyeY - 4.5); c.quadraticCurveTo(s2 * eyeX, eyeY - 7, s2 * eyeX + 3, eyeY - 4.5); c.stroke(); }
+    ell(c, -9, headY + 7, 3.5, 2, "rgba(255,120,150,.4)"); ell(c, 9, headY + 7, 3.5, 2, "rgba(255,120,150,.4)");
+    c.strokeStyle = "#c4506a"; c.lineWidth = 1.8; c.beginPath(); c.moveTo(-4, headY + 8); c.quadraticCurveTo(0, headY + 12, 4, headY + 8); c.stroke();
+    if (L.freckles) for (let i = 0; i < 6; i++) ell(c, -8 + (i % 3) * 8 + (i > 2 ? 2 : 0), headY + 6 + Math.floor(i / 3) * 2.5, .9, .9, "#c99a6a");
+    if (L.acc === "shades") { rr(c, -12, eyeY - 4, 10, 7, 3, "#222"); rr(c, 2, eyeY - 4, 10, 7, 3, "#222"); }
+  }
+  // hair on top
+  const hairF = hairGrad(c, L.hair, headY - 18, headY + 10); c.fillStyle = hairF;
+  c.beginPath(); c.ellipse(0, headY - 6, 16.5, 12.5, 0, Math.PI, Math.PI * 2); c.lineTo(16.5, headY - 2); c.quadraticCurveTo(10, headY - 9, 0, headY - 5); c.quadraticCurveTo(-10, headY - 9, -16.5, headY - 2); c.closePath(); c.fill();
+  if (H2 === "bob") { c.beginPath(); c.moveTo(-16, headY - 6); c.lineTo(-17, headY + 12); c.quadraticCurveTo(-10, headY + 16, -8, headY + 6); c.lineTo(8, headY + 6); c.quadraticCurveTo(10, headY + 16, 17, headY + 12); c.lineTo(16, headY - 6); c.closePath(); c.fill(); }
+  if (H2 === "bun") ell(c, 0, headY - 20, 8, 7, L.hair[0]);
+  if (H2 === "curly") for (let i = 0; i < 6; i++) ell(c, -15 + i * 6, headY - 12 + Math.abs(2.5 - i) * 1.5, 6, 6, L.hair[i % L.hair.length]);
+  // accessories
+  const acc = L.acc;
+  if (acc === "horn") { c.fillStyle = "#ffe07a"; c.beginPath(); c.moveTo(-4, headY - 14); c.lineTo(4, headY - 14); c.lineTo(0, headY - 34); c.closePath(); c.fill(); }
+  if (acc === "panda") for (const s2 of [-1, 1]) { ell(c, s2 * 13, headY - 14, 6, 6, "#2c211c"); ell(c, s2 * 13, headY - 14, 3, 3, "#f7efe2"); }
+  if (acc === "foxears") for (const s2 of [-1, 1]) { c.fillStyle = "#fcfdff"; c.beginPath(); c.moveTo(s2 * 6, headY - 12); c.lineTo(s2 * 17, headY - 28); c.lineTo(s2 * 17, headY - 8); c.closePath(); c.fill(); c.fillStyle = "#46506b"; c.beginPath(); c.moveTo(s2 * 9, headY - 13); c.lineTo(s2 * 15, headY - 23); c.lineTo(s2 * 15, headY - 11); c.closePath(); c.fill(); }
+  if (acc === "bow") { for (const s2 of [-1, 1]) ell(c, 10 + s2 * 5, headY - 15, 5, 3.5, "#f0559c"); ell(c, 10, headY - 15, 2, 2, "#ffd166"); }
+  if (acc === "antennae") for (const s2 of [-1, 1]) { limb(c, s2 * 5, headY - 14, s2 * 10, headY - 30, 2, "#6a4ad0"); ell(c, s2 * 10, headY - 31, 3, 3, "#3a2a9e"); }
+  if (acc === "leaf") { limb(c, 0, headY - 16, 0, headY - 24, 3, "#8a5a32"); c.fillStyle = "#5cc463"; c.beginPath(); c.ellipse(6, headY - 24, 7, 3.5, -.5, 0, Math.PI * 2); c.fill(); }
+  if (acc === "flower") { for (let i = 0; i < 5; i++) ell(c, -10 + Math.cos(i * 1.257) * 4, headY - 10 + Math.sin(i * 1.257) * 4, 2.8, 2.8, "#4aa6f0"); ell(c, -10, headY - 10, 2, 2, "#ffd166"); }
+  if (acc === "band") rr(c, -15, headY - 12, 30, 4, 2, "#6a3ad0");
+  if (acc === "crown") { c.fillStyle = "#e6edf2"; c.beginPath(); c.moveTo(-10, headY - 14); c.lineTo(-10, headY - 24); c.lineTo(-5, headY - 18); c.lineTo(0, headY - 27); c.lineTo(5, headY - 18); c.lineTo(10, headY - 24); c.lineTo(10, headY - 14); c.closePath(); c.fill(); ell(c, 0, headY - 20, 2, 2, "#7fe0ff"); }
+  if (acc === "moon") { c.fillStyle = "#bfe0ff"; c.beginPath(); c.arc(11, headY - 14, 5, 0, Math.PI * 2); c.fill(); c.fillStyle = L.hair[0]; c.beginPath(); c.arc(13, headY - 15, 4, 0, Math.PI * 2); c.fill(); }
+  if (acc === "cap") { rr(c, -16, headY - 16, 32, 8, 4, "#ff5fa2"); rr(c, 6, headY - 10, 16, 4, 2, "#ff5fa2"); }
+  c.restore();
+}
+function drawBoard(c, x, y, sc, tilt) {
+  const b = board(); c.save(); c.translate(x, y); c.rotate((tilt || 0) * Math.PI / 180); c.scale(sc, sc);
+  c.fillStyle = "rgba(0,30,60,.18)"; c.beginPath(); c.ellipse(0, 6, 46, 7, 0, 0, Math.PI * 2); c.fill();
+  c.fillStyle = b.col; c.beginPath(); c.moveTo(-48, 0); c.quadraticCurveTo(-30, -11, 0, -10); c.quadraticCurveTo(30, -11, 50, -2); c.quadraticCurveTo(30, 9, 0, 9); c.quadraticCurveTo(-30, 9, -48, 0); c.closePath(); c.fill();
+  c.strokeStyle = b.stripe; c.lineWidth = 2.5; c.beginPath(); c.moveTo(-40, 0); c.lineTo(42, -1); c.stroke();
+  c.fillStyle = "rgba(255,255,255,.35)"; c.beginPath(); c.ellipse(-8, -4, 22, 2.5, -.05, 0, Math.PI * 2); c.fill();
+  c.restore();
+}
+function portrait(L, size, pose) { const c = document.createElement("canvas"); c.width = size * 2; c.height = size * 2.3; const c2 = c.getContext("2d"); c2.scale(2, 2); drawSurfer(c2, size / 2, size * 1.1, size / 118, L, Object.assign({ arms: "wave", suit: L.id === "custom" || !pose || !pose.ownSuit ? currentSuit() : L.suit }, pose || {})); return c; }
+
+/* ------------------------------ the wave ------------------------------ */
+// The wave is a long line of segments running away from the camera. Each one has a height,
+// how much the lip curls over (a barrel), how broken/foamy it is, and a bend. Everything is
+// measured in "wave units": u runs across the wave (u = -1 is the lip, u = 0.3 the bottom of
+// the face, bigger u is flat water on the right), z runs along it.
+const SEG = .5, DRAW_N = 84;
+const horizonY = () => H * .4, focal = () => W * .56;
+const CAM = { h: 1.45, back: 3.1 };
+let segs = [], chunkEnd = 0, lastH = 1.4, closeoutAt = Infinity;
+function addChunk(type, n) {
+  const start = segs.length, h0 = lastH;
+  const hT = (type === "big" ? rnd(1.5, 1.9) : type === "small" ? rnd(.7, .9) : type === "barrel" ? rnd(1.25, 1.7) : rnd(1.0, 1.4)) * 1.3;
+  const curve = rnd(-.0032, .0032) * (type === "barrel" ? .4 : 1), wob = rnd(0, 6.28);
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1), ramp = t < .3 ? t / .3 : t > .7 ? (1 - t) / .3 : 1;
+    const h = lerp(h0, hT, smooth(Math.min(1, i / 10))) * (1 + Math.sin(wob + i * .25) * .04);
+    segs.push({ h, curl: type === "barrel" ? smooth(ramp) : 0, foam: type === "foam" ? smooth(ramp) : (type === "closeout" ? Math.min(1, i / 6) : 0), curve, type, idx: start + i });
+  }
+  lastH = segs[segs.length - 1].h; chunkEnd = segs.length;
+}
+function ensureSegs(n) {
+  while (segs.length < n) {
+    const z = segs.length * SEG;
+    if (z >= closeoutAt) { addChunk("closeout", 60); continue; }
+    if (segs.length === 0) { addChunk("face", 44); continue; }
+    const r = Math.random(), easy = z < 60;
+    addChunk(r < .3 ? "face" : r < .5 ? "barrel" : r < .64 ? (easy ? "face" : "foam") : r < .82 ? "big" : r < .9 ? "small" : "barrel", ri(14, 30));
+  }
+}
+function seg(i) { ensureSegs(i + 2); return segs[Math.max(0, i)]; }
+function segAt(z) { return seg(Math.floor(z / SEG)); }
+// the wave's cross-section: 14 points from the flat water on the right up the face, over the lip
+const FLAT_U = [2.8, 1.9, 1.3, .85, .55, .3];
+const QUADS = [[10, 14], [14, 15], [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 13]];
+function profile(sg) {
+  const h = sg.h * (1 - .22 * sg.foam), c = sg.curl, f = sg.foam, pts = [];
+  for (const u of FLAT_U) pts.push({ u, y: 0, k: "flat" });
+  for (let i = 1; i <= 5; i++) { const t = i / 5; pts.push({ u: .3 - 1.3 * t, y: h * (.3 * t + .7 * t * t), k: "face", t }); }
+  pts.push({ u: lerp(-1.1, -.72, c), y: h * lerp(.97, 1.08, c), k: "lip" });
+  pts.push({ u: lerp(-1.2, -.45, c), y: h * lerp(.9, .8, c), k: "lip" });
+  pts.push({ u: lerp(-1.3, -.55, c), y: h * lerp(.8, .62, c), k: "lip" });
+  pts.push({ u: -1.6, y: h * .5, k: "back" }); pts.push({ u: -2.4, y: h * .1, k: "back" });
+  if (f > 0) { pts[11].u = lerp(pts[11].u, -.95, f); pts[11].y = lerp(pts[11].y, h * 1.05, f); pts[12].u = lerp(pts[12].u, -.78, f); pts[12].y = lerp(pts[12].y, h * .95, f); pts[13].u = lerp(pts[13].u, -.9, f); pts[13].y = lerp(pts[13].y, h * .84, f); }
+  return pts;
+}
+function waveY(sg, u) { const h = sg.h * (1 - .22 * sg.foam); if (u >= .3) return 0; if (u >= -1) { const t = (.3 - u) / 1.3; return h * (.3 * t + .7 * t * t); } return h; }
+
+/* ------------------------------ a surf run ------------------------------ */
+let R = null;
+const input = { steer: 0, hold: false, down: false, x0: 0, y0: 0, t0: 0, moved: false, holdT: 0 };
+function startRun(mode, opts) {
+  opts = opts || {}; segs = []; lastH = 1.4; closeoutAt = opts.len ? opts.len : Infinity; ensureSegs(DRAW_N + 10);
+  R = { mode, opts, t: 0, timeLeft: opts.time || 90, z: 2, u: -.25, y: 0, v: 5, du: 0, air: false, vy: 0, spin: 0, spinT: 0, flip: 0, flipT: 0, grab: false, grabT: 0, airT: 0, airPeak: 0,
+    score: 0, combo: 0, comboT: 0, tricks: [], pops: [], wipe: 0, wipeWhy: "", wipeouts: 0, barrelT: 0, barrelBig: false, floatT: 0, floated: false, hangT: 0, hangTick: 0, cut: { stage: 0, t: 0 }, snapCd: 0, airCd: 0,
+    animals: [], gulls: [...Array(5)].map((_, i) => ({ x: rnd(0, 1), y: rnd(.05, .3), s: rnd(.6, 1.2), v: rnd(.01, .03) * (i % 2 ? 1 : -1), f: rnd(0, 6) })), spray: [], spoutT: rnd(3, 8), dolphinT: rnd(3, 7), turtleT: rnd(5, 10),
+    done: false, money: 0, camU: .5, tilt: 0, steerS: 0 };
+  S.state = "run"; $("hud").hidden = false; $("pauseBtn").hidden = false; closeModal(); setOcean(1);
+  $("help").hidden = false; $("help").innerHTML = "← → drag to ride the wave · swipe ↑ at the lip for an AIR<br>in the air: swipe ← → twirl · swipe ↓ backflip · hold to grab";
+  setTimeout(() => { if (S.state === "run") $("help").hidden = true; }, 7000);
+}
+const TRICK_PTS = { air: 90, twirl: 150, backflip: 250, frontflip: 220, grab: 70, barrel: 45, deep: 220, floater: 140, cutback: 120, snap: 110, hang: 50 };
+function addTrick(name, pts) {
+  if (!R || R.wipe > 0) return;
+  if (R.comboT > 0) R.combo++; else R.combo = 1;
+  R.comboT = 2.6; const mult = Math.min(3, 1 + (R.combo - 1) * .5), p = Math.round(pts * mult);
+  R.score += p; R.money += p / 50; R.tricks.push({ name, p });
+  R.pops.push({ text: name + (R.combo > 1 ? `  ×${R.combo}` : ""), pts: p, t: 1.7, y: 0 });
+  if (p > (S.bestTrickPts || 0)) { S.bestTrickPts = p; S.bestTrick = name; }
+  SFX.trick(Math.min(4, R.combo)); SFX.ding();
+}
+function wipeout(why) {
+  if (!R || R.wipe > 0) return;
+  R.wipe = 1.9; R.wipeWhy = why; R.wipeouts++; R.combo = 0; R.comboT = 0; R.air = false; R.grab = false; R.spin = R.spinT = 0; R.flip = R.flipT = 0; R.hangT = 0; R.barrelT = 0;
+  R.pops.push({ text: "WIPEOUT!", sub: why, pts: 0, t: 2.2, y: 0 }); SFX.splash();
+  for (let i = 0; i < 40; i++) R.spray.push({ u: R.u + rnd(-.3, .3), z: R.z + rnd(-.3, .3), y: waveY(segAt(R.z), R.u) + rnd(0, .3), vy: rnd(1.5, 5), vu: rnd(-1.5, 1.5), t: rnd(.5, 1.1) });
+}
+function launchAir() {
+  if (!R || R.air || R.wipe > 0 || R.airCd > 0) return;
+  const sg = segAt(R.z); if (R.u > -.7) { if (R.u > -.4) { toast("Ride up to the lip first, then swipe ↑ for an air!", 1500); return; } }
+  R.air = true; R.y = waveY(sg, R.u); R.vy = (3.6 + sg.h * .9) * board().air + R.v * .12; R.airT = 0; R.airPeak = R.y; R.grab = false; R.grabT = 0; R.airCd = .5; SFX.whoosh();
+  for (let i = 0; i < 16; i++) R.spray.push({ u: R.u + rnd(-.2, .2), z: R.z + rnd(-.2, .2), y: R.y, vy: rnd(1, 3), vu: rnd(-1, 1), t: rnd(.4, .8) });
+}
+function doSwipe(dir) {   // "up" | "down" | "left" | "right"
+  if (!R || R.wipe > 0 || R.done) return;
+  if (!R.air) { if (dir === "up") launchAir(); return; }
+  if (dir === "left") R.spinT -= 360; else if (dir === "right") R.spinT += 360; else if (dir === "down") R.flipT += 360; else R.flipT -= 360;
+  SFX.whoosh();
+}
+function updateRun(dt) {
+  if (!R || R.done) return;
+  const b = board(); R.t += dt;
+  if (R.mode === "contest" || R.mode === "free") { R.timeLeft -= dt; if (R.timeLeft <= 0 && R.wipe <= 0) { endWave("The wave closed out!"); return; } }
+  if (R.airCd > 0) R.airCd -= dt; if (R.snapCd > 0) R.snapCd -= dt;
+  if (R.comboT > 0) { R.comboT -= dt; if (R.comboT <= 0) R.combo = 0; }
+  for (let i = R.pops.length - 1; i >= 0; i--) { const p = R.pops[i]; p.t -= dt; p.y += dt * 40; if (p.t <= 0) R.pops.splice(i, 1); }
+  for (let i = R.spray.length - 1; i >= 0; i--) { const s = R.spray[i]; s.y += s.vy * dt; s.vy -= 9 * dt; s.u += s.vu * dt; s.t -= dt; if (s.t <= 0) R.spray.splice(i, 1); }
+  const sg = segAt(R.z);
+  // wiping out: tumble, then paddle back onto the wave
+  if (R.wipe > 0) {
+    R.wipe -= dt; R.v = Math.max(2, R.v - 6 * dt); R.z += R.v * dt; R.flip += 500 * dt; R.y = Math.max(-.3, R.y - dt * .8);
+    if (R.wipe <= 0) { if (R.mode === "contest") { endWave("Wipeout — wave over"); return; } R.u = .4; R.y = 0; R.v = 5; R.flip = 0; R.airCd = .6; toast("Back on the board! 🏄", 1200); }
+    return;
+  }
+  // steering: drag or arrows. Up the face is to the left.
+  const steer = clamp(input.steer, -1, 1); R.steerS += (steer - R.steerS) * Math.min(1, dt * 12);
+  const hanging = !R.air && input.hold && R.u > -.6;
+  if (!R.air) {
+    const turn = 2.3 * b.turn * (hanging ? .45 : 1);
+    const slide = (R.u < .3 ? .2 * (1 + sg.h * .2) : .1) * (sg.curl > .5 ? .35 : 1);   // gravity pulls you down the face (the barrel holds you up)
+    const prevU = R.u; R.u = clamp(R.u + R.steerS * turn * dt + slide * dt, -1.0, 1.9); R.du = (R.u - prevU) / Math.max(dt, .001);
+    const base = 6.2 * b.speed + sg.h * .6;
+    const pump = R.du > 0 && R.u < .6 ? 1.8 : R.du < -.1 ? -1.2 : 0;
+    R.v += ((base + pump) - R.v) * Math.min(1, dt * 1.6);
+    R.y = waveY(sg, R.u);
+    // over the falls
+    if (R.u <= -1.0 && R.steerS < -.2) { R.lipT = (R.lipT || 0) + dt; if (R.lipT > .5) { wipeout("Over the falls!"); return; } } else R.lipT = 0;
+    // the barrel
+    if (sg.curl > .55 && R.u <= -.4 && R.u >= -1) { R.barrelT += dt; if (R.barrelT >= .5) { R.barrelT -= .5; addTrick("Barrel!", TRICK_PTS.barrel); } if (!R.barrelBig && R.t - (R.barrelStart || R.t) > 2.4) { R.barrelBig = true; addTrick("DEEP BARREL!", TRICK_PTS.deep); } if (!R.barrelStart) R.barrelStart = R.t; }
+    else { R.barrelT = 0; R.barrelStart = 0; if (sg.curl < .3) R.barrelBig = false; }
+    // foam sections: ride over the top (floater) or stay low, or get eaten
+    if (sg.foam > .5) { if (R.u <= -.72) { R.floatT += dt; if (!R.floated && R.floatT > .35) { R.floated = true; addTrick("Floater!", TRICK_PTS.floater); } } else if (R.u < -.12) { wipeout("Caught by the whitewater!"); return; } }
+    else { R.floatT = 0; if (sg.foam < .2) R.floated = false; }
+    // cutback: high → low → back up, quickly
+    const C = R.cut; C.t += dt;
+    if (C.stage === 0 && R.u <= -.55) { C.stage = 1; C.t = 0; } else if (C.stage === 1 && R.u >= .55 && C.t < 1.3) { C.stage = 2; C.t = 0; } else if (C.stage === 2 && R.u <= -.15 && C.t < 1.3) { addTrick("Cutback!", TRICK_PTS.cutback); C.stage = 0; } else if (C.t > 1.4) C.stage = R.u <= -.55 ? 1 : 0;
+    // snap off the lip
+    if (R.u <= -.88 && R.steerS > .55 && R.snapCd <= 0 && sg.curl < .5) { addTrick("Lip Snap!", TRICK_PTS.snap); R.snapCd = 1.3; }
+    // hang ten: hold still on the nose
+    if (hanging) { R.hangT += dt; if (R.hangT >= 1) { R.hangT -= 1; addTrick("Hang Ten!", TRICK_PTS.hang * (b.hang || 1)); } } else R.hangT = 0;
+  } else {
+    // flying: spins and flips catch up to what you asked for
+    R.airT += dt; R.y += R.vy * dt; R.vy -= 8.5 * dt; R.airPeak = Math.max(R.airPeak, R.y); R.u = clamp(R.u + .16 * dt + R.steerS * .25 * dt, -1.0, 1.9); R.v += (6.2 * b.speed - R.v) * Math.min(1, dt);
+    const sp = 560 * dt, fl = 480 * dt;
+    if (Math.abs(R.spinT - R.spin) <= sp) R.spin = R.spinT; else R.spin += Math.sign(R.spinT - R.spin) * sp;
+    if (Math.abs(R.flipT - R.flip) <= fl) R.flip = R.flipT; else R.flip += Math.sign(R.flipT - R.flip) * fl;
+    if (input.hold && R.airT > .15) { R.grab = true; R.grabT += dt; } else R.grab = false;
+    const wy = waveY(sg, R.u);
+    if (R.vy < 0 && R.y <= wy + .02) {   // landing
+      const spinOff = Math.min(Math.abs(R.spin % 360), 360 - Math.abs(R.spin % 360)), flipOff = Math.min(Math.abs(R.flip % 360), 360 - Math.abs(R.flip % 360));
+      const tol = 48 * b.stable, clean = spinOff <= tol && flipOff <= tol && R.u > -.98;
+      R.air = false; R.y = wy; R.vy = 0;
+      if (!clean) { R.spin = R.spinT = 0; R.flip = R.flipT = 0; wipeout(R.u <= -.98 ? "Landed in the lip!" : spinOff > tol ? "Half a twirl… splash!" : "Landed upside down!"); return; }
+      const height = R.airPeak - waveY(sg, -.9);
+      addTrick(height > 1.3 ? "HUGE AIR!" : "Air!", TRICK_PTS.air + Math.round(Math.max(0, height) * 70));
+      const spins = Math.round(Math.abs(R.spinT) / 360), flips = Math.round(Math.abs(R.flipT) / 360);
+      if (spins) addTrick(spins === 1 ? "360 Twirl!" : spins === 2 ? "720 Twirl!!" : `${spins * 360} Twirl!!!`, TRICK_PTS.twirl * spins * (spins > 1 ? 1.2 : 1));
+      if (flips) addTrick((R.flipT > 0 ? "Backflip" : "Frontflip") + (flips > 1 ? ` ×${flips}` : "") + "!", (R.flipT > 0 ? TRICK_PTS.backflip : TRICK_PTS.frontflip) * flips);
+      if (R.grabT > .3) addTrick("Grab!", TRICK_PTS.grab + Math.round(R.grabT * 40));
+      R.spin = R.spinT = 0; R.flip = R.flipT = 0; R.grab = false; R.grabT = 0; SFX.land();
+      for (let i = 0; i < 14; i++) R.spray.push({ u: R.u + rnd(-.25, .25), z: R.z + rnd(-.2, .2), y: wy, vy: rnd(1, 3), vu: rnd(-1.2, 1.2), t: rnd(.3, .7) });
+    }
+  }
+  R.z += R.v * dt;
+  // the camera looks over your right shoulder
+  const s0 = segAt(R.z); R.camU += ((R.u * .5 + .55) - R.camU) * Math.min(1, dt * 3);
+  // animals
+  R.dolphinT -= dt; if (R.dolphinT <= 0) { R.dolphinT = rnd(6, 13); R.animals.push({ kind: "dolphin", z: R.z + rnd(14, 26), u: rnd(1.3, 2.4), t: 0, dur: 1.8, dir: Math.random() < .5 ? 1 : -1 }); if (Math.random() < .5) R.animals.push({ kind: "dolphin", z: R.z + rnd(14, 26), u: rnd(1.3, 2.4), t: -.4, dur: 1.8, dir: 1 }); SFX.dolphin(); }
+  R.turtleT -= dt; if (R.turtleT <= 0) { R.turtleT = rnd(7, 14); R.animals.push({ kind: Math.random() < .5 ? "turtle" : "fish", z: R.z + rnd(16, 30), u: rnd(-.7, 0), t: 0, dur: 30 }); }
+  R.spoutT -= dt; if (R.spoutT <= 0) { R.spoutT = rnd(9, 16); R.spout = 2.2; }
+  if (R.spout > 0) R.spout -= dt;
+  for (let i = R.animals.length - 1; i >= 0; i--) { const a = R.animals[i]; a.t += dt; if (a.kind === "turtle" || a.kind === "fish") a.z += (a.kind === "fish" ? 2.2 : .9) * dt; if ((a.kind === "dolphin" && a.t > a.dur) || a.z < R.z - 2) R.animals.splice(i, 1); }
+  for (const gl of R.gulls) { gl.x += gl.v * dt; gl.f += dt * 9; if (gl.x < -.1) gl.x = 1.1; if (gl.x > 1.1) gl.x = -.1; }
+  if (Math.random() < dt * .08) SFX.gull();
+}
+function endWave(why) {
+  if (!R || R.done) return; R.done = true; setOcean(.4); $("help").hidden = true;
+  S.runs++; S.money += Math.round(R.money); if (R.score > S.best) S.best = R.score; save();
+  if (R.mode === "contest") contestWaveDone(); else showResults(why);
+}
+
+/* ------------------------------ drawing the run ------------------------------ */
+function proj(u, y, z) { const dz = z - (R.z - CAM.back); if (dz < .05) return null; const k = focal() / dz; return { sx: W / 2 + (u - R.camU) * k, sy: horizonY() + (CAM.h - y) * k, k, dz }; }
+function skyAndSea() {
+  const hy = horizonY(), gr = g.createLinearGradient(0, 0, 0, hy); gr.addColorStop(0, "#3d7fd9"); gr.addColorStop(.55, "#8ec5f0"); gr.addColorStop(.85, "#ffc38a"); gr.addColorStop(1, "#ff9d9a"); g.fillStyle = gr; g.fillRect(0, 0, W, hy + 1);
+  const sunX = W * .74, sunY = hy - H * .05; const sg2 = g.createRadialGradient(sunX, sunY, 4, sunX, sunY, H * .22); sg2.addColorStop(0, "rgba(255,240,200,.95)"); sg2.addColorStop(.25, "rgba(255,200,120,.55)"); sg2.addColorStop(1, "rgba(255,200,120,0)"); g.fillStyle = sg2; g.fillRect(0, 0, W, hy); ell(g, sunX, sunY, H * .045, H * .045, "#fff2c8");
+  for (let i = 0; i < 7; i++) { const cx = ((hash(i, 11) + (R ? R.t * .004 : 0) * (1 + i * .2)) % 1.2 - .1) * W, cy = hy * (.2 + hash(i, 12) * .55), s = 30 + hash(i, 13) * 50; g.fillStyle = "rgba(255,255,255,.85)"; for (let j = 0; j < 4; j++) ell(g, cx + (j - 1.5) * s * .5, cy + Math.abs(j - 1.5) * s * .1, s * .45, s * .28 - Math.abs(j - 1.5) * s * .05, "rgba(255,255,255,.85)"); }
+  // a headland far away on the right, with palms
+  g.fillStyle = "#2f6b7a"; g.beginPath(); g.moveTo(W * .82, hy); g.quadraticCurveTo(W * .9, hy - H * .06, W * 1.02, hy - H * .02); g.lineTo(W, hy); g.closePath(); g.fill();
+  const sea = g.createLinearGradient(0, hy, 0, H); sea.addColorStop(0, "#5fc8e0"); sea.addColorStop(.3, "#1f93b4"); sea.addColorStop(1, "#0b5f7c"); g.fillStyle = sea; g.fillRect(0, hy, W, H - hy);
+  // the whale way out, spouting now and then
+  const wx = W * .62, wy = hy + 6; g.fillStyle = "#2a4a62"; g.beginPath(); g.ellipse(wx, wy, 26, 6, 0, Math.PI, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(wx + 22, wy); g.lineTo(wx + 34, wy - 9); g.lineTo(wx + 36, wy); g.closePath(); g.fill();
+  if (R && R.spout > 0) { const a = Math.min(1, R.spout, 2.2 - R.spout); g.fillStyle = `rgba(255,255,255,${a * .8})`; for (let i = 0; i < 5; i++) ell(g, wx - 10 + (i - 2) * 3, wy - 8 - i * 4 - a * 6, 3 + i * .8, 3 + i * .8, `rgba(255,255,255,${a * .7})`); }
+  // gulls
+  if (R) for (const gl of R.gulls) { const x = gl.x * W, y = gl.y * hy; g.strokeStyle = "#fff"; g.lineWidth = 2 * gl.s; g.beginPath(); const f = Math.sin(gl.f) * 4 * gl.s; g.moveTo(x - 8 * gl.s, y + f); g.quadraticCurveTo(x - 4 * gl.s, y - 4 * gl.s, x, y); g.quadraticCurveTo(x + 4 * gl.s, y - 4 * gl.s, x + 8 * gl.s, y + f); g.stroke(); }
+}
+function faceCol(t, dist, foam) { const deep = "#0d7e9d", light = "#6fe3ef", c = mix(deep, light, Math.pow(t, 1.3)); return foam > 0 ? mix(c, "#e6f8fb", foam * .8) : mix(c, "#9fdcea", clamp(dist / 40, 0, .5)); }
+function drawRun() {
+  skyAndSea();
+  const base = Math.floor((R.z - CAM.back) / SEG); ensureSegs(base + DRAW_N + 3);
+  // bend the wave: accumulate the curve outward from the camera
+  let xo = 0, dxo = 0; const P = [];
+  for (let n = 0; n <= DRAW_N; n++) { const sg = seg(base + n); const z = (base + n) * SEG; const pts = profile(sg).map(p => { const q = proj(p.u + xo, p.y, z); return q ? Object.assign(q, { kind: p.k, t: p.t }) : null; }); P.push({ sg, pts, xo, z }); xo += dxo; dxo += sg.curve; }
+  const myXo = P[Math.max(0, Math.floor(R.z / SEG) - base)] ? P[Math.max(0, Math.floor(R.z / SEG) - base)].xo : 0;
+  // far to near
+  for (let n = DRAW_N - 1; n >= 1; n--) {
+    const A = P[n], B = P[n + 1]; if (!A.pts[0] || !B.pts[0]) continue;
+    const dist = A.z - R.z;
+    const curl = A.sg.curl, foam = A.sg.foam, w = Math.max(curl, foam);
+    for (const [i0, i1] of QUADS) {
+      const a0 = A.pts[i0], a1 = A.pts[i1], b0 = B.pts[i0], b1 = B.pts[i1]; if (!a0 || !a1 || !b0 || !b1) continue;
+      const k = a1.kind; let col;
+      if (k === "flat") { const sh = .5 + .5 * Math.sin(A.z * .9 + i0 * .7 + R.t * 1.5); col = mix("#1b97b8", "#49c6dc", sh * .18 + clamp(dist / 50, 0, .5)); }
+      else if (k === "face") col = faceCol(a1.t, dist, foam * (a1.t > .6 ? 1 : .4));
+      else if (k === "lip") col = i1 === 11 ? mix(mix("#9fe4ee", "#ffffff", .6), "#ffffff", w) : i1 === 12 ? mix("#8fe6f0", "#f4fdff", w * .9) : mix("#5fd8ea", "#dff8fc", w * .8);
+      else col = mix("#1f93b4", "#49c6dc", .45);
+      g.fillStyle = col; g.beginPath(); g.moveTo(a0.sx, a0.sy); g.lineTo(a1.sx, a1.sy); g.lineTo(b1.sx, b1.sy); g.lineTo(b0.sx, b0.sy); g.closePath(); g.fill();
+      if (i1 === 10) { g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = clamp(a1.k * .012, 1, 6); g.beginPath(); g.moveTo(a1.sx, a1.sy); g.lineTo(b1.sx, b1.sy); g.stroke(); }
+      if (i1 === 13 && curl > .4) { g.strokeStyle = `rgba(255,255,255,${curl * .9})`; g.lineWidth = clamp(a1.k * .02, 1, 9); g.beginPath(); g.moveTo(a1.sx, a1.sy); g.lineTo(b1.sx, b1.sy); g.stroke(); }
+    }
+    // foam blobs tumbling down a broken section, and the barrel's spray
+    if (A.sg.foam > .3 && n % 2 === 0) { for (let j = 0; j < 3; j++) { const u = -1 + hash(n, j) * .9, q = proj(u + A.xo, waveY(A.sg, u) + .05 + hash(j, n) * .15, A.z); if (q) ell(g, q.sx + Math.sin(R.t * 3 + j) * 3, q.sy, q.k * .09 * A.sg.foam, q.k * .05 * A.sg.foam, "rgba(255,255,255,.85)"); } }
+    if (A.sg.curl > .6 && n % 3 === 0) { const q = proj(-.4 + A.xo, A.sg.h * .9, A.z); if (q) for (let j = 0; j < 3; j++) ell(g, q.sx + j * q.k * .04 + Math.sin(R.t * 5 + j + n) * 4, q.sy - j * 3, q.k * .03, q.k * .03, "rgba(255,255,255,.6)"); }
+    // sparkles on the face
+    if (n % 4 === 0 && hash(n, 77) > .5) { const u = -.6 + hash(n, 5) * .8, q = proj(u + A.xo, waveY(A.sg, u), A.z); if (q && Math.sin(R.t * 6 + n) > .4) ell(g, q.sx, q.sy, 2, 2, "rgba(255,255,255,.9)"); }
+    // sea creatures swimming inside the face
+    for (const an of R.animals) if ((an.kind === "turtle" || an.kind === "fish") && an.z >= A.z && an.z < B.z) { const q = proj(an.u + A.xo, waveY(A.sg, an.u) * .55, an.z); if (q) { g.save(); g.globalAlpha = .55; g.font = `${Math.max(8, q.k * .09)}px serif`; g.textAlign = "center"; g.fillText(an.kind === "turtle" ? "🐢" : "🐠", q.sx, q.sy); g.restore(); } }
+  }
+  // dolphins jumping in the flat water
+  for (const an of R.animals) if (an.kind === "dolphin" && an.t >= 0) { const p = an.t / an.dur, q = proj(an.u + myXo + (p - .5) * 1.6 * an.dir, Math.sin(p * Math.PI) * 1.1, an.z); if (q) { g.save(); g.translate(q.sx, q.sy); g.rotate((p - .5) * 1.4 * an.dir); g.scale(an.dir, 1); const s = q.k * .012; g.fillStyle = "#6b8fa8"; g.beginPath(); g.ellipse(0, 0, 22 * s, 7 * s, 0, 0, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(-18 * s, 0); g.lineTo(-30 * s, -8 * s); g.lineTo(-30 * s, 8 * s); g.closePath(); g.fill(); g.beginPath(); g.moveTo(0, -6 * s); g.lineTo(6 * s, -14 * s); g.lineTo(10 * s, -5 * s); g.closePath(); g.fill(); g.fillStyle = "#cfe3ee"; g.beginPath(); g.ellipse(2 * s, 3 * s, 16 * s, 3.5 * s, 0, 0, Math.PI * 2); g.fill(); ell(g, 14 * s, -2 * s, 1.6 * s, 1.6 * s, "#111"); g.restore(); if (p < .15 || p > .85) { const q2 = proj(an.u + myXo + (p - .5) * 1.6 * an.dir, 0, an.z); if (q2) ell(g, q2.sx, q2.sy, q2.k * .08, q2.k * .03, "rgba(255,255,255,.7)"); } } }
+  // the surfer
+  const sgS = segAt(R.z), q = proj(R.u + myXo, R.y, R.z);
+  if (q) {
+    const a = proj(R.u - .12 + myXo, waveY(sgS, R.u - .12), R.z), bq = proj(R.u + .12 + myXo, waveY(sgS, R.u + .12), R.z);
+    const tilt = a && bq ? Math.atan2(bq.sy - a.sy, bq.sx - a.sx) * 180 / Math.PI : 0; R.tilt += (tilt - R.tilt) * .3;
+    const sc = q.k * .0095, hanging = !R.air && input.hold && R.u > -.6;
+    if (R.wipe > 0) { drawBoard(g, q.sx + 30, q.sy - 10 - R.wipe * 20, sc * board().len, R.wipe * 400); drawSurfer(g, q.sx, q.sy + (1.9 - R.wipe) * 14, sc * .95, look(), { arms: "tumble", flip: R.flip, crouch: .4, face: 1 }); }
+    else drawSurfer(g, q.sx, q.sy, sc, look(), { board: !R.air || true, lean2: R.air ? R.flip * 0 + R.tilt * .3 : R.tilt, lean: R.air ? 0 : R.tilt * .25, crouch: R.air ? .55 : hanging ? 0 : .35 + Math.abs(R.steerS) * .3, face: -1, spin: R.spin, flip: R.flip, arms: R.air ? (R.grab ? "grab" : "up") : hanging ? "up" : "surf" });
+    // a little shadow/splash where the board meets the water
+    if (!R.air && R.wipe <= 0) { ell(g, q.sx - sc * 30, q.sy + 4, sc * 18, sc * 5, "rgba(255,255,255,.7)"); ell(g, q.sx + sc * 40, q.sy + 6, sc * 12 + Math.sin(R.t * 20) * 3, sc * 4, "rgba(255,255,255,.6)"); }
+  }
+  for (const s of R.spray) { const q2 = proj(s.u + myXo, s.y, s.z); if (q2) ell(g, q2.sx, q2.sy, q2.k * .012, q2.k * .012, `rgba(255,255,255,${clamp(s.t, 0, 1)})`); }
+  // trick pops
+  if (q) for (const p of R.pops) { const a = clamp(p.t, 0, 1), y = q.sy - 120 - p.y; g.save(); g.globalAlpha = a; g.textAlign = "center"; g.font = `900 ${p.text.startsWith("WIPE") ? 34 : 26}px 'Avenir Next','Trebuchet MS',Arial`; g.lineWidth = 6; g.strokeStyle = "rgba(10,40,70,.8)"; g.strokeText(p.text, W / 2, y); g.fillStyle = p.text.startsWith("WIPE") ? "#ff5fa2" : p.text.includes("DEEP") || p.text.includes("HUGE") ? "#ffd166" : "#fff"; g.fillText(p.text, W / 2, y); if (p.pts) { g.font = "900 18px 'Avenir Next','Trebuchet MS',Arial"; g.strokeText("+" + p.pts, W / 2, y + 24); g.fillStyle = "#ffd166"; g.fillText("+" + p.pts, W / 2, y + 24); } if (p.sub) { g.font = "800 15px 'Avenir Next','Trebuchet MS',Arial"; g.strokeText(p.sub, W / 2, y + 24); g.fillStyle = "#fff"; g.fillText(p.sub, W / 2, y + 24); } g.restore(); }
+  // combo meter
+  if (R.combo > 1 && R.comboT > 0) { const w = 120, x = W / 2 - w / 2, y = H - 80; rr(g, x, y, w, 10, 5, "rgba(10,40,70,.5)"); rr(g, x, y, w * (R.comboT / 2.6), 10, 5, "#ffd166"); g.font = "900 14px 'Avenir Next','Trebuchet MS',Arial"; g.textAlign = "center"; g.fillStyle = "#fff"; g.fillText(`COMBO ×${Math.min(3, 1 + (R.combo - 1) * .5).toFixed(1)}`, W / 2, y - 6); }
+}
+let hudTxt = "";
+function drawHud() {
+  if (!R) return;
+  const t = `<div style="display:flex;justify-content:space-between;padding:max(10px,var(--sat)) 12px 0;font:900 16px var(--font);color:#fff;text-shadow:0 2px 6px rgba(0,30,60,.6)">
+    <div><div style="font-size:26px">⭐ ${R.score}</div><div style="font-size:12px;opacity:.9">${R.mode === "contest" ? `Wave ${R.opts.wave} of ${R.opts.waves} · ${R.opts.tierName}` : "Free surf"} · 💵 $${S.money + Math.round(R.money)}</div></div>
+    <div style="text-align:right;margin-right:150px"><div style="font-size:22px">⏱ ${Math.max(0, Math.ceil(R.timeLeft))}</div><div style="font-size:12px;opacity:.9">${board().icon} ${board().name}</div></div></div>`;
+  if (t !== hudTxt) { hudTxt = t; $("hud").innerHTML = t; }
+}
+
+/* ------------------------------ the beach (home screen background) ------------------------------ */
+let animT = 0;
+function drawBeach() {
+  const hy = H * .46, gr = g.createLinearGradient(0, 0, 0, hy); gr.addColorStop(0, "#3d7fd9"); gr.addColorStop(.6, "#9fd3f5"); gr.addColorStop(1, "#ffd9a6"); g.fillStyle = gr; g.fillRect(0, 0, W, hy);
+  ell(g, W * .78, hy - H * .08, H * .05, H * .05, "#fff2c8");
+  for (let i = 0; i < 5; i++) { const cx = ((hash(i, 21) + animT * .006) % 1.2 - .1) * W, cy = hy * (.15 + hash(i, 22) * .5), s = 40 + hash(i, 23) * 40; for (let j = 0; j < 4; j++) ell(g, cx + (j - 1.5) * s * .5, cy + Math.abs(j - 1.5) * s * .1, s * .45, s * .26, "rgba(255,255,255,.9)"); }
+  const sea = g.createLinearGradient(0, hy, 0, H * .72); sea.addColorStop(0, "#5fc8e0"); sea.addColorStop(1, "#1f93b4"); g.fillStyle = sea; g.fillRect(0, hy, W, H * .72 - hy);
+  for (let i = 0; i < 6; i++) { const y = hy + (i + .5) * (H * .26) / 6, ph = animT * (1 + i * .15) + i; g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 1.5 + i * .4; g.beginPath(); for (let x = 0; x <= W; x += 16) { const yy = y + Math.sin(x / 60 + ph) * (2 + i); if (x) g.lineTo(x, yy); else g.moveTo(x, yy); } g.stroke(); }
+  g.fillStyle = "#eaf7fb"; g.beginPath(); g.moveTo(0, H * .7); for (let x = 0; x <= W; x += 20) g.lineTo(x, H * .7 + Math.sin(x / 90 + animT * 1.3) * 6); g.lineTo(W, H * .76); g.lineTo(0, H * .76); g.closePath(); g.fill();
+  const sand = g.createLinearGradient(0, H * .72, 0, H); sand.addColorStop(0, "#f7e3b5"); sand.addColorStop(1, "#e8c98a"); g.fillStyle = sand; g.fillRect(0, H * .72, W, H * .28);
+  for (let i = 0; i < 40; i++) ell(g, hash(i, 31) * W, H * .74 + hash(i, 32) * H * .25, 1.5, 1, "rgba(180,140,80,.4)");
+  // palms
+  for (const [px, s] of [[W * .08, 1.1], [W * .93, .9]]) { g.strokeStyle = "#8a5a32"; g.lineWidth = 10 * s; g.lineCap = "round"; g.beginPath(); g.moveTo(px, H * .78); g.quadraticCurveTo(px + 20 * s, H * .6, px + 10 * s, H * .42); g.stroke(); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + Math.sin(animT + i) * .08; g.fillStyle = i % 2 ? "#3f9e3a" : "#5cb85c"; g.beginPath(); g.ellipse(px + 10 * s + Math.cos(a) * 28 * s, H * .42 + Math.sin(a) * 14 * s, 34 * s, 9 * s, a, 0, Math.PI * 2); g.fill(); } }
+  // towels, an umbrella, the sign-up board and the surf shop hut
+  rr(g, W * .2, H * .86, 70, 36, 6, "#ff5fa2"); rr(g, W * .2 + 10, H * .86 + 8, 50, 6, 3, "#fff"); rr(g, W * .2 + 10, H * .86 + 22, 50, 6, 3, "#fff");
+  g.strokeStyle = "#fff"; g.lineWidth = 3; g.beginPath(); g.moveTo(W * .32, H * .9); g.lineTo(W * .32, H * .72); g.stroke(); g.fillStyle = "#ffd166"; g.beginPath(); g.ellipse(W * .32, H * .72, 46, 16, 0, Math.PI, Math.PI * 2); g.fill(); g.fillStyle = "#ff9f43"; g.beginPath(); g.ellipse(W * .32, H * .72, 46, 16, 0, Math.PI * 1.25, Math.PI * 1.5); g.lineTo(W * .32, H * .72); g.fill();
+  rr(g, W * .62, H * .66, 90, 60, 8, "#8a5a32"); rr(g, W * .62 + 5, H * .66 + 5, 80, 50, 6, "#fff8e8"); g.fillStyle = "#13395a"; g.font = "900 10px 'Avenir Next',Arial"; g.textAlign = "center"; g.fillText("CONTESTS", W * .62 + 45, H * .66 + 20); g.fillStyle = "#ff5fa2"; g.fillText("SIGN UP!", W * .62 + 45, H * .66 + 36); g.fillStyle = "#8a5a32"; g.fillRect(W * .62 + 40, H * .66 + 60, 10, 40);
+  g.fillStyle = "#ffb347"; g.fillRect(W * .78, H * .7, 110, 70); g.fillStyle = "#e8262c"; g.beginPath(); g.moveTo(W * .78 - 10, H * .7); g.lineTo(W * .78 + 55, H * .6); g.lineTo(W * .78 + 120, H * .7); g.closePath(); g.fill(); g.fillStyle = "#fff"; g.font = "900 12px 'Avenir Next',Arial"; g.fillText("SURF SHOP", W * .78 + 55, H * .7 + 24); for (let i = 0; i < 3; i++) { g.fillStyle = ["#7fd3e6", "#ffd166", "#8b5cf6"][i]; g.beginPath(); g.ellipse(W * .78 + 20 + i * 32, H * .7 + 50, 8, 22, 0, 0, Math.PI * 2); g.fill(); }
+  // you, on the sand with your board
+  if (S.hero) { const x = W * .45, y = H * .93; drawBoard(g, x - 60, y - 30, .9, -70); drawSurfer(g, x, y, 1.1, look(), { arms: "wave", face: 1, crouch: 0 }); }
+}
+
+/* ------------------------------ screens ------------------------------ */
+const MODAL = $("modal"), MCARD = $("modalCard"), ACTS = {};
+function modal(html, clear) { MCARD.innerHTML = html; MODAL.hidden = false; MODAL.classList.toggle("clear", !!clear); input.steer = 0; input.hold = false; input.down = false; MCARD.querySelectorAll("[data-cv]").forEach(el => { const L = el.dataset.cv === "me" ? look() : HEROES.find(h => h.id === el.dataset.cv) || (S.custom || defaultCustom()); const c = portrait(L, +el.dataset.size || 84, { ownSuit: el.dataset.own === "1" }); c.style.width = (+el.dataset.size || 84) + "px"; c.style.height = ((+el.dataset.size || 84) * 1.15) + "px"; el.innerHTML = ""; el.appendChild(c); }); }
+function closeModal() { MODAL.hidden = true; }
+MCARD.addEventListener("click", e => { const b = e.target.closest("[data-act]"); if (!b) return; audio(); SFX.tap(); const fn = ACTS[b.dataset.act]; if (fn) fn(b.dataset, b); });
+function showTitle() {
+  S.state = "title"; $("hud").hidden = true; $("pauseBtn").hidden = true; $("help").hidden = true; setOcean(.4);
+  modal(`<div style="text-align:center"><div style="font-size:48px">🏄‍♀️🌊</div><h1>Surfing Summer</h1><p>Pick any Magic Hero or make your own surfer, grab a board and a bathing suit, and ride huge curling waves: airs, backflips, twirls, barrels and more. Sign up for contests and win trophies!</p>
+    <div class="row" style="justify-content:center">${hasSave && S.hero ? `<button class="btn big" data-act="hub">🌊 Keep surfing</button><button class="btn alt" data-act="pick">🧑 Change surfer</button>` : `<button class="btn big sun" data-act="pick">🧑 Pick your surfer</button>`}</div>
+    <p style="color:#7a93a8;font-size:12px">by Jules 💜 · works with swipes on the iPad and arrow keys on the laptop</p></div>`);
+}
+ACTS.hub = () => showHub(); ACTS.pick = () => showPick(); ACTS.title = () => showTitle();
+function showPick() {
+  S.state = "pick";
+  modal(`<h2>🧑 Who's surfing today?</h2><p>Every Magic Hero can surf — or make your own surfer.</p>
+    <div class="grid">${HEROES.map(h => `<div class="tile ${S.hero === h.id ? "on" : ""}" data-act="choose" data-id="${h.id}"><div data-cv="${h.id}" data-own="1" data-size="84"></div><div class="nm">${h.name}</div></div>`).join("")}
+    <div class="tile ${S.hero === "custom" ? "on" : ""}" data-act="maker" style="background:linear-gradient(160deg,#ffe8f4,#e6f0ff)"><div data-cv="custom" data-size="84"></div><div class="nm">✨ Make your own</div></div></div>
+    <div class="row"><button class="btn alt" data-act="${S.hero ? "hub" : "title"}">‹ Back</button></div>`);
+}
+ACTS.choose = d => { S.hero = d.id; S.suit = S.suit || null; save(); SFX.yay(); showHub(); toast(`🏄 ${surferName()} is ready to surf!`, 2000); };
+let mk = null;
+function showMaker() {
+  S.state = "maker"; if (!mk) mk = Object.assign(defaultCustom(), S.custom || {});
+  const sw = (key, cols, idx) => cols.map(c => `<span class="sw ${(idx === undefined ? mk[key] : mk.hair[idx]) === c ? "on" : ""}" data-act="mk" data-k="${key}" data-i="${idx === undefined ? "" : idx}" data-v="${c}" style="background:${c}"></span>`).join("");
+  const chips = (key, opts) => `<div class="chips">${opts.map(o => `<button class="${mk[key] === o[0] ? "on" : ""}" data-act="mk" data-k="${key}" data-v="${o[0]}">${o[1]}</button>`).join("")}</div>`;
+  modal(`<div style="display:flex;gap:12px;align-items:flex-start"><div id="mkPrev" style="flex:none"></div><div style="flex:1;min-width:0">
+    <h2>✨ Make your surfer</h2><div class="lbl">Name</div><input class="txt" id="mkName" value="${esc(mk.name)}" maxlength="12" placeholder="Your name">
+    <div class="lbl">Skin</div>${sw("skin", SKINS)}<div class="lbl">Eyes</div>${sw("eye", EYES)}
+    <div class="lbl">Hair style</div>${chips("style", STYLES)}<div class="lbl">Hair — top</div>${sw("hair", HAIR_COLS, 0)}<div class="lbl">Hair — ends</div>${sw("hair", HAIR_COLS, 1)}
+    <div class="lbl">Extras</div>${chips("acc", ACCS)}<div class="row"><button class="btn ${mk.freckles ? "" : "alt"}" data-act="mk" data-k="freckles" data-v="toggle">✨ Freckles</button></div>
+    <div class="row" style="margin-top:14px"><button class="btn big sun" data-act="mkDone">🌊 Let's surf!</button><button class="btn alt" data-act="pick">‹ Back</button></div></div></div>`);
+  const c = portrait(mk, 110); c.style.width = "110px"; c.style.height = "126px"; $("mkPrev").appendChild(c);
+  $("mkName").addEventListener("input", e => { mk.name = e.target.value.slice(0, 12); });
+}
+ACTS.maker = () => showMaker();
+ACTS.mk = d => { const k = d.k; if (k === "freckles") mk.freckles = !mk.freckles; else if (d.i !== undefined && d.i !== "") { mk.hair = mk.hair.slice(); mk.hair[+d.i] = d.v; } else mk[k] = d.v; showMaker(); };
+ACTS.mkDone = () => { S.custom = Object.assign({}, mk, { id: "custom", name: mk.name || "Me" }); S.hero = "custom"; save(); SFX.yay(); showHub(); };
+function trophyText() { const t = S.trophies; const n = t.beginner + t.intermediate + t.advanced + t.pro; return n ? `🏆 ${n} troph${n === 1 ? "y" : "ies"}` : "no trophies yet"; }
+function showHub() {
+  S.state = "hub"; $("hud").hidden = true; $("pauseBtn").hidden = true; $("help").hidden = true; setOcean(.5);
+  const L = look();
+  modal(`<div style="text-align:center"><div data-cv="me" data-size="96" style="display:inline-block"></div><h2>${esc(L.name || "Me")} at Sunset Beach</h2>
+    <div><span class="stat">💵 $${S.money}</span><span class="stat">${trophyText()}</span><span class="stat">⭐ best ${S.best}</span></div>
+    <div><span class="stat">${board().icon} ${board().name}</span><span class="stat">${SUIT_STYLES.find(s => s.id === currentSuit().style).icon} ${PATTERNS.find(p => p.id === currentSuit().pattern).name} suit</span></div></div>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="btn big" data-act="free">🌊 Free surf</button><button class="btn big sun" data-act="contests">🏆 Contests</button></div>
+    <div class="row" style="justify-content:center"><button class="btn pink" data-act="shop">🛍 Surf shop</button><button class="btn alt" data-act="closet">👙 Closet</button><button class="btn alt" data-act="pick">🧑 Surfer</button><button class="btn alt" disabled title="Part two!">🚤 Boat trip (soon)</button></div>`, true);
+}
+ACTS.free = () => { if (S.state === "run") return; startRun("free", { time: 90 }); };
+/* --- the surf shop --- */
+let shopTab = "boards";
+function showShop(tab) {
+  S.state = "shop"; if (tab) shopTab = tab;
+  let body = "";
+  if (shopTab === "boards") body = `<div class="grid">${BOARDS.map(b => { const own = S.ownedBoards.includes(b.id), on = S.board === b.id; return `<div class="tile ${on ? "on" : own ? "own" : ""}" data-act="buyBoard" data-id="${b.id}"><div style="font-size:40px;line-height:70px"><span style="display:inline-block;width:14px;height:56px;border-radius:7px;background:${b.col};border:3px solid ${b.stripe};vertical-align:middle"></span> ${b.icon}</div><div class="nm">${b.name}</div><div class="pr">${on ? "✓ riding" : own ? "tap to ride" : "$" + b.price}</div><div class="sub">${b.blurb}</div></div>`; }).join("")}</div>`;
+  else if (shopTab === "suits") body = `<div class="grid">${SUIT_STYLES.map(s => { const own = S.ownedStyles.includes(s.id), on = currentSuit().style === s.id; return `<div class="tile ${on ? "on" : own ? "own" : ""}" data-act="buyStyle" data-id="${s.id}"><div style="font-size:40px;line-height:70px">${s.icon}</div><div class="nm">${s.name}</div><div class="pr">${on ? "✓ wearing" : own ? "tap to wear" : "$" + s.price}</div></div>`; }).join("")}</div>`;
+  else body = `<div class="grid">${PATTERNS.map(p => { const own = S.ownedPatterns.includes(p.id), on = currentSuit().pattern === p.id; return `<div class="tile ${on ? "on" : own ? "own" : ""}" data-act="buyPattern" data-id="${p.id}"><div style="font-size:40px;line-height:70px">${p.icon}</div><div class="nm">${p.name}</div><div class="pr">${on ? "✓ wearing" : own ? "tap to wear" : "$" + p.price}</div></div>`; }).join("")}</div>`;
+  modal(`<div style="display:flex;justify-content:space-between;align-items:center"><h2>🛍 Surf Shop</h2><span class="stat">💵 $${S.money}</span></div>
+    <div class="tabs"><button class="${shopTab === "boards" ? "on" : ""}" data-act="shopTab" data-t="boards">🏄 Boards</button><button class="${shopTab === "suits" ? "on" : ""}" data-act="shopTab" data-t="suits">👙 Suits</button><button class="${shopTab === "patterns" ? "on" : ""}" data-act="shopTab" data-t="patterns">🌈 Patterns</button></div>
+    ${body}<p style="font-size:12px;color:#7a93a8">Win money in contests and from tricks in free surf. Colors are free in the 👙 Closet.</p>
+    <div class="row"><button class="btn alt" data-act="hub">‹ Beach</button><button class="btn" data-act="closet">👙 Closet</button></div>`);
+}
+ACTS.shop = () => showShop(); ACTS.shopTab = d => showShop(d.t);
+function pay(n) { if (S.money < n) { SFX.nope(); toast(`You need $${n} — you have $${S.money}. Win a contest! 🏆`); return false; } S.money -= n; SFX.buy(); return true; }
+function mySuit() { if (!S.suit) S.suit = Object.assign({}, look().suit || { style: "onepiece", pattern: "solid", col: "#ff5fa2", col2: "#ffffff" }); return S.suit; }
+ACTS.buyBoard = d => { const b = BOARDS.find(x => x.id === d.id); if (!S.ownedBoards.includes(b.id)) { if (!pay(b.price)) return; S.ownedBoards.push(b.id); toast(`${b.icon} ${b.name} is yours!`); } S.board = b.id; save(); showShop(); };
+ACTS.buyStyle = d => { const s = SUIT_STYLES.find(x => x.id === d.id); if (!S.ownedStyles.includes(s.id)) { if (!pay(s.price)) return; S.ownedStyles.push(s.id); toast(`${s.icon} ${s.name} — so cute!`); } mySuit().style = s.id; save(); showShop(); };
+ACTS.buyPattern = d => { const p = PATTERNS.find(x => x.id === d.id); if (!S.ownedPatterns.includes(p.id)) { if (!pay(p.price)) return; S.ownedPatterns.push(p.id); toast(`${p.icon} ${p.name}!`); } mySuit().pattern = p.id; save(); showShop(); };
+/* --- the closet: mix colors, pick what to wear and ride --- */
+function showCloset() {
+  S.state = "closet"; const su = mySuit();
+  modal(`<div style="display:flex;gap:12px;align-items:flex-start"><div data-cv="me" data-size="110" style="flex:none"></div><div style="flex:1;min-width:0"><h2>👙 Closet</h2>
+    <div class="lbl">Suit</div><div class="chips">${SUIT_STYLES.filter(s => S.ownedStyles.includes(s.id)).map(s => `<button class="${su.style === s.id ? "on" : ""}" data-act="wear" data-k="style" data-v="${s.id}">${s.icon} ${s.name}</button>`).join("")}</div>
+    <div class="lbl">Pattern</div><div class="chips">${PATTERNS.filter(p => S.ownedPatterns.includes(p.id)).map(p => `<button class="${su.pattern === p.id ? "on" : ""}" data-act="wear" data-k="pattern" data-v="${p.id}">${p.icon} ${p.name}</button>`).join("")}</div>
+    <div class="lbl">Main color</div>${SUIT_COLS.map(c => `<span class="sw ${su.col === c ? "on" : ""}" data-act="wear" data-k="col" data-v="${c}" style="background:${c}"></span>`).join("")}
+    <div class="lbl">Second color</div>${SUIT_COLS.map(c => `<span class="sw ${su.col2 === c ? "on" : ""}" data-act="wear" data-k="col2" data-v="${c}" style="background:${c}"></span>`).join("")}
+    <div class="lbl">Board</div><div class="chips">${BOARDS.filter(b => S.ownedBoards.includes(b.id)).map(b => `<button class="${S.board === b.id ? "on" : ""}" data-act="ride" data-v="${b.id}">${b.icon} ${b.name}</button>`).join("")}</div>
+    <div class="row" style="margin-top:12px"><button class="btn" data-act="hub">✓ Done</button><button class="btn alt" data-act="shop">🛍 Shop</button></div></div></div>`);
+}
+ACTS.closet = () => showCloset(); ACTS.wear = d => { mySuit()[d.k] = d.v; save(); showCloset(); }; ACTS.ride = d => { S.board = d.v; save(); showCloset(); };
+/* --- contests --- */
+const TIERS = [
+  { id: "beginner", name: "Beginner Bash", icon: "🐣", fee: 0, waves: 2, time: 35, prizes: [60, 40, 20], par: 500, rivals: ["Icy", "Appy", "Squishy", "Cutie"] },
+  { id: "intermediate", name: "Sunset Shred", icon: "🌅", fee: 20, waves: 2, time: 40, prizes: [150, 90, 40], par: 1100, rivals: ["Misty", "Bamboo", "Nora", "Chun Mi"] },
+  { id: "advanced", name: "Big Wave Open", icon: "🌊", fee: 50, waves: 3, time: 40, prizes: [300, 180, 80], par: 2000, rivals: ["Sparkle", "Northern Light", "Rosalina", "Jules"] },
+  { id: "pro", name: "World Pro Finals", icon: "🏆", fee: 100, waves: 3, time: 45, prizes: [600, 350, 150], par: 3400, rivals: ["Sparkle", "Chun Mi", "Northern Light", "Misty"] },
+];
+let C = null;
+function showContests() {
+  S.state = "contests";
+  modal(`<h2>🏆 Contest sign-up board</h2><p>Judges score every wave. Win first place to take the trophy and unlock the next contest.</p>
+    ${TIERS.map((t, i) => { const locked = i > S.tier; return `<div class="place ${locked ? "" : "me"}" style="align-items:center"><div><div>${t.icon} ${t.name} ${locked ? "🔒" : ""}</div><div style="font-size:11px;color:#5b7a93;font-weight:600">${t.waves} waves · entry ${t.fee ? "$" + t.fee : "free"} · prizes $${t.prizes.join(" / $")} · won ${S.trophies[t.id]}×</div></div><button class="btn ${locked ? "alt" : "sun"}" data-act="enter" data-i="${i}" ${locked ? "disabled" : ""} style="padding:8px 12px">Enter</button></div>`; }).join("")}
+    <div class="row"><button class="btn alt" data-act="hub">‹ Beach</button></div>`);
+}
+ACTS.contests = () => showContests();
+ACTS.enter = d => { const t = TIERS[+d.i]; if (t.fee && !pay(t.fee)) return; C = { t, wave: 0, scores: [], judges: [] }; modal(`<div style="text-align:center"><div style="font-size:44px">${t.icon}</div><h2>${t.name}</h2><p>${t.waves} waves, ${t.time} seconds each. Do as many tricks as you can — barrels, airs and combos score big. A wipeout ends the wave!</p><p>Your rivals: ${t.rivals.map(r => `<b>${r}</b>`).join(", ")}</p><div class="row" style="justify-content:center"><button class="btn big sun" data-act="nextWave">🏄 Paddle out!</button></div></div>`); SFX.horn(); };
+ACTS.nextWave = () => { C.wave++; startRun("contest", { time: C.t.time, wave: C.wave, waves: C.t.waves, tierName: C.t.name }); };
+function judgeScores(score, par) { const base = clamp(score / par * 8.5, .5, 10); return [0, 1, 2].map(i => clamp(base + (hash(score + i, i) - .5) * .9, .5, 10).toFixed(1)); }
+function contestWaveDone() {
+  C.scores.push(R.score); const js = judgeScores(R.score, C.t.par); C.judges.push(js);
+  $("hud").hidden = true; $("pauseBtn").hidden = true; setOcean(.4);
+  if (C.wave < C.t.waves) { modal(`<div style="text-align:center"><h2>Wave ${C.wave} of ${C.t.waves}</h2><div class="judge"><b>${js[0]}</b><span>Judge Coral</span></div><div class="judge"><b>${js[1]}</b><span>Judge Finn</span></div><div class="judge"><b>${js[2]}</b><span>Judge Sandy</span></div><p>Wave score: <b>${R.score}</b>${R.wipeouts ? " (wipeout!)" : ""}</p><p>${R.score >= C.t.par * .7 ? "The crowd is going wild! 🎉" : "Try an air or a barrel on the next one!"}</p><div class="row" style="justify-content:center"><button class="btn big sun" data-act="nextWave">🌊 Next wave</button></div></div>`); SFX.cheer(); return; }
+  // final: total of your waves against the rivals
+  const total = C.scores.reduce((a, b) => a + b, 0), t = C.t;
+  const rivals = t.rivals.map((n, i) => ({ name: n, score: Math.round(t.par * t.waves * .55 * (.7 + hash(S.runs + i, i) * .75)) }));
+  const all = rivals.concat([{ name: surferName() + " (you)", score: total, me: true }]).sort((a, b) => b.score - a.score);
+  const place = all.findIndex(x => x.me), prize = t.prizes[place] || 0;
+  S.money += prize; if (place === 0) { S.trophies[t.id]++; const ti = TIERS.indexOf(t); if (ti >= S.tier && ti < TIERS.length - 1) S.tier = ti + 1; } save();
+  modal(`<div style="text-align:center"><div style="font-size:48px">${place === 0 ? "🏆" : place === 1 ? "🥈" : place === 2 ? "🥉" : "🌊"}</div><h2>${place === 0 ? "YOU WON " + t.name + "!" : place < 3 ? "Podium! " + ["", "2nd", "3rd"][place] + " place" : "Nice surfing — " + (place + 1) + "th place"}</h2>
+    ${all.map(x => `<div class="place ${x.me ? "me" : ""}"><span>${x.me ? "⭐ " : ""}${x.name}</span><span>${x.score}</span></div>`).join("")}
+    <p>${prize ? `Prize: <b>$${prize}</b>` : "No prize this time — keep practicing!"}${place === 0 && TIERS.indexOf(t) < TIERS.length - 1 ? `<br>🔓 You unlocked <b>${TIERS[TIERS.indexOf(t) + 1].name}</b>!` : ""}</p>
+    <div class="row" style="justify-content:center"><button class="btn big" data-act="contests">🏆 Contests</button><button class="btn alt" data-act="hub">🏖 Beach</button></div></div>`);
+  if (place === 0) SFX.yay(); SFX.cheer(); C = null;
+}
+function showResults(why) {
+  $("hud").hidden = true; $("pauseBtn").hidden = true;
+  const top = R.tricks.slice().sort((a, b) => b.p - a.p).slice(0, 5);
+  modal(`<div style="text-align:center"><div style="font-size:44px">🌊</div><h2>${why || "Wave's over!"}</h2><p>Score <b>${R.score}</b>${R.score >= S.best && R.score > 0 ? " — new best! ⭐" : ""} · earned <b>$${Math.round(R.money)}</b> · ${R.tricks.length} tricks · ${R.wipeouts} wipeout${R.wipeouts === 1 ? "" : "s"}</p>
+    ${top.length ? `<div style="text-align:left;display:inline-block">${top.map(t => `<div class="place"><span>${t.name}</span><span>+${t.p}</span></div>`).join("")}</div>` : "<p>Ride up to the lip and swipe ↑ for an air!</p>"}
+    <div class="row" style="justify-content:center"><button class="btn big" data-act="free">🏄 Surf again</button><button class="btn alt" data-act="hub">🏖 Beach</button></div></div>`);
+  SFX.cheer();
+}
+function showPause() { modal(`<div style="text-align:center"><h2>⏸ Paused</h2><p>${R.mode === "contest" ? "Quitting forfeits this contest." : "Quitting keeps the money you've earned so far."}</p><div class="row" style="justify-content:center"><button class="btn big" data-act="resume">▶ Keep surfing</button><button class="btn alt" data-act="quitRun">🏖 Back to the beach</button></div></div>`); }
+ACTS.resume = () => closeModal();
+ACTS.quitRun = () => { if (!R) return; R.done = true; S.money += Math.round(R.money); save(); C = null; R = null; showHub(); };
+$("pauseBtn").addEventListener("click", () => { audio(); if (S.state === "run" && R && !R.done) showPause(); });
+
+/* ------------------------------ input: swipes, drags, holds, keys ------------------------------ */
+cv.addEventListener("pointerdown", e => { audio(); if (S.state !== "run" || !R) return; input.down = true; input.x0 = e.clientX; input.y0 = e.clientY; input.t0 = performance.now(); input.moved = false; input.holdT = 0; input.steer = 0; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointermove", e => {
+  if (!input.down || !R) return; const dx = e.clientX - input.x0, dy = e.clientY - input.y0, dt = performance.now() - input.t0;
+  if (!input.moved && Math.hypot(dx, dy) > 10) input.moved = true;
+  if (R.air) { if (dt < 320 && Math.hypot(dx, dy) > 44) { doSwipe(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up")); input.x0 = e.clientX; input.y0 = e.clientY; input.t0 = performance.now(); } return; }
+  if (dy < -60 && dt < 320 && Math.abs(dx) < 50) { doSwipe("up"); input.x0 = e.clientX; input.y0 = e.clientY; input.t0 = performance.now(); return; }
+  input.steer = clamp(dx / 70, -1, 1);
+});
+const endPtr = () => { input.down = false; input.steer = 0; input.hold = false; };
+cv.addEventListener("pointerup", endPtr); cv.addEventListener("pointercancel", endPtr);
+const keys = {};
+window.addEventListener("keydown", e => {
+  audio(); const k = e.key.toLowerCase(); keys[k] = true;
+  if (S.state !== "run" || !R) return;
+  if (k === "escape") { if (MODAL.hidden) showPause(); else closeModal(); }
+  if (k === " " || k === "arrowup") { e.preventDefault(); if (R.air) doSwipe("up"); else launchAir(); }
+  if (k === "arrowdown") { e.preventDefault(); if (R.air) doSwipe("down"); }
+  if (k === "z" || k === "q") doSwipe("left"); if (k === "x" || k === "e") doSwipe("right");
+});
+window.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+function pollInput(dt) {
+  if (S.state !== "run" || !R) return;
+  if (keys["arrowleft"] || keys["a"]) input.steer = -1; else if (keys["arrowright"] || keys["d"]) input.steer = 1; else if (!input.down) input.steer = 0;
+  const keyHold = keys["shift"] || keys["g"] || keys["h"] || (keys["arrowdown"] && !R.air);
+  if (input.down && !input.moved) { input.holdT += dt; } else if (input.down) input.holdT = Math.abs(input.steer) < .15 ? input.holdT + dt : 0;
+  input.hold = keyHold || (input.down && input.holdT > .45);
+}
+
+/* ------------------------------ main loop ------------------------------ */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now; animT += dt;
+  if (ocean) { const want = ocean.level * .22; ocean.gain.gain.value += (want - ocean.gain.gain.value) * .05; ocean.lp.frequency.value = 500 + Math.sin(animT * .7) * 250 + (R && R.air ? 400 : 0); }
+  pollInput(dt);
+  if (S.state === "run" && R && MODAL.hidden) updateRun(dt);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (S.state === "run" && R) { drawRun(); drawHud(); } else drawBeach();
+  requestAnimationFrame(frame);
+}
+/* ------------------------------ games menu ------------------------------ */
+(function () { const b = $("gamesBtn"), m = $("gamesMenu"); b.addEventListener("click", e => { e.stopPropagation(); m.hidden = !m.hidden; }); document.addEventListener("pointerdown", e => { if (!m.hidden && !m.contains(e.target) && e.target !== b) m.hidden = true; }); })();
+showTitle();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

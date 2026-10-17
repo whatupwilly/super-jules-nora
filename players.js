@@ -25,7 +25,7 @@
      deleting a player can clean up after them. */
   var GAME_KEYS = [
     "julescity.v1", "julescity.v2", "zombieSave",
-    "fpBestDay", "fpExact", "tennisBallSpd", "tennisRunSpd", "magicPigeonsOff"
+    "fpBestDay", "fpExact", "tennisBallSpd", "tennisRunSpd", "magicPigeonsOff", "surfSave"
   ];
 
   var AVATARS = ["🦄","🐱","🐼","🦊","🐸","🐧","🐢","🦋","🐨","🐙","🌈","⭐️","🍉","🍀"];
