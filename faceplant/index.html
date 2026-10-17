@@ -1708,6 +1708,21 @@ const S = {
   banner: null, hint: null, fx: [], cards: [], serveFx: 0, recipeTip: null,
 };
 S.exact = false;   // 🌶 exact-build mode: the stacking order has to match the house build
+// Inside New City the restaurant is a building you walk into: the game runs in a frame and
+// pays the register into the city wallet. CITY is true only when the city opened us.
+const CITY = (() => { try { return new URLSearchParams(location.search).get("city") === "1" && window.parent !== window; } catch (e) { return false; } })();
+if (CITY) { const v = document.getElementById("verlink"); if (v) v.style.display = "none"; }
+S.cityPaid = 0;   // coins already handed to the city, so nothing gets paid twice
+function cityReport(reason) {
+  if (!CITY) return;
+  const due = S.coins - S.cityPaid; S.cityPaid = S.coins;
+  if (due > 0) try { parent.postMessage({ type: "faceplant", event: "coins", coins: due, reason, day: S.day, stars: S.stars }, "*"); } catch (e) {}
+}
+window.addEventListener("message", e => {
+  const d = e.data; if (!CITY || !d || d.type !== "city" || d.cmd !== "leave") return;
+  cityReport("shift");
+  try { parent.postMessage({ type: "faceplant", event: "leave" }, "*"); } catch (e) {}
+});
 try {
   S.best = parseFloat(localStorage.getItem(Arcade.key("fpBestDay"))) || 0;
   S.exact = localStorage.getItem(Arcade.key("fpExact")) === "1";
@@ -1791,6 +1806,7 @@ function endDay() {
   }
   S.state = "dayEnd";
   if (S.stars === 3) SFX.fanfare(); else SFX.star();
+  cityReport("day");
 }
 
 /* ------------------------------ actions ------------------------------ */
@@ -2612,7 +2628,7 @@ function drawDayEnd() {
   g.fillStyle = "#2a3a55";
   g.fillText(S.perfect + " of " + S.served + " burgers were PERFECT", W / 2, H * 0.47);
   g.fillStyle = "#8a4b2f";
-  g.fillText("register total: " + fmt$(S.coins), W / 2, H * 0.53);
+  g.fillText(CITY ? "paid into your city wallet! 💵" : "register total: " + fmt$(S.coins), W / 2, H * 0.53);
   // the shift-manager pug approves
   g.save(); g.translate(W / 2 - Math.min(W * 0.2, 130), H * 0.66); g.scale(3, 3);
   drawPug(g, 0, 0); g.restore();
@@ -2672,7 +2688,7 @@ cv.addEventListener("pointerdown", e => {
       }
     for (const c of S.cards)
       if (x >= c.sx && x <= c.sx + c.sw && y >= c.sy && y <= c.sy + c.sh) {
-        S.heroKey = c.key; S.coins = 0; SFX.select(); startDay(1); return;
+        S.heroKey = c.key; S.coins = 0; S.cityPaid = 0; SFX.select(); startDay(1); return;
       }
   } else if (S.state === "dayIntro") beginShift();
   else if (S.state === "dayEnd") {

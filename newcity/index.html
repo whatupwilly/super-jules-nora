@@ -151,6 +151,10 @@
   .postcard { border-radius:16px; padding:14px; text-align:center; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,.45); }
   .postcard h2 { color:#fff; font-size:28px; margin:0; }
   input.txt.fly { text-transform:none; width:100%; box-sizing:border-box; font-size:20px; padding:10px 12px; }
+  #fpOv { position:fixed; inset:0; z-index:48; background:#f5ede3; }
+  #fpOv[hidden] { display:none; }
+  #fpFrame { width:100%; height:100%; border:0; display:block; }
+  #fpLeave { position:absolute; left:10px; bottom:max(10px, var(--sab)); font:800 14px var(--font); color:#fff; background:rgba(40,50,70,.6); border:2px solid rgba(255,255,255,.6); border-radius:999px; padding:8px 14px; }
   #toast { position:fixed; left:50%; top:calc(var(--sat) + 52px); transform:translateX(-50%); z-index:60; background:rgba(30,20,60,.92); color:#fff;
     border-radius:16px; padding:10px 16px; font:700 14px var(--font); max-width:86vw; box-shadow:0 8px 24px rgba(0,0,0,.3); transition:opacity .3s; pointer-events:none; }
   #toast[hidden] { display:none; }
@@ -200,6 +204,9 @@
   <button data-emote="wave" title="Wave">👋</button><button data-emote="dance" title="Dance">💃</button><button data-emote="sit" title="Sit">🪑</button><button data-emote="laugh" title="Laugh">😂</button><button data-emote="heart" title="Heart">💖</button>
 </div>
 <div id="toast" hidden></div>
+
+<!-- Face Plant: the real burger game runs inside the restaurant -->
+<div id="fpOv" hidden><iframe id="fpFrame" title="Face Plant" allow="autoplay"></iframe><button id="fpLeave" type="button">🏙 Back to the city</button></div>
 
 <!-- generic activity card -->
 <div id="modal" class="ov" hidden><div class="card" id="modalCard"></div></div>
@@ -831,6 +838,7 @@ const BUILDINGS = [
   { id: "arcade",   name: "Neon Arcade",      icon: "🕹", x: 15, y: 44, w: 6, d: 4, h: 2.2, col: "#5390d9" },
   { id: "pizza",    name: "Pizza Planet",     icon: "🍕", x: 21, y: 44, w: 4, d: 4, h: 2,   col: "#f94144" },
   { id: "bank",     name: "City Bank",        icon: "🏦", x: 29, y: 44, w: 5, d: 4, h: 2.4, col: "#adb5bd" },
+  { id: "faceplant",name: "Face Plant Restaurant", icon: "🍟", x: 35, y: 44, w: 4, d: 4, h: 2.2, col: "#e8262c" },
   { id: "waterpark",name: "Splash Waterpark", icon: "🏊", x: 43, y: 43, w: 4, d: 4, h: 1.8, col: "#48cae4" },
   { id: "fair",     name: "Fun Fair",         icon: "🎡", x: 58, y: 44, w: 4, d: 3, h: 1.6, col: "#ff5c8a" },
   { id: "shack",    name: "Surf Shack",       icon: "🏄", x: 4,  y: 58, w: 4, d: 3, h: 1.5, col: "#ffd166" },
@@ -1302,7 +1310,7 @@ function drawBuilding(b) {
   const dx = b.door.x - .5 - b.x;
   patch(b.x, b.y, 0, W2, D2, 1, dx - .08, 0, 1.16, 1.3, "#fff"); patch(b.x, b.y, 0, W2, D2, 1, dx, 0, 1, 1.2, "#8fd6f0"); patch(b.x, b.y, 0, W2, D2, 1, dx + .48, 0, .04, 1.2, "#fff"); patch(b.x, b.y, 0, W2, D2, 1, dx + .38, .5, .08, .08, "#444"); patch(b.x, b.y, 0, W2, D2, 1, dx + .56, .5, .08, .08, "#444");
   // striped awning + flat roof with a parapet
-  const aw = b.id === "salon" ? ["#ff70a6", "#fff"] : b.id === "pizza" ? ["#e63946", "#fff"] : b.id === "cafe" ? ["#8ecae6", "#fff"] : b.id === "icecream" ? ["#ffb5e8", "#fff"] : [shade(b.col, .8), "#fff"];
+  const aw = b.id === "salon" ? ["#ff70a6", "#fff"] : b.id === "pizza" ? ["#e63946", "#fff"] : b.id === "cafe" ? ["#8ecae6", "#fff"] : b.id === "icecream" ? ["#ffb5e8", "#fff"] : b.id === "faceplant" ? ["#e8262c", "#f5ede3"] : [shade(b.col, .8), "#fff"];
   for (let i = 0; i < W2 * 2; i++) cube(b.x + i * .5, b.y + D2 - .05, 1.35, .5, .55, .08, aw[i % 2], { top: aw[i % 2] });
   cube(b.x - .1, b.y - .1, b.h, W2 + .2, D2 + .2, .16, shade(b.col, .75));
   cube(b.x - .1, b.y - .1, b.h + .16, .12, D2 + .2, .2, shade(b.col, .7)); cube(b.x - .1, b.y - .1, b.h + .16, W2 + .2, .12, .2, shade(b.col, .7));
@@ -1314,6 +1322,7 @@ function drawBuilding(b) {
   if (b.id === "bank") { for (let i = 0; i < 4; i++) cube(b.x + .6 + i * (W2 - 1.2) / 3 - .12, b.y + D2 + .05, 0, .24, .24, b.h, "#e8e8f0"); cube(b.x, b.y + D2, b.h, W2, .5, .12, "#e8e8f0"); }
   if (b.id === "arcade") for (let i = 0; i < 6; i++) patch(b.x, b.y, 0, W2, D2, 1, .3 + i * .9, b.h - .5, .5, .15, ["#ff70a6", "#4cc9f0", "#ffd166"][Math.floor(animT * 3 + i) % 3]);
   if (b.id === "petshop") { cube(b.x + W2 + .3, b.y + D2 - 1.5, 0, .8, .8, .5, "#c8944a"); }
+  if (b.id === "faceplant") { cube(b.x + .3, b.y + D2 - .1, b.h - .6, W2 - .6, .35, .55, "#f5ede3"); faceText(b.x + .3, b.y + D2 - .1, b.h - .6, W2 - .6, .35, 1, .28, "FACE PLANT", "#e8262c", 10); cube(b.x + W2 / 2 - .4, b.y + D2 / 2 - .4, b.h + .16, .8, .8, .45, "#e8262c"); cube(b.x + W2 / 2 - .3, b.y + D2 / 2 - .3, b.h + .61, .6, .6, .2, "#f5ede3"); }
   if (b.id === "mall") { for (let i = 0; i < 5; i++) patch(b.x, b.y, 0, W2, D2, 1, .5 + i * 1.9, b.h - .6, .16, .16, Math.sin(animT * 6 + i) > 0 ? "#fff" : "#ffd166"); }
   if (b.id === "autos") { cube(b.x - .2, b.y - .2, b.h + .16, .1, .1, 2, "#888"); cube(b.x - .35, b.y - .35, b.h + 2, .4, .4, .4, "#ffd166"); }
   if (b.id === "waterpark") { blob(b.x + W2 + .5, b.y + D2 - .5, .6, 10, "#48cae4"); }
@@ -1644,7 +1653,7 @@ function enterPlace(b) {
   SFX.door(); checkQuest(b);
   if (P.drive) { toast("🅿️ Park the car first!"); return; }
   if (b.house) { if (S.house === b.id) enterHouse(b); else offerHouse(b); return; }
-  const open = { cinema: openCinema, theater: openTheater, school: openSchool, mall: openMall, cafe: openCafe, petshop: openPetShop, salon: openSalon, arcade: openArcade, pizza: openPizza, bank: openBank, icecream: openIceCream, diner: openDiner, hospital: openHospital, rink: openRink, autos: openAutos, ranch: openRanch, waterpark: openWaterpark, fair: openFair, shack: openShack, airport: openAirport };
+  const open = { cinema: openCinema, theater: openTheater, school: openSchool, mall: openMall, cafe: openCafe, petshop: openPetShop, salon: openSalon, arcade: openArcade, pizza: openPizza, bank: openBank, icecream: openIceCream, diner: openDiner, hospital: openHospital, rink: openRink, autos: openAutos, ranch: openRanch, waterpark: openWaterpark, fair: openFair, shack: openShack, airport: openAirport, faceplant: openFacePlant };
   if (open[b.id]) open[b.id]();
 }
 const head = (b, extra) => `<h2>${b.icon} ${b.name}</h2>${extra || ""}`;
@@ -3026,6 +3035,22 @@ function talkTo(n) {
   openPhone(); openChat(n.id); if (!chats[n.id].pending) { chats[n.id].typing = true; renderChat(); setTimeout(() => { chats[n.id].typing = false; startTopic(n.id); }, 700); }
 }
 
+/* ------------------------------ Face Plant Restaurant ------------------------------ */
+// Walk in and the restaurant IS the Face Plant game (Dad's burger kitchen), running in a
+// frame over the city. Every dollar the register rings up gets paid into your wallet.
+function openFacePlant() {
+  closeModal(); const ov = $("fpOv"); ov.hidden = false; $("stack").hidden = true; joy.id = null; joy.dx = joy.dy = 0;
+  $("fpFrame").src = "../faceplant/?city=1"; S.stats.faceplant = (S.stats.faceplant || 0) + 1;
+  toast("🍟 Welcome to Face Plant! Work a shift — every dollar you make goes in your wallet.", 3500);
+}
+function closeFacePlant() { if ($("fpOv").hidden) return; $("fpFrame").src = "about:blank"; $("fpOv").hidden = true; if (S.state === "play") $("stack").hidden = false; SFX.door(); save(); }
+$("fpLeave").addEventListener("click", () => { audio(); try { $("fpFrame").contentWindow.postMessage({ type: "city", cmd: "leave" }, "*"); } catch (e) {} setTimeout(closeFacePlant, 500); });
+window.addEventListener("message", e => {
+  const d = e.data; if (!d || d.type !== "faceplant") return;
+  if (d.event === "coins") { const n = Math.round(d.coins); if (n > 0) earn(n, d.reason === "day" ? `— Day ${d.day} at Face Plant 🍟${d.stars === 3 ? " ⭐⭐⭐" : ""}` : "from your Face Plant shift 🍟"); }
+  if (d.event === "leave") closeFacePlant();
+});
+
 /* ------------------------------ your family (Nora's idea) ------------------------------ */
 // Pick a mom, dad, brother, sister, grandma and/or grandpa. They dress themselves (you can
 // help), wander the house and the city on their own, chat when you walk up, and every so
@@ -3336,7 +3361,7 @@ document.addEventListener("pointerdown", e => { if (!gMenu.hidden && !gMenu.cont
 
 /* ------------------------------ main loop ------------------------------ */
 let last = performance.now(), nextMsg = 45, nextCall = 150;
-function paused() { return !MODAL.hidden || !$("phone").hidden || edOpen; }
+function paused() { return !MODAL.hidden || !$("phone").hidden || edOpen || !$("fpOv").hidden; }
 function update(dt) {
   animT += dt;
   if (S.state !== "play") return;
