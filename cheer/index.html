@@ -35,9 +35,18 @@
   .hcard { flex:1 1 140px; border:0; border-radius:18px; padding:14px 10px; background:#f1ecff; color:#2b2350; font:800 15px var(--font); box-shadow:0 4px 0 #d6cbf5; }
   .hcard span { display:block; font-size:44px; }
   .hcard small { display:block; font-weight:600; font-size:12px; margin-top:4px; color:#5d5488; }
+  input { -webkit-user-select:text; user-select:text; font:700 16px var(--font); padding:10px 12px; border-radius:12px; border:2px solid #d6cbf5; width:150px; }
+  .card h3 { margin:12px 0 2px; font-size:13px; color:#5b3fa8; text-transform:uppercase; letter-spacing:.06em; }
+  .sw { width:38px; height:38px; border-radius:50%; border:3px solid #fff; box-shadow:0 0 0 2px #d6cbf5; padding:0; }
+  .sw.on { box-shadow:0 0 0 4px #d63a3a; }
+  .bub { margin:6px 0; padding:9px 13px; border-radius:16px; background:#f1ecff; text-align:left; max-width:80%; width:fit-content; font-size:15px; }
+  .bub.me { background:#1f9d55; color:#fff; margin-left:auto; }
+  #map { position:relative; width:min(100%, 380px); aspect-ratio:1; margin:8px auto; background:linear-gradient(#eef3ff,#f9f4ff); border-radius:18px; overflow:hidden; border:3px solid #d6cbf5; }
+  #map button { position:absolute; transform:translate(-50%,-50%); border:0; background:#fff; border-radius:12px; padding:4px 6px; font-size:19px; box-shadow:0 2px 6px rgba(0,0,0,.2); }
+  #map i { position:absolute; transform:translate(-50%,-100%); font-style:normal; font-size:24px; pointer-events:none; z-index:2; }
   #hud { position:fixed; left:10px; top:max(10px, var(--sat)); z-index:20; display:flex; gap:6px; flex-wrap:wrap; max-width:60vw; }
   #hud .pill, #hud button { background:rgba(40,30,80,.6); color:#fff; border:2px solid rgba(255,255,255,.5); border-radius:999px; padding:7px 12px; font:800 14px var(--font); }
-  #timer { position:fixed; left:50%; top:max(10px, var(--sat)); transform:translateX(-50%); z-index:20; background:rgba(214,58,58,.92); color:#fff; border-radius:18px; padding:8px 18px; font:800 18px var(--font); text-align:center; white-space:nowrap; }
+  #timer { position:fixed; left:50%; top:calc(var(--sat) + 96px); transform:translateX(-50%); z-index:20; background:rgba(214,58,58,.92); color:#fff; border-radius:18px; padding:8px 18px; font:800 18px var(--font); text-align:center; white-space:nowrap; }
   #act { position:fixed; left:50%; bottom:max(22px, calc(var(--sab) + 10px)); transform:translateX(-50%); z-index:25; border:0; border-radius:18px; padding:14px 22px;
     font:800 18px var(--font); background:#fff; color:#c0392b; box-shadow:0 6px 0 #d8c8c8, 0 10px 30px rgba(0,0,0,.3); max-width:86vw; }
   #act:active { transform:translateX(-50%) translateY(4px); box-shadow:0 2px 0 #d8c8c8; }
@@ -52,7 +61,7 @@
   #pop { position:fixed; left:50%; top:30%; transform:translate(-50%,-50%); z-index:30; color:#fff; font:800 44px var(--font); text-shadow:0 4px 0 #c0392b, 0 8px 24px rgba(0,0,0,.5); pointer-events:none; text-align:center; white-space:nowrap; }
   #pop.show { animation:pop .9s ease-out forwards; }
   @keyframes pop { 0% { opacity:0; transform:translate(-50%,-30%) scale(.6); } 20% { opacity:1; transform:translate(-50%,-50%) scale(1.1); } 70% { opacity:1; } 100% { opacity:0; transform:translate(-50%,-90%) scale(1); } }
-  #toast { position:fixed; left:50%; top:calc(var(--sat) + 58px); transform:translateX(-50%); z-index:60; background:rgba(40,30,80,.92); color:#fff;
+  #toast { position:fixed; left:50%; top:calc(var(--sat) + 100px); transform:translateX(-50%); z-index:60; background:rgba(40,30,80,.92); color:#fff;
     border-radius:16px; padding:10px 16px; font:700 15px var(--font); max-width:86vw; box-shadow:0 8px 24px rgba(0,0,0,.3); transition:opacity .3s; pointer-events:none; text-align:center; }
   #joyB { position:fixed; z-index:22; width:110px; height:110px; margin:-55px 0 0 -55px; border-radius:50%; background:rgba(255,255,255,.18); border:2px solid rgba(255,255,255,.5); pointer-events:none; }
   #joyK { position:fixed; z-index:23; width:52px; height:52px; margin:-26px 0 0 -26px; border-radius:50%; background:rgba(255,255,255,.75); pointer-events:none; }
@@ -103,8 +112,9 @@
 /* CHRISTMAS CHEER — Jules & Nora's snowy 3D village. Part one: pick your character, a cozy
    cabin, a village dressed for Christmas, the ice rink, and the skating contest with judges
    where winning lets you pick a fabulous house (ice castle, fancy mansion or dream house).
-   Still to come (their design): pets, stores, phone, Nora's magic winter garden, friends,
-   presents, sledding, skiing and jobs. */
+   Part two: pets you can ride and dress up, six stores, a phone (map, call, text, order),
+   Nora's magic winter garden, and a ski hill with a slalom contest.
+   Still to come (their design): friends and their houses, presents, sledding and jobs. */
 if (!window.THREE) document.body.insertAdjacentHTML("beforeend", '<div class="ov"><div class="card"><h2>Oops!</h2><p>The 3D part could not load. Check the internet and try again.</p></div></div>');
 
 const $ = id => document.getElementById(id);
@@ -121,6 +131,7 @@ const SAVE_KEY = Arcade.key("cheerSave");
 const S = { hero: null, money: 100, wins: 0, houses: [], best: 0, music: true };
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
 (function load() { try { const d = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); if (d) Object.assign(S, d); } catch (e) {} })();
+S.custom = S.custom || {}; S.pets = S.pets || {}; S.garden = S.garden || [null, null, null, null, null, null, null, null, null]; S.treats = S.treats || 0; S.skiWins = S.skiWins || 0;
 
 /* ------------------------------ sound ------------------------------ */
 let AC = null;
@@ -259,8 +270,8 @@ const lookOf = id => LOOKS.find(l => l.id === id) || LOOKS[0];
 
 function makePerson(L) {
   const g = new THREE.Group(), rig = new THREE.Group(); g.add(rig); g.scale.setScalar(L.scale || 1);
-  const P = { g, rig, L, ph: Math.random() * 6, blades: [], pose: { lL: 0, lR: 0, aL: 0, aR: 0, az: .18, tilt: 0, y: 0 }, spin: 0 };
-  const leg = s => { const p = new THREE.Group(); p.position.set(s * .11, .62, 0); rig.add(p); cyl(.075, .07, .5, L.pants, 0, -.25, 0, p); box(.15, .14, .27, L.boots, 0, -.55, .035, p); const b = box(.03, .06, .32, "#dfe6ee", 0, -.64, .035, p); b.visible = false; P.blades.push(b); return p; };
+  const P = { g, rig, L, ph: Math.random() * 6, blades: [], boots: [], skis: [], pose: { lL: 0, lR: 0, aL: 0, aR: 0, az: .18, tilt: 0, y: 0, roll: 0 }, spin: 0 };
+  const leg = s => { const p = new THREE.Group(); p.position.set(s * .11, .62, 0); rig.add(p); cyl(.075, .07, .5, L.pants, 0, -.25, 0, p); P.boots.push(box(.15, .14, .27, L.boots, 0, -.55, .035, p)); const b = box(.03, .06, .32, "#dfe6ee", 0, -.64, .035, p); b.visible = false; P.blades.push(b); const sk = box(.1, .035, 1.55, "#ff5fa2", 0, -.635, .22, p); sk.visible = false; P.skis.push(sk); return p; };
   P.legL = leg(-1); P.legR = leg(1);
   cyl(.19, .27, .56, L.coat, 0, .9, 0, rig); flat(tor(.265, .045, "#ffffff", 0, .63, 0, rig));
   for (let i = 0; i < 3; i++) sph(.022, "#ffffff", 0, .78 + i * .12, .245 - i * .017, rig);
@@ -296,14 +307,14 @@ function makePerson(L) {
   return P;
 }
 function applyPose(P, tg, dt, spin) {
-  const k = 1 - Math.exp(-dt * 13), p = P.pose; for (const key in tg) p[key] += (tg[key] - p[key]) * k;
+  const k = 1 - Math.exp(-dt * 13), p = P.pose; for (const key in tg) p[key] += (tg[key] - p[key]) * k; if (!("roll" in tg)) p.roll -= p.roll * k;
   P.legL.rotation.x = p.lL; P.legR.rotation.x = p.lR; P.armL.rotation.x = p.aL; P.armR.rotation.x = p.aR; P.armL.rotation.z = -p.az; P.armR.rotation.z = p.az;
-  P.rig.rotation.x = p.tilt; P.rig.position.y = p.y; P.rig.rotation.y = spin || 0;
+  P.rig.rotation.x = p.tilt; P.rig.position.y = p.y; P.rig.rotation.y = spin || 0; P.rig.rotation.z = p.roll;
 }
 function poseIdle(P, t) { return { lL: 0, lR: 0, aL: 0, aR: 0, az: .18 + Math.sin(t * 2 + P.ph) * .03, tilt: 0, y: 0 }; }
 function poseWalk(P, dt, spd) { P.ph += dt * (4 + spd * 7); const a = Math.sin(P.ph) * .7 * spd; return { lL: a, lR: -a, aL: -a * .8, aR: a * .8, az: .18, tilt: .06 * spd, y: Math.abs(Math.sin(P.ph)) * .04 * spd }; }
 function poseSkate(P, dt, spd) { P.ph += dt * (1.6 + spd * 3.2); const a = Math.sin(P.ph); return { lL: a * .4 * (.3 + spd), lR: -a * .4 * (.3 + spd), aL: -a * .3, aR: a * .3, az: .75, tilt: .06 + .2 * spd, y: .05 }; }
-function setBlades(P, on) { P.blades.forEach(b => b.visible = on); }
+function setBlades(P, on) { P.blades.forEach(b => b.visible = on); if (P === pl && S.skates) P.boots.forEach(b => b.material = mat(on ? S.skates : P.L.boots)); }
 
 /* ------------------------------ the village ------------------------------ */
 const RINK = { cx: 27, cz: 4, a: 13, b: 9, gate: true };
@@ -315,12 +326,13 @@ const HOUSES = [
 const STORES = [["👗 Clothes", "#f6c8d8", "#b0476a"], ["⛸ Ice Skates", "#cfe4ff", "#3d6fb3"], ["☕ Hot Chocolate", "#f3d9b8", "#8a4b2a"], ["🧁 Bakery", "#fff0c9", "#c9772e"], ["🐾 Animal Shop", "#d6f2d2", "#3e8f56"], ["💇 Hair Salon", "#e6d6ff", "#7a4fc8"]];
 let judges = [], judgeCards = [], treeLight, fireLight, fireMesh, snow;
 
-function pine(x, z, s) {
-  addInst("trunk", new THREE.CylinderGeometry(.22, .3, 1, 6), mat("#6b4a35"), mtx(x, .6 * s, z, s, 1.2 * s, s), true);
-  for (let i = 0; i < 3; i++) { const r = (1.55 - i * .42) * s, h = 1.7 * s, y = (1.1 + i * 1.0) * s;
+function pine(x, z, s, y0) {
+  y0 = y0 || 0; addInst("trunk", trunkGeo, mat("#6b4a35"), mtx(x, y0 + .6 * s, z, s, 1.2 * s, s), true);
+  for (let i = 0; i < 3; i++) { const r = (1.55 - i * .42) * s, h = 1.7 * s, y = y0 + (1.1 + i * 1.0) * s;
     addInst("pine", pineGeo, mat("#2f7d55"), mtx(x, y + h / 2, z, r, h, r, i), true);
     addInst("pineSnow", pineGeo, mat("#ffffff"), mtx(x, y + h * .72, z, r * .62, h * .6, r * .62, i), false); }
 }
+const trunkGeo = new THREE.CylinderGeometry(.22, .3, 1, 6);
 const pineGeo = new THREE.ConeGeometry(1, 1, 8);
 function path(x0, z0, x1, z1, w) { const len = Math.hypot(x1 - x0, z1 - z0), m = M(new THREE.BoxGeometry(w, .03, len), "#e3e7f6", (x0 + x1) / 2, .012, (z0 + z1) / 2, scene, true); m.receiveShadow = true; m.rotation.y = Math.atan2(x1 - x0, z1 - z0); }
 function lamp(x, z) { cyl(.07, .1, 3.2, "#2c2c3a", x, 1.6, z); M(new THREE.SphereGeometry(.26, 12, 10), glow(0xffe9a8), x, 3.35, z, scene, true); box(.5, .08, .5, "#2c2c3a", x, 3.62, z); solidCircle(x, z, .2); tor(.2, .06, "#2f8f4e", x, 2.4, z + .1); }
@@ -354,16 +366,16 @@ function buildWorld() {
   for (let i = 0; i < 5; i++) box(.08, .12, 7.04, "#6e452b", -24 + 4.01, .5 + i * .6, -10);
   hot(cabin.userData.door.x, cabin.userData.door.z, 1.9, "🚪 Go into my cozy cabin", () => enter(rooms.cabin));
 
-  // the stores (they open in part two)
+  // the stores
   STORES.forEach((s, i) => { const x = -30 + i * 12, b = building({ x, z: -33, w: 9, d: 7, h: 3.6, wall: s[1], roof: s[2], door: s[2], sign: s[0], signFg: s[2] });
     box(9.6, .12, 1.4, i % 2 ? "#e23b3b" : "#ffffff", x, 2.75, -33 + 4.1).rotation.x = .25;
-    hot(b.userData.door.x, b.userData.door.z, 1.9, s[0], () => i === 2 ? cocoa() : toast("🎄 The " + s[0].slice(s[0].indexOf(" ") + 1) + " store is getting ready to open. Coming soon!")); });
+    hot(b.userData.door.x, b.userData.door.z, 1.9, s[0], () => SHOPS[i]()); });
 
   // lamp posts, snowmen, benches, trees
   [[-3.2, 9], [3.2, 9], [-3.2, 20], [3.2, 20], [-3.2, -10], [3.2, -10], [-3.2, -21], [3.2, -21], [-12, -6], [9, 7], [-18, 28.5], [18, 28.5], [-21, -24.5], [21, -24.5]].forEach(p => lamp(p[0], p[1]));
   snowman(-7, 8, .6); snowman(8.5, -8, -.7); snowman(-15, 24, .3);
   [[-6, -5, .8], [6, 6, -2.4]].forEach(b => { const g = new THREE.Group(); g.position.set(b[0], 0, b[1]); g.rotation.y = b[2]; scene.add(g); box(2, .12, .6, "#8a5a3a", 0, .5, 0, g); box(2, .5, .1, "#8a5a3a", 0, .85, -.28, g); for (const s of [-1, 1]) box(.12, .5, .6, "#2c2c3a", s * .85, .25, 0, g); box(2.05, .06, .62, "#fff", 0, .58, 0, g); solidCircle(b[0], b[1], .9); });
-  const keep = [[0, 0, 8], [-24, -10, 9], [27, 4, 17], [0, -33, 40], [-28, 37, 12], [0, 39, 13], [28, 37, 12], [0, 15, 6], [0, -15, 6], [12, 8, 4]];
+  const keep = [[0, 0, 8], [-24, -10, 9], [27, 4, 17], [0, -33, 40], [-28, 37, 12], [0, 39, 13], [28, 37, 12], [0, 15, 6], [0, -15, 6], [12, 8, 4], [43, -19, 10], [-25, 4, 8]];
   let placed = 0;
   for (let i = 0; i < 900 && placed < 190; i++) { const a = srand() * Math.PI * 2, r = 14 + srand() * 100, x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (keep.some(k => (k[3] ? Math.abs(x - k[0]) < k[2] && Math.abs(z - k[1]) < 8 : Math.hypot(x - k[0], z - k[1]) < k[2]))) continue;
@@ -371,7 +383,7 @@ function buildWorld() {
     if (r < 50 && srand() < .72) continue;
     pine(x, z, .9 + srand() * 1.1); if (r < 62) solidCircle(x, z, .55); placed++; }
 
-  buildRink(); buildPrizeHouses(); buildRooms();
+  buildRink(); buildPrizeHouses(); buildRooms(); buildGarden(); buildSki();
 
   // falling snow
   const N = 1400, pg = new THREE.BufferGeometry(), pa = new Float32Array(N * 3); for (let i = 0; i < N; i++) { pa[i * 3] = rnd(-35, 35); pa[i * 3 + 1] = rnd(0, 26); pa[i * 3 + 2] = rnd(-35, 35); }
@@ -481,6 +493,8 @@ function buildRooms() {
   bed(R, 5.6, -2.6, "#8a5a3a", "#c0392b"); R.B(3.6, .03, 2.4, "#f6c8d8", 3.4, .02, .4); R.B(.7, .7, .7, "#8a5a3a", 4.3, .35, -3.9); M(new THREE.SphereGeometry(.2, 10, 8), glow(0xffe9a8), 504.3, 1, -3.9, scene, true);
   R.hot(4.9, -1.4, 1.6, "😴 Take a cozy nap", () => { toast("😴 Zzz... You had the best nap ever."); SFX.yay(); });
   smallTree(500 - 1.4, -3.9);
+  R.B(1.3, .2, 1, "#9b6cff", 1.4, .1, 2.4); R.B(1.05, .12, .75, "#ffffff", 1.4, .24, 2.4);
+  R.hot(1.4, 2.4, 1.2, "🐾 Tuck my pet into bed", () => toast(!pet ? "You don't have a pet yet. Visit the Animal Shop!" : PETS[pet.id].big ? petName() + " is too big for this bed! It sleeps outside under a warm blanket. 💤" : petName() + " curled up in the cozy bed. 💤"));
   // --- ice castle ---
   R = makeRoom({ id: "castle", cx: 600, w: 18, d: 12, floor: "#9fcdea", wall: "#6fa9d8", trim: "#e8f7ff", out: { x: HOUSES[0].x, z: HOUSES[0].z - 6, h: Math.PI } });
   R.B(4, .3, 3, "#e8f7ff", 0, .15, -4.4); R.B(1.6, 1, 1.3, "#7fb8e6", 0, .8, -4.8); R.B(1.6, 2.6, .3, "#7fb8e6", 0, 1.6, -5.4); for (const s of [-1, 1]) cone(.3, .9, "#e8f7ff", 600 + s * .9, 3.3, -5.4, scene, 8); R.solid(0, -4.8, 1.8, 1.6);
@@ -538,22 +552,22 @@ let pl = null, zone = null, mode = "title", camYaw = 0, camPitch = .3, lastDrag 
 const TRICKS = [{ id: "spin", name: "Spin", pts: 60 }, { id: "jump", name: "Jump", pts: 70 }, { id: "twirl", name: "Twirl", pts: 65 }, { id: "spiral", name: "Spiral", pts: 75 }, { id: "axel", name: "Double Axel", pts: 100 }];
 
 function spawnPlayer() {
-  const L = lookOf(S.hero); const P = makePerson(L); scene.add(P.g);
-  pl = Object.assign(P, { x: 0, z: 11, vx: 0, vz: 0, head: P.head, hdg: Math.PI, ice: null, fall: 0 }); camYaw = 0;
+  const L = curLook(); const P = makePerson(L); scene.add(P.g);
+  pl = Object.assign(P, { x: 0, z: 11, vx: 0, vz: 0, head: P.head, hdg: Math.PI, ice: null, fall: 0, y: 0 }); camYaw = 0;
   // the other skaters: three heroes you didn't pick
   rivals.forEach(r => scene.remove(r.g)); rivals = LOOKS.filter(l => l.id !== L.id && l.id !== "jules" && l.id !== "nora").sort((a, b) => (a.id + L.id > b.id + L.id ? 1 : -1)).slice(0, 3).map((l, i) => { const r = makePerson(l); scene.add(r.g); setBlades(r, true); r.ang = i * 2.1; r.spd = .32 + i * .07; r.k = .5 + i * .14; return r; });
-  refreshHouseSigns(); hud();
+  refreshHouseSigns(); hud(); spawnPet(false);
 }
-function hud() { $("hud").innerHTML = '<span class="pill">🎄 ' + esc(pl ? pl.L.name : "") + '</span><span class="pill">💰 $' + S.money + '</span><span class="pill">🏆 ' + S.wins + '</span><button type="button" data-act="music">' + (S.music ? "🔊" : "🔇") + '</button><button type="button" data-act="who">👤</button>'; }
+function hud() { $("hud").innerHTML = '<span class="pill">🎄 ' + esc(pl ? pl.L.name : "") + '</span><span class="pill">💰 $' + S.money + '</span><span class="pill">🏆 ' + S.wins + '</span>' + (S.skiWins ? '<span class="pill">🎿 ' + S.skiWins + '</span>' : "") + '<button type="button" data-act="phone">📱 Phone</button><button type="button" data-act="music">' + (S.music ? "🔊" : "🔇") + '</button><button type="button" data-act="who">👤</button>'; }
 function earn(n) { S.money += n; hud(); save(); }
 
 function enter(R) { SFX.door(); snap = true; zone = R; pl.x = R.cx; pl.z = R.d / 2 - 2.2; pl.vx = pl.vz = 0; pl.hdg = Math.PI; scene.fog.near = 900; scene.fog.far = 1000; sky.visible = false; snow.visible = false; scene.background = new THREE.Color(0x2a2036); hemi.intensity = .82; }
-function leave(R) { SFX.door(); snap = true; zone = null; pl.x = R.out.x; pl.z = R.out.z; pl.vx = pl.vz = 0; pl.hdg = R.out.h; camYaw = R.out.h + Math.PI; pl.ice = null; setBlades(pl, false); scene.fog.near = 50; scene.fog.far = 260; sky.visible = true; snow.visible = true; scene.background = null; hemi.intensity = .78; }
+function leave(R) { SFX.door(); snap = true; zone = null; pl.x = R.out.x; pl.z = R.out.z; pl.vx = pl.vz = 0; pl.hdg = R.out.h; camYaw = R.out.h; pl.ice = null; setBlades(pl, false); outdoorLook(); }
 
 /* ------------------------------ input ------------------------------ */
 const keys = {}; let joy = null, look = null;
 window.addEventListener("keydown", e => { if (e.target && e.target.tagName === "INPUT") return; keys[e.code] = true; if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
-  if (e.repeat || !$("modal").hidden) return; audio(); if (e.code === "Space") { if (pl && pl.ice) trickPress(); else doAction(); } if (e.code === "KeyE" || e.code === "Enter") doAction(); });
+  if (e.repeat || !$("modal").hidden) return; audio(); if (e.code === "Space") { if (pl && pl.ice) trickPress(); else doAction(); } if (e.code === "KeyE" || e.code === "Enter") doAction(); if (e.code === "KeyP") ACTS.phone(); });
 window.addEventListener("keyup", e => { keys[e.code] = false; });
 cv.addEventListener("pointerdown", e => { audio(); if (S.music && !songT) playSong(); if (e.pointerType !== "mouse" && e.clientX < window.innerWidth * .45 && !joy) { joy = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: 0, y: 0 }; $("joyB").hidden = $("joyK").hidden = false; $("joyB").style.left = $("joyK").style.left = e.clientX + "px"; $("joyB").style.top = $("joyK").style.top = e.clientY + "px"; }
   else if (!look) look = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { cv.setPointerCapture(e.pointerId); } catch (err) {} });
@@ -571,7 +585,7 @@ document.addEventListener("click", e => { const a = e.target.closest && e.target
 /* ------------------------------ menus ------------------------------ */
 function openModal(html, low) { $("modalCard").innerHTML = html; $("modal").hidden = false; $("modal").classList.toggle("low", !!low); }
 function closeModal() { $("modal").hidden = true; }
-function showTitle() { mode = "title"; openModal('<h1>🎄 Christmas Cheer</h1><p><b>by Jules &amp; Nora</b></p><p>A snowy village, a cozy cabin, and a big ice skating contest.</p><div class="row">' + (S.hero ? '<button class="btn" data-act="go">▶ Keep playing as ' + esc(lookOf(S.hero).name) + '</button><button class="btn alt" data-act="pick">Pick a character</button>' : '<button class="btn" data-act="pick">▶ Play</button>') + '</div>', true); }
+function showTitle() { mode = "title"; openModal('<h1>🎄 Christmas Cheer</h1><p><b>by Jules &amp; Nora</b></p><p>A snowy village with pets, stores, a magic garden, ice skating and skiing.</p><div class="row">' + (S.hero ? '<button class="btn" data-act="go">▶ Keep playing as ' + esc(lookOf(S.hero).name) + '</button><button class="btn alt" data-act="pick">Pick a character</button>' : '<button class="btn" data-act="pick">▶ Play</button>') + '</div>', true); }
 function showPick() { mode = "pick"; pickI = Math.max(0, LOOKS.findIndex(l => l.id === S.hero)); drawPick(); }
 function drawPick() { const L = LOOKS[pickI]; if (preview) scene.remove(preview.g); preview = makePerson(L); preview.g.position.set(0, 0, 9); scene.add(preview.g);
   openModal('<h2>Who do you want to be?</h2><div class="chips">' + LOOKS.map((l, i) => '<button class="chip' + (i === pickI ? " on" : "") + '" data-act="chip" data-arg="' + i + '">' + esc(l.name) + '</button>').join("") + '</div><div class="row"><button class="btn" data-act="go">▶ Play as ' + esc(L.name) + '</button></div>', true);
@@ -629,27 +643,261 @@ function showResults() {
 function pickHouse(id) { const h = HOUSES.find(x => x.id === id); S.houses.push(id); save(); refreshHouseSigns(); afterContest(); toast("🎉 The " + h.name + " is yours! Walk down the path past the big tree to find it.", 5200); }
 function afterContest() { closeModal(); judgeCards.forEach(c => c.visible = false); cine = null; C = null; mode = "play"; camYaw = 0; snap = true; }
 
+/* ====================== PART TWO: looks, pets, stores, phone, garden, ski hill ====================== */
+let pet = null, riding = false, curShop = null;
+function custom() { return S.custom[S.hero] || (S.custom[S.hero] = {}); }
+function curLook() { const L = Object.assign({}, lookOf(S.hero), custom()); if (L.hairCol) L.hair = [L.hairCol, L.hairCol]; return L; }
+function outdoorLook() { scene.fog.near = 50; scene.fog.far = 260; sky.visible = true; snow.visible = true; scene.background = null; hemi.intensity = .78; }
+function rebuildPlayer() { const o = pl, P = makePerson(curLook()); scene.add(P.g); scene.remove(o.g); pl = Object.assign(P, { x: o.x, z: o.z, y: o.y || 0, vx: 0, vz: 0, hdg: o.hdg, ice: o.ice, fall: 0 }); pl.g.position.set(pl.x, pl.y, pl.z); pl.g.rotation.y = pl.hdg; setBlades(pl, !!pl.ice); hud(); }
+function setSkis(P, on) { P.skis.forEach(s => s.visible = on); }
+function reshop() { const st = $("modalCard").scrollTop; if (curShop) curShop(); $("modalCard").scrollTop = st; }
+
+/* ------------------------------ pets ------------------------------ */
+const PETS = {
+  dog: { name: "Biscuit", e: "🐶", spd: 6.5, acc: [["scarf", "🧣 Scarf"], ["sweater", "🧥 Sweater"]] },
+  cat: { name: "Mittens", e: "🐱", spd: 6, acc: [["scarf", "🧣 Scarf"], ["bow", "🎀 Bow"]] },
+  horse: { name: "Snowflake", e: "🐴", spd: 9.5, big: true, ride: "🏇 Ride", acc: [["saddle", "Pretty saddle"], ["scarf", "Pretty scarf"], ["harness", "Pretty harness"]] },
+  dragon: { name: "Rainbow", e: "🐉", spd: 12, big: true, ride: "🐉 Fly", acc: [["jacket", "Rainbow jacket"], ["scarf", "Rainbow scarf"]] },
+};
+const RB = ["#ff5e6c", "#ffb03e", "#ffe14d", "#5ecb6a", "#4aa6f0", "#9b6cff"];
+const RIDE_POSE = { lL: -1.15, lR: -1.15, aL: -.5, aR: -.5, az: .25, tilt: 0, y: 0 };
+function makePet(id, acc) {
+  const g = new THREE.Group(), Mo = { g, legs: [], wings: [], seat: 0, tail: null }; acc = acc || {};
+  const leg = (x, y, z, r, h, col, hoof) => { const p = new THREE.Group(); p.position.set(x, y, z); g.add(p); cyl(r, r * .85, h, col, 0, -h / 2, 0, p, 8); if (hoof) cyl(r * .95, r * 1.05, h * .14, hoof, 0, -h * .93, 0, p, 8); Mo.legs.push(p); };
+  if (id === "dog" || id === "cat") {
+    const dog = id === "dog", c = dog ? "#e0a85a" : "#9aa0ad", c2 = dog ? "#b97a34" : "#6f7582";
+    sph(.27, c, 0, .43, 0, g).scale.set(1, 1, 1.7); sph(.21, c, 0, .7, .45, g); sph(.1, dog ? "#f3d7ad" : "#ffffff", 0, .65, .63, g).scale.z = 1.2; sph(.035, "#222222", 0, .68, .745, g);
+    for (const sx of [-1, 1]) { sph(.03, "#222222", sx * .085, .76, .63, g); if (dog) sph(.09, c2, sx * .19, .72, .42, g).scale.set(.5, 1.3, .9); else cone(.07, .16, c2, sx * .11, .92, .43, g, 6); leg(sx * .14, .3, .28, .055, .3, c); leg(sx * .14, .3, -.28, .055, .3, c); }
+    const t = new THREE.Group(); t.position.set(0, .52, -.42); g.add(t); cyl(.03, .05, dog ? .36 : .56, c2, 0, dog ? .15 : .25, -.05, t, 8).rotation.x = -.45; Mo.tail = t;
+    if (acc.scarf) { tor(.2, .055, "#e23b3b", 0, .55, .33, g).rotation.x = 1.0; box(.09, .2, .04, "#e23b3b", .08, .42, .52, g); }
+    if (acc.sweater) { cyl(.285, .285, .55, "#2f8f4e", 0, .43, -.02, g).rotation.x = Math.PI / 2; cyl(.29, .29, .1, "#ffffff", 0, .43, -.02, g).rotation.x = Math.PI / 2; }
+    if (acc.bow) { for (const sx of [-1, 1]) sph(.07, "#ff5fa2", sx * .07, .52, .6, g).scale.set(1, .8, .5); sph(.035, "#ffffff", 0, .52, .63, g); }
+    g.scale.setScalar(dog ? 1.05 : .85);
+  } else if (id === "horse") {
+    const W = "#ffffff", MN = "#e6d8ff";
+    cyl(.42, .42, 1.3, W, 0, 1.3, 0, g).rotation.x = Math.PI / 2; sph(.44, W, 0, 1.3, .62, g); sph(.45, W, 0, 1.3, -.62, g);
+    cyl(.2, .28, .9, W, 0, 1.8, .88, g).rotation.x = .55;
+    sph(.24, W, 0, 2.22, 1.2, g).scale.set(.85, .9, 1.5); sph(.16, "#f6e3ea", 0, 2.13, 1.5, g);
+    for (const sx of [-1, 1]) { sph(.04, "#222222", sx * .17, 2.29, 1.27, g); cone(.06, .18, W, sx * .1, 2.5, 1.05, g, 6); for (const sz of [-1, 1]) leg(sx * .24, .95, sz * .55, .085, .95, W, "#8a8f9c"); }
+    for (let i = 0; i < 6; i++) sph(.13, MN, 0, 2.4 - i * .14, 1.0 - i * .1, g); sph(.1, MN, 0, 2.44, 1.24, g);
+    const t = new THREE.Group(); t.position.set(0, 1.5, -1.05); g.add(t); cyl(.06, .15, .95, MN, 0, -.42, -.12, t, 8).rotation.x = -.25; Mo.tail = t;
+    if (acc.saddle) { box(.66, .08, .8, "#c9b3ff", 0, 1.74, 0, g); box(.5, .14, .6, "#ff8fb8", 0, 1.84, 0, g); box(.5, .2, .1, "#ff5fa2", 0, 1.96, -.3, g); tor(.44, .035, "#ff5fa2", 0, 1.3, 0, g); for (const sx of [-1, 1]) sph(.05, "#ffd23e", sx * .33, 1.74, .3, g); }
+    if (acc.scarf) { tor(.31, .075, "#ff5fa2", 0, 1.58, .74, g).rotation.x = .55 - Math.PI / 2; box(.14, .4, .06, "#ff5fa2", .2, 1.36, .98, g); }
+    if (acc.harness) { tor(.175, .022, "#ffd23e", 0, 2.13, 1.42, g); tor(.25, .02, "#ffd23e", 0, 2.24, 1.14, g); for (const sx of [-1, 1]) { box(.025, .025, .34, "#ffd23e", sx * .2, 2.19, 1.28, g); box(.02, .02, 1.1, "#ffd23e", sx * .17, 2.0, .7, g).rotation.x = .33; } sph(.05, "#ff5fa2", 0, 2.4, 1.3, g); }
+    Mo.seat = acc.saddle ? 1.92 : 1.72;
+  } else {
+    const zs = [.9, .45, 0, -.45, -.9, -1.3, -1.65], rs = [.42, .5, .5, .44, .34, .24, .16];
+    zs.forEach((z, i) => { sph(rs[i], RB[i % 6], 0, 1.0 + (i > 3 ? (i - 3) * .07 : 0), z, g); if (i < 6) cone(.08, .22, "#ffe14d", 0, 1.03 + rs[i] + (i > 3 ? (i - 3) * .07 : 0), z, g, 6); });
+    sph(.3, RB[0], 0, 1.42, 1.2, g); sph(.37, "#ff7a9c", 0, 1.86, 1.45, g); sph(.21, "#ffc2d1", 0, 1.76, 1.78, g).scale.z = 1.2;
+    for (const sx of [-1, 1]) { sph(.1, "#ffffff", sx * .2, 1.99, 1.68, g); sph(.055, "#222222", sx * .21, 1.99, 1.765, g); sph(.025, "#7a2b4a", sx * .07, 1.8, 2.02, g); cone(.07, .3, "#ffd23e", sx * .16, 2.27, 1.35, g, 8); sph(.07, "#ff9db0", sx * .3, 1.82, 1.6, g).scale.set(.4, .7, 1);
+      leg(sx * .3, .62, .6, .1, .62, RB[1]); leg(sx * .3, .62, -.5, .1, .62, RB[3]);
+      const p = new THREE.Group(); p.position.set(sx * .35, 1.45, .1); p.scale.x = sx; g.add(p); const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(1.6, .6); sh.lineTo(1.3, -.2); sh.lineTo(.85, -.05); sh.lineTo(.5, -.5); sh.lineTo(0, -.4); sh.lineTo(0, 0);
+      const w = M(new THREE.ShapeGeometry(sh), new THREE.MeshLambertMaterial({ color: sx < 0 ? 0xc69bff : 0x8ef0c8, side: THREE.DoubleSide }), 0, 0, 0, p); w.rotation.x = -Math.PI / 2; cyl(.035, .035, 1.7, "#ffd23e", .8, 0, -.3, p, 6).rotation.set(Math.PI / 2, 0, -1.21); Mo.wings.push(p); }
+    cone(.16, .36, RB[5], 0, 1.22, -1.95, g, 8).rotation.x = -Math.PI / 2;
+    if (acc.jacket) for (let i = 0; i < 6; i++) cyl(.535, .535, .11, RB[i], 0, 1.0, .5 - i * .11, g, 18).rotation.x = Math.PI / 2;
+    if (acc.scarf) { for (let i = 0; i < 3; i++) flat(tor(.3 + i * .015, .055, RB[i * 2], 0, 1.52 + i * .08, 1.23 + i * .04, g)); box(.16, .5, .06, RB[4], .22, 1.3, 1.45, g); }
+    Mo.seat = 1.52; g.scale.setScalar(1.2);
+  }
+  Mo.seat *= g.scale.x; return Mo;
+}
+function spawnPet(arrive, keep) {
+  const o = pet; if (pet) scene.remove(pet.M.g); pet = null; riding = false; if (!S.pet || !pl) return;
+  const M = makePet(S.pet, S.pets[S.pet].acc), a = Math.random() * 6.28, r = arrive ? 16 : 2.5; let x = pl.x + Math.cos(a) * r, z = pl.z + Math.sin(a) * r;
+  if (zone && !zone.ski && PETS[S.pet].big) { x = zone.out.x; z = zone.out.z; } if (zone && zone.ski) { x = 37; z = -17; }
+  pet = { id: S.pet, M, x, z, y: 0, hdg: 0, ph: 0 }; if (keep && o) Object.assign(pet, { x: o.x, z: o.z, hdg: o.hdg, y: o.y }); scene.add(M.g); M.g.position.set(pet.x, pet.y, pet.z);
+}
+function updatePet(dt) {
+  if (!pet) return; const D = PETS[pet.id], M = pet.M; let mv = 0;
+  if (riding) { pet.x = pl.x; pet.z = pl.z; pet.y = pl.y; pet.hdg = pl.hdg; mv = clamp(Math.hypot(pl.vx, pl.vz) / D.spd, 0, 1); }
+  else {
+    const room = zone && !zone.ski;
+    if (room && !D.big && Math.abs(pet.x - pl.x) > 60) { pet.x = pl.x + 1.4; pet.z = pl.z + .8; }
+    if (!zone && Math.hypot(pet.x - pl.x, pet.z - pl.z) > 34) { pet.x = pl.x - Math.sin(pl.hdg) * 3; pet.z = pl.z - Math.cos(pl.hdg) * 3; }
+    const dx = pl.x - pet.x, dz = pl.z - pet.z, d = Math.hypot(dx, dz), keep = D.big ? 3.2 : 2.2;
+    if (d > keep && d < 60 && !(pl.ice && !zone)) { const sp = Math.min(D.spd * 1.15, (d - keep) * 3 + 1.2); pet.x += dx / d * sp * dt; pet.z += dz / d * sp * dt; pet.hdg += wrap(Math.atan2(dx, dz) - pet.hdg) * (1 - Math.exp(-dt * 9)); mv = clamp(sp / 5, 0, 1); if (pet.id !== "dragon" && !room) collide(pet, .45); }
+    const ty = pet.id === "dragon" ? .5 + Math.sin(tNow * 2) * .15 : 0; pet.y += (ty - pet.y) * (1 - Math.exp(-dt * 3));
+  }
+  pet.ph += dt * (3 + mv * 10); const fly = pet.id === "dragon";
+  M.legs.forEach((l, i) => l.rotation.x = Math.sin(pet.ph + (i % 2 ? Math.PI : 0)) * .65 * mv * (fly ? .25 : 1));
+  M.wings.forEach((w, i) => w.rotation.z = (i ? 1 : -1) * (.2 + Math.sin(tNow * (riding ? 9 : 4)) * .55));
+  if (M.tail) M.tail.rotation.y = Math.sin(tNow * (pet.id === "dog" ? 9 : 3)) * .5;
+  M.g.position.set(pet.x, pet.y, pet.z); M.g.rotation.y = pet.hdg;
+}
+function petName() { return S.pets[pet.id].name; }
+function petMenu() { const D = PETS[pet.id]; curShop = petMenu;
+  openModal('<h2>' + D.e + ' ' + esc(petName()) + '</h2><div class="row"><button class="btn" data-act="petlove">💕 Pet</button><button class="btn" data-act="petfeed">🍖 Feed' + (S.treats ? " (" + S.treats + " treats)" : "") + '</button>' + (D.ride ? '<button class="btn red" data-act="mount">' + D.ride + '</button>' : "") + '</div><h3>Dress up</h3><div class="row">' +
+    D.acc.map(a => '<button class="chip' + (S.pets[pet.id].acc[a[0]] ? " on" : "") + '" data-act="petacc" data-arg="' + a[0] + '">' + a[1] + '</button>').join("") + '</div><h3>Name</h3><div class="row"><input id="petName" maxlength="12" value="' + esc(petName()) + '"><button class="btn alt" data-act="petname">Save name</button></div><div class="row"><button class="btn alt" data-act="close">Done</button></div>'); }
+function mount() { closeModal(); if (zone || pl.ice) return; riding = true; pl.x = pet.x; pl.z = pet.z; pl.vx = pl.vz = 0; pl.hdg = pet.hdg; SFX.yay(); toast(pet.id === "dragon" ? "🐉 Up, up and away! Steer to fly. Tap Get off to land." : "🏇 Giddy up! Steer to ride. Tap Get off when you are done.", 4200); }
+function dismount() { riding = false; pl.y = 0; pl.vx = pl.vz = 0; pl.x += Math.cos(pl.hdg) * 1.4; pl.z -= Math.sin(pl.hdg) * 1.4; collide(pl, .38); }
+function shopPets() { curShop = shopPets;
+  openModal('<h2>🐾 Animal Shop</h2><p>Pick any pet you want. It is free, and it comes right to you!</p><div class="row">' + Object.keys(PETS).map(id => '<button class="hcard" data-act="pet" data-arg="' + id + '"><span>' + PETS[id].e + '</span>' + esc((S.pets[id] || PETS[id]).name) + (S.pet === id ? "<small>with you now</small>" : "") + '</button>').join("") + '</div><div class="row">' + (pet ? '<button class="btn" data-act="petmenu">Dress up ' + esc(petName()) + '</button>' : "") + '<button class="btn alt" data-act="close">Done</button></div>'); }
+
+/* ------------------------------ stores ------------------------------ */
+const PAL = ["#e23b3b", "#ff8fb8", "#ffb03e", "#ffd23e", "#7fd6c2", "#2f8f4e", "#4aa6f0", "#2b3f8c", "#9b6cff", "#ffffff", "#2c2c3a", "#8a5a3a"];
+const HAIRCOLS = ["#1c1512", "#5a3a1a", "#8a5a32", "#d6a85a", "#f7e08c", "#d64c2a", "#ff5fa2", "#9b6cff", "#4aa6f0", "#46cdc6", "#ffffff", "#2f6bff"];
+function swatches(part, cur, pal) { return '<div class="row">' + (pal || PAL).map(c => '<button class="sw' + (c === cur ? " on" : "") + '" style="background:' + c + '" data-act="wear" data-arg="' + part + "|" + c + '"></button>').join("") + '</div>'; }
+function chips(part, cur, list) { return '<div class="row">' + list.map(o => '<button class="chip' + (o[0] === cur ? " on" : "") + '" data-act="wear" data-arg="' + part + "|" + o[0] + '">' + o[1] + '</button>').join("") + '</div>'; }
+const DONE = '<div class="row"><button class="btn" data-act="close">Done</button></div>';
+function shopClothes() { curShop = shopClothes; const L = pl.L;
+  openModal('<h2>👗 Clothes Store</h2><p>Pick anything you like. You have plenty of money!</p><h3>Coat</h3>' + swatches("coat", L.coat) + '<h3>Scarf</h3>' + swatches("scarf", L.scarf) + '<h3>Hat</h3>' + chips("head", L.head, [["beanie", "🧢 Beanie"], ["muffs", "🎧 Earmuffs"]]) + swatches("hat", L.hat) + '<h3>Mittens</h3>' + swatches("mitt", L.mitt) + '<h3>Pants</h3>' + swatches("pants", L.pants) + '<h3>Boots</h3>' + swatches("boots", L.boots) + DONE); }
+function shopSalon() { curShop = shopSalon; const L = pl.L;
+  openModal('<h2>💇 Hair Salon</h2><p>What hairstyle would you like today?</p><h3>Style</h3>' + chips("style", L.style, [["long", "Long"], ["shoulder", "Shoulder"], ["bob", "Bob"], ["pony", "Ponytail"], ["pigtails", "Pigtails"], ["short", "Short"]]) + '<h3>Bangs</h3>' + chips("bangs", L.bangs ? "1" : "", [["1", "Bangs"], ["", "No bangs"]]) + '<h3>Colour</h3>' + swatches("hairCol", L.hair[0], HAIRCOLS) + DONE); }
+const SKATES = [["#f4f0ea", "Classic white"], ["#ff8fb8", "Pink sparkle"], ["#4aa6f0", "Ice blue"], ["#ffd23e", "Champion gold"], ["#9b6cff", "Purple star"], ["#2c2c3a", "Speedy black"]];
+function shopSkates() { curShop = shopSkates;
+  openModal('<h2>⛸ Ice Skate Store</h2><p>Pick your skates. You will wear them on the ice.</p><div class="row">' + SKATES.map(s => '<button class="hcard" style="flex:1 1 120px" data-act="skate" data-arg="' + s[0] + '"><span style="font-size:30px;display:inline-block;width:54px;height:54px;line-height:54px;border-radius:50%;background:' + s[0] + ';box-shadow:0 0 0 3px ' + (S.skates === s[0] ? "#d63a3a" : "#d6cbf5") + '">⛸</span>' + s[1] + '</button>').join("") + '</div>' + DONE); }
+const BAKE = [["🍪", "cookie"], ["🧁", "cupcake"], ["🍩", "donut"], ["🥐", "croissant"], ["🍰", "slice of cake"], ["🥧", "little pie"]];
+function shopBakery() { curShop = shopBakery;
+  openModal('<h2>🧁 Bakery</h2><p>Everything is fresh and warm. Tap one to eat it!</p><div class="row">' + BAKE.map((b, i) => '<button class="hcard" style="flex:1 1 90px" data-act="eat" data-arg="' + i + '"><span>' + b[0] + '</span>' + b[1] + '</button>').join("") + '</div><div class="row"><button class="btn" data-act="treat">🐾 Get treats for my pet</button><button class="btn alt" data-act="close">Done</button></div><p>Pet treats in your pocket: <b>' + S.treats + '</b></p>'); }
+const SHOPS = [shopClothes, shopSkates, cocoa, shopBakery, shopPets, shopSalon];
+
+/* ------------------------------ Nora's magic winter garden ------------------------------ */
+const SEEDS = [
+  { k: "rose", n: "Rose", e: "🌹", c: "#e23b5a", p: 25 }, { k: "sunflower", n: "Sunflower", e: "🌻", c: "#ffd23e", p: 30 }, { k: "tulip", n: "Tulip", e: "🌷", c: "#ff8fb8", p: 25 }, { k: "lily", n: "Snow Lily", e: "❄️", c: "#bfe6ff", p: 40 },
+  { k: "strawberry", n: "Strawberries", e: "🍓", c: "#e23b3b", p: 35 }, { k: "carrot", n: "Carrots", e: "🥕", c: "#ff8a2a", p: 30 }, { k: "pumpkin", n: "Pumpkin", e: "🎃", c: "#ff8a2a", p: 50 }, { k: "candy", n: "Candy Canes", e: "🍭", c: "#ffffff", p: 45 },
+];
+const PLOTS = [], seedOf = k => SEEDS.find(s => s.k === k), GROW = 12000;
+function plotStage(g) { return !g ? -1 : !g.w ? 0 : 1 + Math.min(2, Math.floor((Date.now() - g.w) / GROW)); }
+function plantMesh(k, st) {
+  const g = new THREE.Group(), s = seedOf(k), G = "#3fa35a";
+  if (st === 0) { sph(.17, "#8a5f3f", 0, .17, 0, g).scale.y = .6; return g; }
+  const leaves = (y, r) => { for (const sx of [-1, 1]) { const l = sph(r, G, sx * r, y, 0, g); l.scale.set(1.4, .35, .7); l.rotation.z = sx * -.5; } };
+  if (st === 1) { cyl(.025, .03, .22, G, 0, .23, 0, g, 6); leaves(.36, .09); return g; }
+  if (st === 2) { cyl(.03, .04, .42, G, 0, .33, 0, g, 6); leaves(.34, .12); sph(.08, s.c, 0, .58, 0, g); return g; }
+  if (k === "strawberry") { sph(.36, G, 0, .32, 0, g).scale.y = .7; for (let i = 0; i < 7; i++) sph(.085, s.c, Math.cos(i * .9) * .3, .28 + (i % 3) * .1, Math.sin(i * .9) * .3, g).scale.y = 1.2; }
+  else if (k === "carrot") { for (let i = 0; i < 3; i++) { const x = (i - 1) * .3, z = (i % 2) * .2 - .1; cone(.1, .34, s.c, x, .26, z, g, 8).rotation.x = Math.PI; cone(.12, .34, G, x, .58, z, g, 6); } }
+  else if (k === "pumpkin") { sph(.38, s.c, 0, .4, 0, g).scale.set(1, .76, 1); cyl(.04, .05, .16, "#6b4a35", 0, .74, 0, g, 6); leaves(.2, .16); }
+  else if (k === "candy") { for (let i = 0; i < 3; i++) { const x = (i - 1) * .32, z = (i % 2) * .2 - .1; cyl(.04, .04, .62, "#ffffff", x, .43, z, g, 8); tor(.09, .04, "#ffffff", x + .09, .74, z, g, Math.PI); for (let j = 0; j < 4; j++) flat(tor(.042, .014, "#e23b3b", x, .25 + j * .14, z, g)); } }
+  else { const h = k === "sunflower" ? 1.15 : .75; cyl(.035, .045, h, G, 0, h / 2 + .12, 0, g, 6); leaves(h * .45, .14);
+    const hd = new THREE.Group(); hd.position.set(0, h + .14, 0); hd.rotation.x = .75; g.add(hd);
+    if (k === "rose" || k === "tulip") { sph(.17, s.c, 0, .04, 0, hd).scale.y = k === "tulip" ? 1.35 : 1; sph(.11, k === "tulip" ? "#ffb3d1" : "#b3243f", 0, .14, 0, hd); hd.rotation.x = .2; }
+    else { const n = k === "sunflower" ? 13 : 7, r = k === "sunflower" ? .22 : .17; for (let i = 0; i < n; i++) { const a = i / n * 6.283, p = sph(.11, s.c, Math.cos(a) * r, 0, Math.sin(a) * r, hd); p.scale.set(1.25, .3, .55); p.rotation.y = -a; } sph(k === "sunflower" ? .17 : .08, k === "sunflower" ? "#6b4a2a" : "#ffe14d", 0, .03, 0, hd).scale.y = .5; } }
+  for (let i = 0; i < 4; i++) M(new THREE.SphereGeometry(.035, 6, 5), glow(0xffffff), Math.cos(i * 1.7) * .4, .5 + i * .22, Math.sin(i * 1.7) * .4, g, true);
+  return g;
+}
+function buildGarden() {
+  const gx = -25, gz = 4;
+  for (let i = 0; i < 9; i++) { const px = gx + (i % 3 - 1) * 2.3, pz = gz + (Math.floor(i / 3) - 1) * 2.3; box(1.7, .14, 1.7, "#5a3d2b", px, .07, pz); PLOTS.push({ x: px, z: pz, mesh: null, key: "" }); hot(px, pz, 1.05, () => plotLabel(i), () => plotAct(i)); }
+  for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2, cx = gx + Math.cos(a) * 4.3, cz = gz + Math.sin(a) * 4.3; if (i !== 0) { const r = box(i % 2 ? 8.6 : .1, .1, i % 2 ? .1 : 8.6, "#ffffff", cx, .55, cz); r.castShadow = false; } }
+  for (let i = 0; i < 16; i++) { const s = Math.floor(i / 4), t = (i % 4) / 4 * 8.6 - 4.3, x = gx + (s === 0 ? 4.3 : s === 2 ? -4.3 : t), z = gz + (s === 1 ? 4.3 : s === 3 ? -4.3 : t); if (s === 0 && Math.abs(t) < 1.5) continue; box(.14, .8, .14, "#ffffff", x, .4, z); bulb(x, .9, z, .9); }
+  for (const s of [-1, 1]) cyl(.07, .07, 2.6, "#ffffff", gx - 4.4, 1.3, gz + s * 2.2);
+  const sg = makeSign("🌱 Magic Winter Garden", 4.8, .8, "#eaffea", "#2f8f4e"); sg.position.set(gx - 4.38, 2.3, gz); sg.rotation.y = Math.PI / 2; scene.add(sg);
+}
+function plotLabel(i) { const g = S.garden[i], st = plotStage(g); if (st < 0) return "🌱 Plant a seed"; const s = seedOf(g.k); return st === 0 ? "💧 Water the " + s.n : st < 3 ? "🌿 The " + s.n + " is growing..." : "🧺 Pick and sell the " + s.n + " ($" + s.p + ")"; }
+function plotAct(i) { const g = S.garden[i], st = plotStage(g);
+  if (st < 0) return openModal('<h2>🌱 Pick a seed to plant</h2><div class="row">' + SEEDS.map(s => '<button class="hcard" style="flex:1 1 100px" data-act="seed" data-arg="' + i + "|" + s.k + '"><span>' + s.e + '</span>' + s.n + '<small>sells for $' + s.p + '</small></button>').join("") + '</div><div class="row"><button class="btn alt" data-act="close">Not now</button></div>');
+  const s = seedOf(g.k);
+  if (st === 0) { g.w = Date.now(); save(); SFX.swish(); tone(900, .2, "sine", .05, 500); toast("💧 Splash! The magic is working. Watch it grow!"); }
+  else if (st < 3) toast("🌿 Almost ready! The " + s.n + " is still growing.");
+  else { S.garden[i] = null; earn(s.p); SFX.coin(); pop(s.e + " +$" + s.p); }
+}
+function updateGarden() { PLOTS.forEach((p, i) => { const g = S.garden[i], st = plotStage(g), key = g ? g.k + st : ""; if (key === p.key) return; if (p.mesh) scene.remove(p.mesh); p.mesh = null; p.key = key; if (g) { p.mesh = plantMesh(g.k, st); p.mesh.position.set(p.x, .12, p.z); scene.add(p.mesh); if (st === 3 && p.seen) SFX.land(2); } p.seen = true; }); }
+
+/* ------------------------------ the ski hill and the slalom contest ------------------------------ */
+const SKI = { ski: true, cx: 2000, TAN: .2, gates: [], state: "" };
+const skiY = z => clamp(z, -440, 0) * SKI.TAN;
+function buildSki() {
+  const cx = SKI.cx, th = Math.atan(SKI.TAN), L = 440 / Math.cos(th);
+  const lodge = building({ x: 43, z: -19, w: 8, d: 7, h: 3.4, rot: -Math.PI / 2, wall: "#b8d8f0", roof: "#3d6fb3", door: "#3d6fb3", chimney: true, sign: "⛷ Ski Hill", signFg: "#3d6fb3" });
+  for (const s of [-1, 1]) { box(.12, 1.7, .1, s < 0 ? "#ff5fa2" : "#ffd23e", 39.4, .85, -19 + s * 2.6).rotation.x = .12; }
+  path(30, -25.6, 38.5, -19.4, 3); hot(lodge.userData.door.x, lodge.userData.door.z, 1.9, "⛷ Go skiing", skiMenu);
+  const sl = M(new THREE.BoxGeometry(76, .5, L), "#f6f7ff", cx, skiY(-220) - .26, -220, scene, true); sl.rotation.x = -th; sl.receiveShadow = true;
+  const top = M(new THREE.BoxGeometry(76, .5, 40), "#f6f7ff", cx, -.25, 20, scene, true); top.receiveShadow = true; const bot = M(new THREE.BoxGeometry(76, .5, 120), "#f6f7ff", cx, skiY(-440) - .25, -500, scene, true); bot.receiveShadow = true;
+  for (let z = 34; z > -540; z -= 6.5) for (const s of [-1, 1]) for (let r = 0; r < 2; r++) pine(cx + s * (18.5 + r * 8 + srand() * 6), z + srand() * 4, 1 + srand() * 1.2, skiY(z) - .1);
+  for (let i = 0; i < 18; i++) { const z = -40 - i * 20, x = cx + (i % 2 ? 1 : -1) * (3 + srand() * 3.5), col = i % 2 ? "#3f6fe0" : "#e23b3b", y = skiY(z);
+    for (const s of [-1, 1]) { cyl(.07, .07, 1.9, col, x + s * 2.7, y + .95, z, scene, 8); box(.55, .32, .05, col, x + s * 2.7 - s * .3, y + 1.7, z); }
+    SKI.gates.push({ x, z }); }
+  for (const z of [-4, -400]) { const y = skiY(z); for (const s of [-1, 1]) cyl(.14, .14, 5.4, "#e23b3b", cx + s * 8, y + 2.7, z); const sg = makeSign(z < -10 ? "🏁 FINISH 🏁" : "⛷ START", 15.6, 1.5, "#ffffff", "#c0392b"); sg.position.set(cx, y + 4.7, z); scene.add(sg); bulbLine(cx - 8, y + 3.8, z, cx + 8, y + 3.8, z, 20, .5); }
+}
+function skiMenu() { openModal('<h2>⛷ The Ski Hill</h2><p>Zoom down the mountain! Steer left and right.</p><p>In the <b>slalom contest</b> you race through the gates: red, then blue. If you miss a gate you get <b>2 extra seconds</b>. The fastest skier wins <b>$300</b>!</p><div class="row"><button class="btn red" data-act="ski" data-arg="race">🏁 Slalom contest</button><button class="btn" data-act="ski" data-arg="fun">⛷ Ski for fun</button><button class="btn alt" data-act="close">Not now</button></div>'); }
+function startSki(kind) {
+  closeModal(); snap = true; zone = SKI; mode = "ski"; Object.assign(SKI, { state: "count", count: 3.6, last: 4, time: 0, gi: 0, miss: 0, pass: 0, race: kind === "race", v: 0, ang: 0, doneT: 0 });
+  pl.x = SKI.cx; pl.z = -1; pl.y = 0; pl.vx = pl.vz = 0; pl.ice = null; pl.fall = 0; T = null; setBlades(pl, false); setSkis(pl, true); $("timer").hidden = false; $("ring").hidden = true;
+}
+function leaveSki() { closeModal(); zone = null; mode = "play"; setSkis(pl, false); pl.x = 37.4; pl.z = -19; pl.y = 0; pl.vx = pl.vz = 0; pl.hdg = -Math.PI / 2; camYaw = -Math.PI / 2; snap = true; $("timer").hidden = true; }
+function skiUpdate(dt) {
+  const K = SKI, inp = $("modal").hidden ? getInput() : { x: 0, y: 0 };
+  if (K.state === "count") { K.count -= dt; const n = Math.ceil(K.count - .6); if (n !== K.last) { K.last = n; if (n > 0) { pop(String(n)); tone(440, .15, "square", .06); } else { pop("GO!"); tone(880, .3, "square", .07); } } if (K.count <= 0) K.state = "run"; }
+  else if (K.state === "run") {
+    K.time += dt; K.ang += (inp.x * .95 - K.ang) * (1 - Math.exp(-dt * 5));
+    K.v += (6 * Math.cos(K.ang) + (inp.y > .3 ? 2.2 : 0) - (inp.y < -.3 ? 9 : 0) - K.v * .45) * dt; K.v = Math.max(2, K.v);
+    pl.x += Math.sin(K.ang) * K.v * dt; pl.z -= Math.cos(K.ang) * K.v * dt;
+    if (Math.abs(pl.x - K.cx) > 15) { pl.x = K.cx + Math.sign(pl.x - K.cx) * 15; K.v *= 1 - dt * 2; }
+    while (K.gi < K.gates.length && pl.z <= K.gates[K.gi].z) { const gt = K.gates[K.gi++]; if (Math.abs(pl.x - gt.x) < 2.75) { K.pass++; SFX.coin(); } else { K.miss++; pop("Missed! +2s"); SFX.fall(); } }
+    if (pl.z <= -400) { K.state = "done"; K.doneT = 1.7; SFX.cheer(); pop("🏁 Finish!"); }
+  } else if (K.state === "done") { K.v *= Math.exp(-dt * 1.4); pl.z -= K.v * dt; K.ang *= .92; K.doneT -= dt; if (K.doneT <= 0) { K.state = "end"; skiResults(); } }
+  pl.y = skiY(pl.z); pl.hdg = Math.atan2(Math.sin(K.ang), -Math.cos(K.ang)); pl.g.position.set(pl.x, pl.y, pl.z); pl.g.rotation.y = pl.hdg;
+  applyPose(pl, { lL: -.45, lR: -.45, aL: -.7, aR: -.7, az: .4, tilt: .45 + (inp.y > .3 ? .25 : 0), y: .04, roll: K.ang * .45 }, dt);
+}
+function skiResults() {
+  const K = SKI, tot = K.time + K.miss * 2, again = '<button class="btn alt" data-act="ski" data-arg="' + (K.race ? "race" : "fun") + '">Go again</button>';
+  if (!K.race) { earn(10); return openModal('<h2>⛷ Wheee!</h2><p>You skied down the whole mountain in <b>' + tot.toFixed(1) + ' seconds</b>. You earned <b>$10</b> for having fun!</p><div class="row"><button class="btn" data-act="skiDone">Back to the village</button>' + again + '</div>'); }
+  const rows = [{ name: pl.L.name, me: true, t: tot }].concat(rivals.map((r, i) => ({ name: r.L.name, t: Math.max(RIVAL_MIN, RIVAL_T - S.skiWins * 1.3 + i * 2.2 + rnd(0, 3)) }))); rows.sort((a, b) => a.t - b.t || (a.me ? -1 : 1));
+  const won = rows[0].me, prize = won ? 300 : 40; if (won) { S.skiWins++; SFX.yay(); } earn(prize);
+  openModal('<h2>' + (won ? "🥇 You won the slalom!" : "Great skiing!") + '</h2><table class="sc">' + rows.map((r, i) => '<tr class="' + (r.me ? "me" : "") + '"><td>' + ["🥇", "🥈", "🥉", "4"][i] + '</td><td class="n">' + esc(r.name) + '</td><td><b>' + r.t.toFixed(1) + ' s</b></td></tr>').join("") + '</table><p>You went through ' + K.pass + ' of 18 gates' + (K.miss ? " and missed " + K.miss + " (+" + K.miss * 2 + " seconds)" : "") + '. You earned <b>$' + prize + '</b>!</p><div class="row"><button class="btn" data-act="skiDone">' + (won ? "Yay!" : "Back to the village") + '</button>' + again + '</div>');
+}
+const RIVAL_T = 46, RIVAL_MIN = 34;
+
+/* ------------------------------ the phone ------------------------------ */
+const PLACES = [["🏡", "My cabin", -19.2, -10], ["🎄", "The big tree", 0, 8], ["👗", "Clothes", -30, -27.6], ["⛸", "Ice skates", -18, -27.6], ["☕", "Hot chocolate", -6, -27.6], ["🧁", "Bakery", 6, -27.6], ["🐾", "Animal shop", 18, -27.6], ["💇", "Hair salon", 30, -27.6],
+  ["🧊", "Ice rink", 12.2, 4], ["⛷", "Ski hill", 37.4, -19], ["🌱", "Garden", -19.6, 4], ["🏰", "Ice Castle", -28, 30.6], ["🏛", "Mansion", 0, 31.4], ["🌈", "Dream House", 28, 30.6]];
+const CALLS = ["Hi {me}! I'm at the ice rink. Come skate with me! ⛸", "Guess what? I built a snowman with a carrot nose! ⛄", "Do you want to drink hot chocolate together? ☕", "I can't wait for Christmas! What do you want from Santa? 🎅", "Your pet is SO cute. Can I pet it? 🐾", "Let's race down the ski hill! ⛷", "I saw your garden. The flowers are so pretty! 🌷", "Merry Christmas, {me}! You're my best friend! 🎄"];
+const TEXTS = [["Hi! 👋", "Hi {me}!! 😄"], ["Want to go ice skating? ⛸", "Yes! Meet you at the rink! ⛸✨"], ["Come see my pet! 🐾", "Awww, I'm coming right now! 😍"], ["Merry Christmas! 🎄", "Merry Christmas to you too! 🎁❤️"], ["I won the contest! 🏆", "WOW! You're the best skater ever! 🥇"], ["Let's ski! ⛷", "Race you down the hill! 🏁"]];
+const SURPRISE = ["a sparkly snow globe ❄️", "fuzzy reindeer slippers 🦌", "a giant candy cane 🍭", "a glitter pen set ✨", "a tiny snowman that never melts ⛄", "a jingle bell bracelet 🔔"];
+const threads = {};
+const friends = () => ["Sonia", S.hero === "nora" ? "Jules" : "Nora", "Nayun", "Lucas", "Charlotte", "Christina", "DJ"];
+function phoneView(v, a) {
+  const me = pl.L.name, back = '<div class="row"><button class="btn alt" data-act="phone">⬅ Back</button><button class="btn alt" data-act="close">Close</button></div>', list = act => '<div class="row">' + friends().map(f => '<button class="chip" data-act="' + act + '" data-arg="' + f + '">' + f + '</button>').join("") + '</div>'; let h; curShop = null;
+  if (v === "map") h = '<h2>🗺 Map</h2><div id="map">' + PLACES.map((p, i) => '<button data-act="goto" data-arg="' + i + '" style="left:' + (p[2] + 50) + '%;top:' + ((p[3] + 45) / 95 * 100) + '%">' + p[0] + '</button>').join("") + (zone ? "" : '<i style="left:' + clamp(pl.x + 50, 3, 97) + '%;top:' + clamp((pl.z + 45) / 95 * 100, 6, 97) + '%">📍</i>') + '</div><p>Tap a place and you zoom right there!</p>' + back;
+  else if (v === "call") h = '<h2>📞 Who do you want to call?</h2>' + list("call") + back;
+  else if (v === "calling") { [660, 880, 660, 880].forEach((f, i) => tone(f, .12, "sine", .06, 0, i * .16)); h = '<h2>📞 ' + esc(a) + '</h2><div class="bub">' + esc(CALLS[Math.floor(Math.random() * CALLS.length)].replace("{me}", me)) + '</div><div class="row"><button class="btn" data-act="call" data-arg="' + esc(a) + '">Keep talking</button><button class="btn red" data-act="phone" data-arg="call">Hang up</button></div>'; }
+  else if (v === "text") h = '<h2>💬 Who do you want to text?</h2>' + list("textto") + back;
+  else if (v === "thread") { const th = threads[a] || (threads[a] = []); curShop = () => phoneView("thread", a); h = '<h2>💬 ' + esc(a) + '</h2>' + (th.length ? th.slice(-6).map(m => '<div class="bub' + (m.me ? " me" : "") + '">' + esc(m.t) + '</div>').join("") : "<p>Say something!</p>") + '<h3>Send</h3><div class="row">' + TEXTS.map((t, i) => '<button class="chip" data-act="say" data-arg="' + esc(a) + "|" + i + '">' + t[0] + '</button>').join("") + '</div><div class="row"><button class="btn alt" data-act="phone" data-arg="text">⬅ Back</button><button class="btn alt" data-act="close">Close</button></div>'; }
+  else if (v === "order") h = '<h2>🛍 Order stuff</h2><p>Everything comes right away, and it never costs you money.</p><div class="row"><button class="hcard" data-act="order" data-arg="pet"><span>🐾</span>A pet</button><button class="hcard" data-act="order" data-arg="cocoa"><span>☕</span>Hot chocolate</button><button class="hcard" data-act="order" data-arg="treats"><span>🍪</span>Pet treats</button><button class="hcard" data-act="order" data-arg="gift"><span>🎁</span>A surprise</button></div>' + back;
+  else h = '<h2>📱 ' + esc(me) + "'s phone</h2>" + '<div class="row"><button class="hcard" data-act="phone" data-arg="map"><span>🗺</span>Map</button><button class="hcard" data-act="phone" data-arg="call"><span>📞</span>Call</button><button class="hcard" data-act="phone" data-arg="text"><span>💬</span>Text</button><button class="hcard" data-act="phone" data-arg="order"><span>🛍</span>Order</button></div><div class="row"><button class="btn alt" data-act="close">Close</button></div>';
+  openModal(h);
+}
+function goPlace(i) { const p = PLACES[i]; if (zone) { outdoorLook(); zone = null; } pl.x = p[2]; pl.z = p[3]; pl.vx = pl.vz = 0; pl.ice = null; setBlades(pl, false); snap = true; closeModal(); SFX.swish(); toast(p[0] + " Zoom! You are at: " + p[1]); }
+
+Object.assign(ACTS, {
+  phone: v => { if (mode === "play") phoneView(v || "home"); }, call: n => phoneView("calling", n), textto: n => phoneView("thread", n), goto: i => goPlace(+i),
+  say: a => { const [n, i] = a.split("|"), th = threads[n] || (threads[n] = []); th.push({ me: 1, t: TEXTS[i][0] }); phoneView("thread", n); setTimeout(() => { th.push({ t: TEXTS[i][1].replace("{me}", pl.L.name) }); tone(1200, .1, "sine", .06); if (!$("modal").hidden && curShop) reshop(); }, 900); },
+  order: k => { if (k === "pet") return shopPets(); closeModal(); SFX.coin(); if (k === "cocoa") toast("📦 Knock knock! Your hot chocolate is here. Yum! ☕"); else if (k === "treats") { S.treats += 3; save(); toast("📦 Delivered! 3 treats for your pet. 🍪"); } else toast("📦 A present came for you! It is " + SURPRISE[Math.floor(Math.random() * SURPRISE.length)]); },
+  wear: a => { const [k, v] = a.split("|"); custom()[k] = v; save(); rebuildPlayer(); SFX.coin(); reshop(); },
+  skate: c => { S.skates = c; save(); SFX.coin(); reshop(); toast("⛸ Nice skates! Go try them at the rink."); },
+  eat: i => { SFX.coin(); toast(BAKE[i][0] + " Yum! You ate a " + BAKE[i][1] + "."); }, treat: () => { S.treats += 3; save(); SFX.coin(); reshop(); },
+  pet: id => { if (!S.pets[id]) S.pets[id] = { name: PETS[id].name, acc: {} }; S.pet = id; save(); spawnPet(true); closeModal(); SFX.yay(); toast(PETS[id].e + " " + S.pets[id].name + (id === "dragon" ? " is flying over to find you!" : " is running to find you!"), 4200); },
+  petmenu: () => { if (pet) petMenu(); }, mount,
+  petlove: () => { pop("💕"); SFX.land(3); earn(1); },
+  petfeed: () => { if (S.treats > 0) { S.treats--; toast("🍪 " + petName() + " gobbled up a bakery treat. So happy!"); } else toast("🍖 " + petName() + " ate a big yummy dinner."); SFX.coin(); earn(1); reshop(); },
+  petacc: k => { const a = S.pets[pet.id].acc; a[k] = !a[k]; save(); spawnPet(false, true); SFX.coin(); reshop(); },
+  petname: () => { const v = ($("petName").value || "").trim().slice(0, 12); if (v) { S.pets[pet.id].name = v; save(); reshop(); toast("Your pet's name is " + v + " now. 💕"); } },
+  seed: a => { const [i, k] = a.split("|"); S.garden[+i] = { k, w: 0 }; save(); closeModal(); toast("🌱 You planted " + seedOf(k).n + ". Now water it!"); },
+  ski: startSki, skiDone: leaveSki,
+});
+
 /* ------------------------------ every frame ------------------------------ */
 function rinkAt() { for (const R of rinks) if (Math.abs(pl.x - R.cx) < R.a + 4 && Math.abs(pl.z - R.cz) < R.b + 4) return R; return null; }
 function updatePlayer(dt) {
+  if (zone && zone.ski) return skiUpdate(dt);
   const inp = (pl.fall > 0 || (C && C.count > 0) || mode === "judging" || !$("modal").hidden) ? { x: 0, y: 0 } : getInput();
   const yaw = zone ? 0 : camYaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
   const mx = fx * inp.y + rx * inp.x, mz = fz * inp.y + rz * inp.x, ml = Math.hypot(mx, mz);
   if (pl.ice) { pl.vx += mx * 9 * dt; pl.vz += mz * 9 * dt; const f = Math.exp(-dt * (pl.fall > 0 ? 3 : .8)); pl.vx *= f; pl.vz *= f; const sp = Math.hypot(pl.vx, pl.vz); if (sp > 8.5) { pl.vx *= 8.5 / sp; pl.vz *= 8.5 / sp; } }
-  else { const k = 1 - Math.exp(-dt * 14); pl.vx += (mx * 4.4 - pl.vx) * k; pl.vz += (mz * 4.4 - pl.vz) * k; }
+  else { const k = 1 - Math.exp(-dt * (riding ? 5 : 14)), ws = riding ? PETS[pet.id].spd : 4.4; pl.vx += (mx * ws - pl.vx) * k; pl.vz += (mz * ws - pl.vz) * k; }
   pl.x += pl.vx * dt; pl.z += pl.vz * dt;
-  if (!pl.ice) collide(pl, .38);
+  const fly = riding && pet.id === "dragon"; if (!pl.ice && !fly) collide(pl, riding ? .75 : .38);
   if (zone) { pl.x = clamp(pl.x, zone.cx - zone.w / 2 + .4, zone.cx + zone.w / 2 - .4); pl.z = clamp(pl.z, -zone.d / 2 + .4, zone.d / 2 - .35); }
   else { const r = Math.hypot(pl.x, pl.z); if (r > 60) { pl.x *= 60 / r; pl.z *= 60 / r; } }
   // stepping on and off the ice
-  const R = rinkAt();
-  if (R) { const dx = pl.x - R.cx, dz = pl.z - R.cz, f = (dx * dx) / (R.a * R.a) + (dz * dz) / (R.b * R.b), gate = R.open || (mode === "play" && dx < 0 && Math.abs(dz) < 1.9);
+  const R = fly ? null : rinkAt();
+  if (R) { const dx = pl.x - R.cx, dz = pl.z - R.cz, f = (dx * dx) / (R.a * R.a) + (dz * dz) / (R.b * R.b), gate = R.open || (mode === "play" && !riding && dx < 0 && Math.abs(dz) < 1.9);
     if (!pl.ice && f < 1) { if (gate) { pl.ice = R; setBlades(pl, true); SFX.swish(); if (!S.iceTip) { S.iceTip = 1; save(); toast("⛸ You're skating! Press ✨ TRICK, then press it again when the yellow ring fits the white ring.", 6000); } } else { const s = 1.03 / Math.sqrt(f); pl.x = R.cx + dx * s; pl.z = R.cz + dz * s; } }
     else if (pl.ice && f > 1) { if (gate && !T && pl.fall <= 0) { pl.ice = null; setBlades(pl, false); pl.vx *= .3; pl.vz *= .3; } else { const s = .985 / Math.sqrt(f); pl.x = R.cx + dx * s; pl.z = R.cz + dz * s; let nx = dx / (R.a * R.a), nz = dz / (R.b * R.b); const nl = Math.hypot(nx, nz); nx /= nl; nz /= nl; const vn = pl.vx * nx + pl.vz * nz; if (vn > 0) { pl.vx -= nx * vn * 1.5; pl.vz -= nz * vn * 1.5; } } }
   } else if (pl.ice) { pl.ice = null; setBlades(pl, false); }
   const sp = Math.hypot(pl.vx, pl.vz);
   if (sp > .4 && !(T && T.tr.id !== "spiral")) { const want = Math.atan2(pl.vx, pl.vz); pl.hdg += wrap(want - pl.hdg) * (1 - Math.exp(-dt * (pl.ice ? 6 : 12))); }
-  pl.g.position.set(pl.x, 0, pl.z); pl.g.rotation.y = pl.hdg;
+  pl.y += ((fly ? 6.5 : 0) - pl.y) * (1 - Math.exp(-dt * (riding ? 2.2 : 12)));
+  pl.g.position.set(pl.x, pl.y + (riding ? pet.M.seat - .62 * (pl.L.scale || 1) : 0), pl.z); pl.g.rotation.y = pl.hdg;
   // pose
   let pose, spin = 0;
   if (pl.fall > 0) { pl.fall -= dt; pose = { lL: -1.25, lR: -1.25, aL: .6, aR: .6, az: .5, tilt: -.95, y: -.42 }; }
@@ -659,6 +907,7 @@ function updatePlayer(dt) {
     else if (id === "twirl") { spin = e * Math.PI * 6; pose = { lL: -.2, lR: 1.1, aL: 0, aR: 0, az: 1.5, tilt: .1, y: 0 }; }
     else if (id === "spiral") { pose = { lL: 0, lR: 1.55, aL: 0, aR: 0, az: 1.5, tilt: Math.sin(u * Math.PI) * 1.0, y: .05 }; }
     else { spin = e * Math.PI * 8; pose = { lL: .1, lR: -.1, aL: 0, aR: 0, az: 2.9, tilt: 0, y: Math.sin(u * Math.PI) * 1.4 }; } }
+  else if (riding) pose = RIDE_POSE;
   else if (pl.ice) pose = poseSkate(pl, dt, clamp(sp / 7, 0, 1));
   else if (sp > .3) pose = poseWalk(pl, dt, clamp(sp / 4.4, 0, 1));
   else pose = poseIdle(pl, tNow);
@@ -674,16 +923,18 @@ function updateCamera(dt) {
   if (mode === "title" || mode === "pick") { if (mode === "title") { const a = tNow * .12; _p.set(Math.sin(a) * 19, 6.5, Math.cos(a) * 19 + 2); camera.position.lerp(_p, k * .5); camera.lookAt(0, 4.2, 0); } else { camera.position.lerp(_p.set(0, 1.35, 11.4), k); camera.lookAt(0, 1.0, 9); if (preview) { preview.g.rotation.y = Math.sin(tNow * .8) * .5; applyPose(preview, poseIdle(preview, tNow), dt); } } return; }
   if (cine) { camera.position.lerp(cine.pos, k); camera.lookAt(cine.look); return; }
   const h = 1.25 * (pl.L.scale || 1);
-  if (zone) { _p.set(lerp(zone.cx, pl.x, .75), 7.2, pl.z + 8.2); camera.position.lerp(_p, k); camera.lookAt(lerp(zone.cx, pl.x, .85), 1, pl.z - .8); }
-  else { const d = pl.ice ? 8.5 : 6.4, cp = Math.cos(camPitch); _p.set(pl.x + Math.sin(camYaw) * d * cp, h + .3 + d * Math.sin(camPitch), pl.z + Math.cos(camYaw) * d * cp); camera.position.lerp(_p, k); camera.lookAt(pl.x, h, pl.z); }
+  if (zone && zone.ski) { _p.set(pl.x, pl.y + 4.6, pl.z + 9.5); camera.position.lerp(_p, k); camera.lookAt(pl.x, pl.y + .6, pl.z - 7); }
+  else if (zone) { _p.set(lerp(zone.cx, pl.x, .75), 7.2, pl.z + 8.2); camera.position.lerp(_p, k); camera.lookAt(lerp(zone.cx, pl.x, .85), 1, pl.z - .8); }
+  else { const d = riding ? (pet.id === "dragon" ? 11.5 : 9) : pl.ice ? 8.5 : 6.4, cp = Math.cos(camPitch), ry = pl.y + (riding ? pet.M.seat : 0); _p.set(pl.x + Math.sin(camYaw) * d * cp, ry + h + .3 + d * Math.sin(camPitch), pl.z + Math.cos(camYaw) * d * cp); camera.position.lerp(_p, k); camera.lookAt(pl.x, ry + h, pl.z); }
 }
 function updateWorld(dt) {
   bulbMats.forEach((m, i) => m.color.copy(m.userData.base).multiplyScalar(.5 + .5 * Math.sin(tNow * 3.2 + i * 1.3) ** 2 + .15));
   if (snow.visible) { const a = snow.geometry.attributes.position, cx = camera.position.x, cz = camera.position.z; for (let i = 0; i < a.count; i++) { let x = a.getX(i) + Math.sin(tNow + i) * dt * .5, y = a.getY(i) - dt * (1.6 + (i % 5) * .25), z = a.getZ(i);
       if (y < 0) y += 26; if (x < cx - 35) x += 70; else if (x > cx + 35) x -= 70; if (z < cz - 35) z += 70; else if (z > cz + 35) z -= 70; a.setXYZ(i, x, y, z); } a.needsUpdate = true; }
   if (fireMesh) { fireMesh.scale.y = 1 + Math.sin(tNow * 13) * .18; fireLight.intensity = .8 + Math.sin(tNow * 17) * .15 + Math.sin(tNow * 7.3) * .1; }
-  sky.position.copy(camera.position); sky.position.y = 0;
-  const f = pl || { x: 0, z: 0 }; sun.position.set(f.x + 22, 34, f.z + 16); sun.target.position.set(f.x, 0, f.z);
+  const onSki = zone && zone.ski; sky.position.copy(camera.position); if (!onSki) sky.position.y = 0; snow.position.y = onSki ? camera.position.y - 12 : 0;
+  updatePet(dt); updateGarden();
+  const f = pl || { x: 0, z: 0 }, fy = f.y || 0; sun.position.set(f.x + 22, fy + 34, f.z + 16); sun.target.position.set(f.x, fy, f.z);
   judges.forEach(j => applyPose(j, poseIdle(j, tNow), dt)); chefs.forEach(c => applyPose(c, { lL: 0, lR: 0, aL: -.9 + Math.sin(tNow * 6 + c.ph) * .25, aR: -.9 - Math.sin(tNow * 6 + c.ph) * .25, az: .1, tilt: .05, y: 0 }, dt));
   // the other skaters glide around the rink, or stand and watch during the contest
   if (pl) rivals.forEach(r => { if (mode === "contest" || mode === "judging") { applyPose(r, poseIdle(r, tNow), dt); return; } r.ang += dt * r.spd; const x = RINK.cx + Math.cos(r.ang) * RINK.a * r.k, z = RINK.cz + Math.sin(r.ang) * RINK.b * r.k; r.g.position.set(x, 0, z); r.g.rotation.y = Math.atan2(-Math.sin(r.ang) * RINK.a, Math.cos(r.ang) * RINK.b); applyPose(r, poseSkate(r, dt, .6), dt); });
@@ -691,6 +942,8 @@ function updateWorld(dt) {
 function updateUI() {
   curHot = null;
   if (mode === "play" && $("modal").hidden) { let best = 1e9; for (const h of hots) { const d = Math.hypot(pl.x - h.x, pl.z - h.z); if (d < h.r && d < best) { best = d; curHot = h; } } }
+  if (mode === "play" && $("modal").hidden && pet) { if (riding) curHot = { label: "⬇ Get off " + petName(), fn: dismount }; else if (!pl.ice && !curHot && Math.hypot(pl.x - pet.x, pl.z - pet.z) < (PETS[pet.id].big ? 2.7 : 1.6)) curHot = { label: PETS[pet.id].e + " " + petName(), fn: petMenu }; }
+  if (mode === "ski") $("timer").textContent = "⏱ " + SKI.time.toFixed(1) + (SKI.race ? "   🚩 " + SKI.pass + "/18" + (SKI.miss ? "   ❌ " + SKI.miss : "") : "");
   const a = $("act"); if (curHot && !pl.ice) { a.hidden = false; const t = typeof curHot.label === "function" ? curHot.label() : curHot.label; if (a.textContent !== t) a.textContent = t; } else { a.hidden = true; if (pl && pl.ice) curHot = null; }
   $("trick").hidden = !(pl && pl.ice && (mode === "play" || mode === "contest") && $("modal").hidden);
   if (C && mode === "contest") $("timer").textContent = C.count > 0 ? "Get ready!" : "⏱ " + Math.ceil(C.t) + "   ⭐ " + C.score + "   Next: " + TRICKS[trickI % TRICKS.length].name;
