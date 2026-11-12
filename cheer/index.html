@@ -58,7 +58,7 @@
   #ring .mv { position:absolute; inset:0; border:6px solid #ffd166; border-radius:50%; }
   #ring.go .tgt { border-color:#4ade80; box-shadow:0 0 18px #4ade80; }
   #ring b { position:absolute; left:-40px; right:-40px; top:-26px; text-align:center; color:#fff; font:800 15px var(--font); text-shadow:0 2px 6px rgba(0,0,0,.6); }
-  #pop { position:fixed; left:50%; top:30%; transform:translate(-50%,-50%); z-index:30; color:#fff; font:800 44px var(--font); text-shadow:0 4px 0 #c0392b, 0 8px 24px rgba(0,0,0,.5); pointer-events:none; text-align:center; white-space:nowrap; }
+  #pop { position:fixed; left:50%; top:30%; transform:translate(-50%,-50%); z-index:70; color:#fff; font:800 44px var(--font); text-shadow:0 4px 0 #c0392b, 0 8px 24px rgba(0,0,0,.5); pointer-events:none; text-align:center; white-space:nowrap; }
   #pop.show { animation:pop .9s ease-out forwards; }
   @keyframes pop { 0% { opacity:0; transform:translate(-50%,-30%) scale(.6); } 20% { opacity:1; transform:translate(-50%,-50%) scale(1.1); } 70% { opacity:1; } 100% { opacity:0; transform:translate(-50%,-90%) scale(1); } }
   #toast { position:fixed; left:50%; top:calc(var(--sat) + 100px); transform:translateX(-50%); z-index:60; background:rgba(40,30,80,.92); color:#fff;
@@ -114,7 +114,8 @@
    where winning lets you pick a fabulous house (ice castle, fancy mansion or dream house).
    Part two: pets you can ride and dress up, six stores, a phone (map, call, text, order),
    Nora's magic winter garden, and a ski hill with a slalom contest.
-   Still to come (their design): friends and their houses, presents, sledding and jobs. */
+   Part three: friends who walk around and have houses you can visit, swapping presents,
+   sledding with races, and five jobs. */
 if (!window.THREE) document.body.insertAdjacentHTML("beforeend", '<div class="ov"><div class="card"><h2>Oops!</h2><p>The 3D part could not load. Check the internet and try again.</p></div></div>');
 
 const $ = id => document.getElementById(id);
@@ -131,7 +132,7 @@ const SAVE_KEY = Arcade.key("cheerSave");
 const S = { hero: null, money: 100, wins: 0, houses: [], best: 0, music: true };
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
 (function load() { try { const d = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); if (d) Object.assign(S, d); } catch (e) {} })();
-S.custom = S.custom || {}; S.pets = S.pets || {}; S.garden = S.garden || [null, null, null, null, null, null, null, null, null]; S.treats = S.treats || 0; S.skiWins = S.skiWins || 0;
+S.custom = S.custom || {}; S.pets = S.pets || {}; S.garden = S.garden || [null, null, null, null, null, null, null, null, null]; S.treats = S.treats || 0; S.skiWins = S.skiWins || 0; S.sledWins = S.sledWins || 0; S.gifts = S.gifts || [];
 
 /* ------------------------------ sound ------------------------------ */
 let AC = null;
@@ -243,7 +244,7 @@ function building(o) {
   if (o.chimney) { box(.8, 1.8, .8, "#8a4b3a", w * .28, h + rh * .55, -d * .2, g); box(.95, .15, .95, "#ffffff", w * .28, h + rh * .55 + .95, -d * .2, g); }
   const n = Math.round(w * 1.1);
   for (let i = 0; i <= n; i++) { const t = i / n; for (const s of [-1, 1]) { const v = wp(g, s * lerp(w / 2 + .45, 0, t), h + lerp(-.05, rh, t) + .05, d / 2 + .52); bulb(v.x, v.y, v.z); } }
-  if (o.sign) { const sg = makeSign(o.sign, Math.min(w - 1, 6.5), 1, o.signBg || "#fff8e8", o.signFg || "#c0392b"); sg.position.set(0, h - .35, d / 2 + .09); g.add(sg); }
+  if (o.sign) { const sg = makeSign(o.sign, Math.min(w - 1, 6.5), 1, o.signBg || "#fff8e8", o.signFg || "#c0392b"); sg.position.set(0, h - .35, d / 2 + .09); g.add(sg); g.userData.sign = sg; }
   const sw = Math.abs(Math.sin(o.rot || 0)) > .5; solidBox(o.x, o.z, sw ? d : w, sw ? w : d);
   const dr = wp(g, 0, 0, d / 2 + 1.2); g.userData.door = { x: dr.x, z: dr.z, h: o.rot || 0 };
   return g;
@@ -304,6 +305,7 @@ function makePerson(L) {
     for (const s of [-1, 1]) sph(.085, L.hat, s * .225, .0, -.02, hd).scale.x = .6;
   }
   if (L.clips) for (const s of [-1, 1]) { for (let i = 0; i < 3; i++) sph(.026, i === 1 ? "#ffffff" : "#ffb3d1", s * (.165 + i * .012), .15 - i * .04, .135 - i * .02, hd); }
+  const sd = new THREE.Group(); box(.5, .08, 1.15, "#e23b3b", 0, .22, .1, sd); for (const s of [-1, 1]) { box(.05, .16, 1.25, "#ffd23e", s * .21, .09, .1, sd); } box(.5, .06, .06, "#ffd23e", 0, .2, .72, sd); sd.visible = false; g.add(sd); P.sled = sd;
   return P;
 }
 function applyPose(P, tg, dt, spin) {
@@ -375,15 +377,16 @@ function buildWorld() {
   [[-3.2, 9], [3.2, 9], [-3.2, 20], [3.2, 20], [-3.2, -10], [3.2, -10], [-3.2, -21], [3.2, -21], [-12, -6], [9, 7], [-18, 28.5], [18, 28.5], [-21, -24.5], [21, -24.5]].forEach(p => lamp(p[0], p[1]));
   snowman(-7, 8, .6); snowman(8.5, -8, -.7); snowman(-15, 24, .3);
   [[-6, -5, .8], [6, 6, -2.4]].forEach(b => { const g = new THREE.Group(); g.position.set(b[0], 0, b[1]); g.rotation.y = b[2]; scene.add(g); box(2, .12, .6, "#8a5a3a", 0, .5, 0, g); box(2, .5, .1, "#8a5a3a", 0, .85, -.28, g); for (const s of [-1, 1]) box(.12, .5, .6, "#2c2c3a", s * .85, .25, 0, g); box(2.05, .06, .62, "#fff", 0, .58, 0, g); solidCircle(b[0], b[1], .9); });
-  const keep = [[0, 0, 8], [-24, -10, 9], [27, 4, 17], [0, -33, 40], [-28, 37, 12], [0, 39, 13], [28, 37, 12], [0, 15, 6], [0, -15, 6], [12, 8, 4], [43, -19, 10], [-25, 4, 8]];
+  const keep = [[0, 0, 8], [-24, -10, 9], [27, 4, 17], [0, -33, 40], [-28, 37, 12], [0, 39, 13], [28, 37, 12], [0, 15, 6], [0, -15, 6], [12, 8, 4], [43, -19, 10], [-25, 4, 8], [-46, -24, 8], [-46, -12, 8], [-46, 0, 8], [-46, 12, 8], [-46, 24, 8], [47, 8, 8], [47, 20, 8]];
   let placed = 0;
   for (let i = 0; i < 900 && placed < 190; i++) { const a = srand() * Math.PI * 2, r = 14 + srand() * 100, x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (keep.some(k => (k[3] ? Math.abs(x - k[0]) < k[2] && Math.abs(z - k[1]) < 8 : Math.hypot(x - k[0], z - k[1]) < k[2]))) continue;
     if (Math.abs(z + 33) < 9 && Math.abs(x) < 40) continue; if (Math.abs(z - 34) < 12 && Math.abs(x) < 42) continue; if (Math.abs(x) < 3 && r < 34) continue; if (Math.abs(z + 27) < 3 || Math.abs(z - 31) < 3) continue;
+    if (Math.abs(x + 40.6) < 2.6 && Math.abs(z) < 30) continue; if (Math.abs(x - 42.6) < 2.2 && z > 0 && z < 26) continue;
     if (r < 50 && srand() < .72) continue;
     pine(x, z, .9 + srand() * 1.1); if (r < 62) solidCircle(x, z, .55); placed++; }
 
-  buildRink(); buildPrizeHouses(); buildRooms(); buildGarden(); buildSki();
+  buildRink(); buildPrizeHouses(); buildRooms(); buildGarden(); buildSki(); buildSled(); buildFriendHouses(); buildFriendRoom(); buildJobSpot();
 
   // falling snow
   const N = 1400, pg = new THREE.BufferGeometry(), pa = new Float32Array(N * 3); for (let i = 0; i < N; i++) { pa[i * 3] = rnd(-35, 35); pa[i * 3 + 1] = rnd(0, 26); pa[i * 3 + 2] = rnd(-35, 35); }
@@ -493,6 +496,7 @@ function buildRooms() {
   bed(R, 5.6, -2.6, "#8a5a3a", "#c0392b"); R.B(3.6, .03, 2.4, "#f6c8d8", 3.4, .02, .4); R.B(.7, .7, .7, "#8a5a3a", 4.3, .35, -3.9); M(new THREE.SphereGeometry(.2, 10, 8), glow(0xffe9a8), 504.3, 1, -3.9, scene, true);
   R.hot(4.9, -1.4, 1.6, "😴 Take a cozy nap", () => { toast("😴 Zzz... You had the best nap ever."); SFX.yay(); });
   smallTree(500 - 1.4, -3.9);
+  R.hot(-1.4, -2.6, 1.3, "🎁 Look at my presents", () => myPresents());
   R.B(1.3, .2, 1, "#9b6cff", 1.4, .1, 2.4); R.B(1.05, .12, .75, "#ffffff", 1.4, .24, 2.4);
   R.hot(1.4, 2.4, 1.2, "🐾 Tuck my pet into bed", () => toast(!pet ? "You don't have a pet yet. Visit the Animal Shop!" : PETS[pet.id].big ? petName() + " is too big for this bed! It sleeps outside under a warm blanket. 💤" : petName() + " curled up in the cozy bed. 💤"));
   // --- ice castle ---
@@ -556,13 +560,13 @@ function spawnPlayer() {
   pl = Object.assign(P, { x: 0, z: 11, vx: 0, vz: 0, head: P.head, hdg: Math.PI, ice: null, fall: 0, y: 0 }); camYaw = 0;
   // the other skaters: three heroes you didn't pick
   rivals.forEach(r => scene.remove(r.g)); rivals = LOOKS.filter(l => l.id !== L.id && l.id !== "jules" && l.id !== "nora").sort((a, b) => (a.id + L.id > b.id + L.id ? 1 : -1)).slice(0, 3).map((l, i) => { const r = makePerson(l); scene.add(r.g); setBlades(r, true); r.ang = i * 2.1; r.spd = .32 + i * .07; r.k = .5 + i * .14; return r; });
-  refreshHouseSigns(); hud(); spawnPet(false);
+  refreshHouseSigns(); hud(); spawnPet(false); spawnFriends();
 }
-function hud() { $("hud").innerHTML = '<span class="pill">🎄 ' + esc(pl ? pl.L.name : "") + '</span><span class="pill">💰 $' + S.money + '</span><span class="pill">🏆 ' + S.wins + '</span>' + (S.skiWins ? '<span class="pill">🎿 ' + S.skiWins + '</span>' : "") + '<button type="button" data-act="phone">📱 Phone</button><button type="button" data-act="music">' + (S.music ? "🔊" : "🔇") + '</button><button type="button" data-act="who">👤</button>'; }
+function hud() { $("hud").innerHTML = '<span class="pill">🎄 ' + esc(pl ? pl.L.name : "") + '</span><span class="pill">💰 $' + S.money + '</span><span class="pill">🏆 ' + S.wins + '</span>' + (S.skiWins ? '<span class="pill">🎿 ' + S.skiWins + '</span>' : "") + (S.sledWins ? '<span class="pill">🛷 ' + S.sledWins + '</span>' : "") + '<button type="button" data-act="phone">📱 Phone</button><button type="button" data-act="music">' + (S.music ? "🔊" : "🔇") + '</button><button type="button" data-act="who">👤</button>'; }
 function earn(n) { S.money += n; hud(); save(); }
 
 function enter(R) { SFX.door(); snap = true; zone = R; pl.x = R.cx; pl.z = R.d / 2 - 2.2; pl.vx = pl.vz = 0; pl.hdg = Math.PI; scene.fog.near = 900; scene.fog.far = 1000; sky.visible = false; snow.visible = false; scene.background = new THREE.Color(0x2a2036); hemi.intensity = .82; }
-function leave(R) { SFX.door(); snap = true; zone = null; pl.x = R.out.x; pl.z = R.out.z; pl.vx = pl.vz = 0; pl.hdg = R.out.h; camYaw = R.out.h; pl.ice = null; setBlades(pl, false); outdoorLook(); }
+function leave(R) { SFX.door(); if (R === rooms.friend) friendLeft(); snap = true; zone = null; pl.x = R.out.x; pl.z = R.out.z; pl.vx = pl.vz = 0; pl.hdg = R.out.h; camYaw = R.out.h; pl.ice = null; setBlades(pl, false); outdoorLook(); }
 
 /* ------------------------------ input ------------------------------ */
 const keys = {}; let joy = null, look = null;
@@ -585,7 +589,7 @@ document.addEventListener("click", e => { const a = e.target.closest && e.target
 /* ------------------------------ menus ------------------------------ */
 function openModal(html, low) { $("modalCard").innerHTML = html; $("modal").hidden = false; $("modal").classList.toggle("low", !!low); }
 function closeModal() { $("modal").hidden = true; }
-function showTitle() { mode = "title"; openModal('<h1>🎄 Christmas Cheer</h1><p><b>by Jules &amp; Nora</b></p><p>A snowy village with pets, stores, a magic garden, ice skating and skiing.</p><div class="row">' + (S.hero ? '<button class="btn" data-act="go">▶ Keep playing as ' + esc(lookOf(S.hero).name) + '</button><button class="btn alt" data-act="pick">Pick a character</button>' : '<button class="btn" data-act="pick">▶ Play</button>') + '</div>', true); }
+function showTitle() { mode = "title"; openModal('<h1>🎄 Christmas Cheer</h1><p><b>by Jules &amp; Nora</b></p><p>A snowy village with friends, pets, stores, jobs, ice skating, skiing and sledding.</p><div class="row">' + (S.hero ? '<button class="btn" data-act="go">▶ Keep playing as ' + esc(lookOf(S.hero).name) + '</button><button class="btn alt" data-act="pick">Pick a character</button>' : '<button class="btn" data-act="pick">▶ Play</button>') + '</div>', true); }
 function showPick() { mode = "pick"; pickI = Math.max(0, LOOKS.findIndex(l => l.id === S.hero)); drawPick(); }
 function drawPick() { const L = LOOKS[pickI]; if (preview) scene.remove(preview.g); preview = makePerson(L); preview.g.position.set(0, 0, 9); scene.add(preview.g);
   openModal('<h2>Who do you want to be?</h2><div class="chips">' + LOOKS.map((l, i) => '<button class="chip' + (i === pickI ? " on" : "") + '" data-act="chip" data-arg="' + i + '">' + esc(l.name) + '</button>').join("") + '</div><div class="row"><button class="btn" data-act="go">▶ Play as ' + esc(L.name) + '</button></div>', true);
@@ -620,7 +624,7 @@ function startContest() {
   closeModal(); snap = true; mode = "contest"; C = { t: 60, score: 0, n: 0, streak: 0, falls: 0, count: 3.6, last: 4 }; T = null; trickI = 0;
   pl.x = RINK.cx; pl.z = RINK.cz + 2; pl.vx = pl.vz = 0; pl.ice = RINK; pl.hdg = Math.PI; setBlades(pl, true); camYaw = 0; camPitch = .34;
   rivals.forEach((r, i) => { r.g.position.set(RINK.cx - 4.5 + i * 1.4, 0, RINK.cz - RINK.b + .9); r.g.rotation.y = 0; });
-  $("timer").hidden = false; $("act").hidden = true;
+  $("timer").hidden = false; $("act").hidden = true; friendsWatch(true);
 }
 function finishContest() {
   mode = "judging"; T = null; $("ring").hidden = true; pl.x = RINK.cx + 3.6; pl.z = RINK.cz - RINK.b + 1.1; pl.vx = pl.vz = 0; pl.hdg = Math.PI; pl.fall = 0; $("timer").hidden = true; $("trick").hidden = true; SFX.cheer();
@@ -641,7 +645,7 @@ function showResults() {
   C.until = Infinity;
 }
 function pickHouse(id) { const h = HOUSES.find(x => x.id === id); S.houses.push(id); save(); refreshHouseSigns(); afterContest(); toast("🎉 The " + h.name + " is yours! Walk down the path past the big tree to find it.", 5200); }
-function afterContest() { closeModal(); judgeCards.forEach(c => c.visible = false); cine = null; C = null; mode = "play"; camYaw = 0; snap = true; }
+function afterContest() { closeModal(); friendsWatch(false); judgeCards.forEach(c => c.visible = false); cine = null; C = null; mode = "play"; camYaw = 0; snap = true; }
 
 /* ====================== PART TWO: looks, pets, stores, phone, garden, ski hill ====================== */
 let pet = null, riding = false, curShop = null;
@@ -730,7 +734,7 @@ function petMenu() { const D = PETS[pet.id]; curShop = petMenu;
 function mount() { closeModal(); if (zone || pl.ice) return; riding = true; pl.x = pet.x; pl.z = pet.z; pl.vx = pl.vz = 0; pl.hdg = pet.hdg; SFX.yay(); toast(pet.id === "dragon" ? "🐉 Up, up and away! Steer to fly. Tap Get off to land." : "🏇 Giddy up! Steer to ride. Tap Get off when you are done.", 4200); }
 function dismount() { riding = false; pl.y = 0; pl.vx = pl.vz = 0; pl.x += Math.cos(pl.hdg) * 1.4; pl.z -= Math.sin(pl.hdg) * 1.4; collide(pl, .38); }
 function shopPets() { curShop = shopPets;
-  openModal('<h2>🐾 Animal Shop</h2><p>Pick any pet you want. It is free, and it comes right to you!</p><div class="row">' + Object.keys(PETS).map(id => '<button class="hcard" data-act="pet" data-arg="' + id + '"><span>' + PETS[id].e + '</span>' + esc((S.pets[id] || PETS[id]).name) + (S.pet === id ? "<small>with you now</small>" : "") + '</button>').join("") + '</div><div class="row">' + (pet ? '<button class="btn" data-act="petmenu">Dress up ' + esc(petName()) + '</button>' : "") + '<button class="btn alt" data-act="close">Done</button></div>'); }
+  openModal('<h2>🐾 Animal Shop</h2><p>Pick any pet you want. It is free, and it comes right to you!</p><div class="row">' + Object.keys(PETS).map(id => '<button class="hcard" data-act="pet" data-arg="' + id + '"><span>' + PETS[id].e + '</span>' + esc((S.pets[id] || PETS[id]).name) + (S.pet === id ? "<small>with you now</small>" : "") + '</button>').join("") + '</div><div class="row">' + (pet ? '<button class="btn" data-act="petmenu">Dress up ' + esc(petName()) + '</button>' : "") + '<button class="btn red" data-act="job" data-arg="animals">💼 Work here</button><button class="btn alt" data-act="close">Done</button></div>'); }
 
 /* ------------------------------ stores ------------------------------ */
 const PAL = ["#e23b3b", "#ff8fb8", "#ffb03e", "#ffd23e", "#7fd6c2", "#2f8f4e", "#4aa6f0", "#2b3f8c", "#9b6cff", "#ffffff", "#2c2c3a", "#8a5a3a"];
@@ -741,13 +745,13 @@ const DONE = '<div class="row"><button class="btn" data-act="close">Done</button
 function shopClothes() { curShop = shopClothes; const L = pl.L;
   openModal('<h2>👗 Clothes Store</h2><p>Pick anything you like. You have plenty of money!</p><h3>Coat</h3>' + swatches("coat", L.coat) + '<h3>Scarf</h3>' + swatches("scarf", L.scarf) + '<h3>Hat</h3>' + chips("head", L.head, [["beanie", "🧢 Beanie"], ["muffs", "🎧 Earmuffs"]]) + swatches("hat", L.hat) + '<h3>Mittens</h3>' + swatches("mitt", L.mitt) + '<h3>Pants</h3>' + swatches("pants", L.pants) + '<h3>Boots</h3>' + swatches("boots", L.boots) + DONE); }
 function shopSalon() { curShop = shopSalon; const L = pl.L;
-  openModal('<h2>💇 Hair Salon</h2><p>What hairstyle would you like today?</p><h3>Style</h3>' + chips("style", L.style, [["long", "Long"], ["shoulder", "Shoulder"], ["bob", "Bob"], ["pony", "Ponytail"], ["pigtails", "Pigtails"], ["short", "Short"]]) + '<h3>Bangs</h3>' + chips("bangs", L.bangs ? "1" : "", [["1", "Bangs"], ["", "No bangs"]]) + '<h3>Colour</h3>' + swatches("hairCol", L.hair[0], HAIRCOLS) + DONE); }
+  openModal('<h2>💇 Hair Salon</h2><p>What hairstyle would you like today?</p><h3>Style</h3>' + chips("style", L.style, [["long", "Long"], ["shoulder", "Shoulder"], ["bob", "Bob"], ["pony", "Ponytail"], ["pigtails", "Pigtails"], ["short", "Short"]]) + '<h3>Bangs</h3>' + chips("bangs", L.bangs ? "1" : "", [["1", "Bangs"], ["", "No bangs"]]) + '<h3>Colour</h3>' + swatches("hairCol", L.hair[0], HAIRCOLS) + '<div class="row"><button class="btn red" data-act="job" data-arg="salon">💼 Work here</button><button class="btn" data-act="close">Done</button></div>'); }
 const SKATES = [["#f4f0ea", "Classic white"], ["#ff8fb8", "Pink sparkle"], ["#4aa6f0", "Ice blue"], ["#ffd23e", "Champion gold"], ["#9b6cff", "Purple star"], ["#2c2c3a", "Speedy black"]];
 function shopSkates() { curShop = shopSkates;
   openModal('<h2>⛸ Ice Skate Store</h2><p>Pick your skates. You will wear them on the ice.</p><div class="row">' + SKATES.map(s => '<button class="hcard" style="flex:1 1 120px" data-act="skate" data-arg="' + s[0] + '"><span style="font-size:30px;display:inline-block;width:54px;height:54px;line-height:54px;border-radius:50%;background:' + s[0] + ';box-shadow:0 0 0 3px ' + (S.skates === s[0] ? "#d63a3a" : "#d6cbf5") + '">⛸</span>' + s[1] + '</button>').join("") + '</div>' + DONE); }
 const BAKE = [["🍪", "cookie"], ["🧁", "cupcake"], ["🍩", "donut"], ["🥐", "croissant"], ["🍰", "slice of cake"], ["🥧", "little pie"]];
 function shopBakery() { curShop = shopBakery;
-  openModal('<h2>🧁 Bakery</h2><p>Everything is fresh and warm. Tap one to eat it!</p><div class="row">' + BAKE.map((b, i) => '<button class="hcard" style="flex:1 1 90px" data-act="eat" data-arg="' + i + '"><span>' + b[0] + '</span>' + b[1] + '</button>').join("") + '</div><div class="row"><button class="btn" data-act="treat">🐾 Get treats for my pet</button><button class="btn alt" data-act="close">Done</button></div><p>Pet treats in your pocket: <b>' + S.treats + '</b></p>'); }
+  openModal('<h2>🧁 Bakery</h2><p>Everything is fresh and warm. Tap one to eat it!</p><div class="row">' + BAKE.map((b, i) => '<button class="hcard" style="flex:1 1 90px" data-act="eat" data-arg="' + i + '"><span>' + b[0] + '</span>' + b[1] + '</button>').join("") + '</div><div class="row"><button class="btn red" data-act="job" data-arg="bakery">💼 Work here</button><button class="btn" data-act="treat">🐾 Get treats for my pet</button><button class="btn alt" data-act="close">Done</button></div><p>Pet treats in your pocket: <b>' + S.treats + '</b></p>'); }
 const SHOPS = [shopClothes, shopSkates, cocoa, shopBakery, shopPets, shopSalon];
 
 /* ------------------------------ Nora's magic winter garden ------------------------------ */
@@ -797,49 +801,19 @@ const SKI = { ski: true, cx: 2000, TAN: .2, gates: [], state: "" };
 const skiY = z => clamp(z, -440, 0) * SKI.TAN;
 function buildSki() {
   const cx = SKI.cx, th = Math.atan(SKI.TAN), L = 440 / Math.cos(th);
-  const lodge = building({ x: 43, z: -19, w: 8, d: 7, h: 3.4, rot: -Math.PI / 2, wall: "#b8d8f0", roof: "#3d6fb3", door: "#3d6fb3", chimney: true, sign: "⛷ Ski Hill", signFg: "#3d6fb3" });
+  const lodge = building({ x: 43, z: -19, w: 8, d: 7, h: 3.4, rot: -Math.PI / 2, wall: "#b8d8f0", roof: "#3d6fb3", door: "#3d6fb3", chimney: true, sign: "⛷ Ski & Sled Hill", signFg: "#3d6fb3" });
   for (const s of [-1, 1]) { box(.12, 1.7, .1, s < 0 ? "#ff5fa2" : "#ffd23e", 39.4, .85, -19 + s * 2.6).rotation.x = .12; }
-  path(30, -25.6, 38.5, -19.4, 3); hot(lodge.userData.door.x, lodge.userData.door.z, 1.9, "⛷ Go skiing", skiMenu);
-  const sl = M(new THREE.BoxGeometry(76, .5, L), "#f6f7ff", cx, skiY(-220) - .26, -220, scene, true); sl.rotation.x = -th; sl.receiveShadow = true;
-  const top = M(new THREE.BoxGeometry(76, .5, 40), "#f6f7ff", cx, -.25, 20, scene, true); top.receiveShadow = true; const bot = M(new THREE.BoxGeometry(76, .5, 120), "#f6f7ff", cx, skiY(-440) - .25, -500, scene, true); bot.receiveShadow = true;
-  for (let z = 34; z > -540; z -= 6.5) for (const s of [-1, 1]) for (let r = 0; r < 2; r++) pine(cx + s * (18.5 + r * 8 + srand() * 6), z + srand() * 4, 1 + srand() * 1.2, skiY(z) - .1);
+  path(30, -25.6, 38.5, -19.4, 3); hot(lodge.userData.door.x, lodge.userData.door.z, 1.9, "⛷ Go skiing or sledding", skiMenu);
+  slopeBase(cx);
   for (let i = 0; i < 18; i++) { const z = -40 - i * 20, x = cx + (i % 2 ? 1 : -1) * (3 + srand() * 3.5), col = i % 2 ? "#3f6fe0" : "#e23b3b", y = skiY(z);
     for (const s of [-1, 1]) { cyl(.07, .07, 1.9, col, x + s * 2.7, y + .95, z, scene, 8); box(.55, .32, .05, col, x + s * 2.7 - s * .3, y + 1.7, z); }
     SKI.gates.push({ x, z }); }
-  for (const z of [-4, -400]) { const y = skiY(z); for (const s of [-1, 1]) cyl(.14, .14, 5.4, "#e23b3b", cx + s * 8, y + 2.7, z); const sg = makeSign(z < -10 ? "🏁 FINISH 🏁" : "⛷ START", 15.6, 1.5, "#ffffff", "#c0392b"); sg.position.set(cx, y + 4.7, z); scene.add(sg); bulbLine(cx - 8, y + 3.8, z, cx + 8, y + 3.8, z, 20, .5); }
-}
-function skiMenu() { openModal('<h2>⛷ The Ski Hill</h2><p>Zoom down the mountain! Steer left and right.</p><p>In the <b>slalom contest</b> you race through the gates: red, then blue. If you miss a gate you get <b>2 extra seconds</b>. The fastest skier wins <b>$300</b>!</p><div class="row"><button class="btn red" data-act="ski" data-arg="race">🏁 Slalom contest</button><button class="btn" data-act="ski" data-arg="fun">⛷ Ski for fun</button><button class="btn alt" data-act="close">Not now</button></div>'); }
-function startSki(kind) {
-  closeModal(); snap = true; zone = SKI; mode = "ski"; Object.assign(SKI, { state: "count", count: 3.6, last: 4, time: 0, gi: 0, miss: 0, pass: 0, race: kind === "race", v: 0, ang: 0, doneT: 0 });
-  pl.x = SKI.cx; pl.z = -1; pl.y = 0; pl.vx = pl.vz = 0; pl.ice = null; pl.fall = 0; T = null; setBlades(pl, false); setSkis(pl, true); $("timer").hidden = false; $("ring").hidden = true;
-}
-function leaveSki() { closeModal(); zone = null; mode = "play"; setSkis(pl, false); pl.x = 37.4; pl.z = -19; pl.y = 0; pl.vx = pl.vz = 0; pl.hdg = -Math.PI / 2; camYaw = -Math.PI / 2; snap = true; $("timer").hidden = true; }
-function skiUpdate(dt) {
-  const K = SKI, inp = $("modal").hidden ? getInput() : { x: 0, y: 0 };
-  if (K.state === "count") { K.count -= dt; const n = Math.ceil(K.count - .6); if (n !== K.last) { K.last = n; if (n > 0) { pop(String(n)); tone(440, .15, "square", .06); } else { pop("GO!"); tone(880, .3, "square", .07); } } if (K.count <= 0) K.state = "run"; }
-  else if (K.state === "run") {
-    K.time += dt; K.ang += (inp.x * .95 - K.ang) * (1 - Math.exp(-dt * 5));
-    K.v += (6 * Math.cos(K.ang) + (inp.y > .3 ? 2.2 : 0) - (inp.y < -.3 ? 9 : 0) - K.v * .45) * dt; K.v = Math.max(2, K.v);
-    pl.x += Math.sin(K.ang) * K.v * dt; pl.z -= Math.cos(K.ang) * K.v * dt;
-    if (Math.abs(pl.x - K.cx) > 15) { pl.x = K.cx + Math.sign(pl.x - K.cx) * 15; K.v *= 1 - dt * 2; }
-    while (K.gi < K.gates.length && pl.z <= K.gates[K.gi].z) { const gt = K.gates[K.gi++]; if (Math.abs(pl.x - gt.x) < 2.75) { K.pass++; SFX.coin(); } else { K.miss++; pop("Missed! +2s"); SFX.fall(); } }
-    if (pl.z <= -400) { K.state = "done"; K.doneT = 1.7; SFX.cheer(); pop("🏁 Finish!"); }
-  } else if (K.state === "done") { K.v *= Math.exp(-dt * 1.4); pl.z -= K.v * dt; K.ang *= .92; K.doneT -= dt; if (K.doneT <= 0) { K.state = "end"; skiResults(); } }
-  pl.y = skiY(pl.z); pl.hdg = Math.atan2(Math.sin(K.ang), -Math.cos(K.ang)); pl.g.position.set(pl.x, pl.y, pl.z); pl.g.rotation.y = pl.hdg;
-  applyPose(pl, { lL: -.45, lR: -.45, aL: -.7, aR: -.7, az: .4, tilt: .45 + (inp.y > .3 ? .25 : 0), y: .04, roll: K.ang * .45 }, dt);
-}
-function skiResults() {
-  const K = SKI, tot = K.time + K.miss * 2, again = '<button class="btn alt" data-act="ski" data-arg="' + (K.race ? "race" : "fun") + '">Go again</button>';
-  if (!K.race) { earn(10); return openModal('<h2>⛷ Wheee!</h2><p>You skied down the whole mountain in <b>' + tot.toFixed(1) + ' seconds</b>. You earned <b>$10</b> for having fun!</p><div class="row"><button class="btn" data-act="skiDone">Back to the village</button>' + again + '</div>'); }
-  const rows = [{ name: pl.L.name, me: true, t: tot }].concat(rivals.map((r, i) => ({ name: r.L.name, t: Math.max(RIVAL_MIN, RIVAL_T - S.skiWins * 1.3 + i * 2.2 + rnd(0, 3)) }))); rows.sort((a, b) => a.t - b.t || (a.me ? -1 : 1));
-  const won = rows[0].me, prize = won ? 300 : 40; if (won) { S.skiWins++; SFX.yay(); } earn(prize);
-  openModal('<h2>' + (won ? "🥇 You won the slalom!" : "Great skiing!") + '</h2><table class="sc">' + rows.map((r, i) => '<tr class="' + (r.me ? "me" : "") + '"><td>' + ["🥇", "🥈", "🥉", "4"][i] + '</td><td class="n">' + esc(r.name) + '</td><td><b>' + r.t.toFixed(1) + ' s</b></td></tr>').join("") + '</table><p>You went through ' + K.pass + ' of 18 gates' + (K.miss ? " and missed " + K.miss + " (+" + K.miss * 2 + " seconds)" : "") + '. You earned <b>$' + prize + '</b>!</p><div class="row"><button class="btn" data-act="skiDone">' + (won ? "Yay!" : "Back to the village") + '</button>' + again + '</div>');
 }
 const RIVAL_T = 46, RIVAL_MIN = 34;
 
 /* ------------------------------ the phone ------------------------------ */
 const PLACES = [["🏡", "My cabin", -19.2, -10], ["🎄", "The big tree", 0, 8], ["👗", "Clothes", -30, -27.6], ["⛸", "Ice skates", -18, -27.6], ["☕", "Hot chocolate", -6, -27.6], ["🧁", "Bakery", 6, -27.6], ["🐾", "Animal shop", 18, -27.6], ["💇", "Hair salon", 30, -27.6],
-  ["🧊", "Ice rink", 12.2, 4], ["⛷", "Ski hill", 37.4, -19], ["🌱", "Garden", -19.6, 4], ["🏰", "Ice Castle", -28, 30.6], ["🏛", "Mansion", 0, 31.4], ["🌈", "Dream House", 28, 30.6]];
+  ["🧊", "Ice rink", 12.2, 4], ["⛷", "Ski hill", 37.4, -19], ["🌱", "Garden", -19.6, 4], ["🏰", "Ice Castle", -28, 30.6], ["🏛", "Mansion", 0, 31.4], ["🌈", "Dream House", 28, 30.6], ["🏘", "Friends' street", -40.6, -6], ["🏠", "More friends", 42.6, 14]];
 const CALLS = ["Hi {me}! I'm at the ice rink. Come skate with me! ⛸", "Guess what? I built a snowman with a carrot nose! ⛄", "Do you want to drink hot chocolate together? ☕", "I can't wait for Christmas! What do you want from Santa? 🎅", "Your pet is SO cute. Can I pet it? 🐾", "Let's race down the ski hill! ⛷", "I saw your garden. The flowers are so pretty! 🌷", "Merry Christmas, {me}! You're my best friend! 🎄"];
 const TEXTS = [["Hi! 👋", "Hi {me}!! 😄"], ["Want to go ice skating? ⛸", "Yes! Meet you at the rink! ⛸✨"], ["Come see my pet! 🐾", "Awww, I'm coming right now! 😍"], ["Merry Christmas! 🎄", "Merry Christmas to you too! 🎁❤️"], ["I won the contest! 🏆", "WOW! You're the best skater ever! 🥇"], ["Let's ski! ⛷", "Race you down the hill! 🏁"]];
 const SURPRISE = ["a sparkly snow globe ❄️", "fuzzy reindeer slippers 🦌", "a giant candy cane 🍭", "a glitter pen set ✨", "a tiny snowman that never melts ⛄", "a jingle bell bracelet 🔔"];
@@ -853,7 +827,7 @@ function phoneView(v, a) {
   else if (v === "text") h = '<h2>💬 Who do you want to text?</h2>' + list("textto") + back;
   else if (v === "thread") { const th = threads[a] || (threads[a] = []); curShop = () => phoneView("thread", a); h = '<h2>💬 ' + esc(a) + '</h2>' + (th.length ? th.slice(-6).map(m => '<div class="bub' + (m.me ? " me" : "") + '">' + esc(m.t) + '</div>').join("") : "<p>Say something!</p>") + '<h3>Send</h3><div class="row">' + TEXTS.map((t, i) => '<button class="chip" data-act="say" data-arg="' + esc(a) + "|" + i + '">' + t[0] + '</button>').join("") + '</div><div class="row"><button class="btn alt" data-act="phone" data-arg="text">⬅ Back</button><button class="btn alt" data-act="close">Close</button></div>'; }
   else if (v === "order") h = '<h2>🛍 Order stuff</h2><p>Everything comes right away, and it never costs you money.</p><div class="row"><button class="hcard" data-act="order" data-arg="pet"><span>🐾</span>A pet</button><button class="hcard" data-act="order" data-arg="cocoa"><span>☕</span>Hot chocolate</button><button class="hcard" data-act="order" data-arg="treats"><span>🍪</span>Pet treats</button><button class="hcard" data-act="order" data-arg="gift"><span>🎁</span>A surprise</button></div>' + back;
-  else h = '<h2>📱 ' + esc(me) + "'s phone</h2>" + '<div class="row"><button class="hcard" data-act="phone" data-arg="map"><span>🗺</span>Map</button><button class="hcard" data-act="phone" data-arg="call"><span>📞</span>Call</button><button class="hcard" data-act="phone" data-arg="text"><span>💬</span>Text</button><button class="hcard" data-act="phone" data-arg="order"><span>🛍</span>Order</button></div><div class="row"><button class="btn alt" data-act="close">Close</button></div>';
+  else h = '<h2>📱 ' + esc(me) + "'s phone</h2>" + '<div class="row"><button class="hcard" data-act="phone" data-arg="map"><span>🗺</span>Map</button><button class="hcard" data-act="phone" data-arg="call"><span>📞</span>Call</button><button class="hcard" data-act="phone" data-arg="text"><span>💬</span>Text</button><button class="hcard" data-act="phone" data-arg="order"><span>🛍</span>Order</button><button class="hcard" data-act="jobs"><span>💼</span>Jobs</button></div><div class="row"><button class="btn alt" data-act="close">Close</button></div>';
   openModal(h);
 }
 function goPlace(i) { const p = PLACES[i]; if (zone) { outdoorLook(); zone = null; } pl.x = p[2]; pl.z = p[3]; pl.vx = pl.vz = 0; pl.ice = null; setBlades(pl, false); snap = true; closeModal(); SFX.swish(); toast(p[0] + " Zoom! You are at: " + p[1]); }
@@ -875,11 +849,185 @@ Object.assign(ACTS, {
   ski: startSki, skiDone: leaveSki,
 });
 
+/* ====================== PART THREE: friends, presents, sledding, jobs ====================== */
+const FL = (skin, hair, style, coat, hat, head) => ({ skin, hair: [hair], style, eye: "#2a1c12", head: head || "beanie", acc: "none", coat, scarf: "#ffffff", hat, pants: "#3b4a6b", boots: "#6b4a35", mitt: "#ffffff", scale: .95 });
+const FRIENDS = [
+  { n: "Sonia", x: -46, z: -24, rot: Math.PI / 2, wall: "#f6c8d8", roof: "#b0476a", L: FL("#e8b98f", "#3a2418", "long", "#ff8fb8", "#ffffff") },
+  { sib: true, x: -46, z: -12, rot: Math.PI / 2, wall: "#d9f0ea", roof: "#3f9d8a" },
+  { n: "Nayun", x: -46, z: 0, rot: Math.PI / 2, wall: "#e6d6ff", roof: "#7a4fc8", L: FL("#f3d2b0", "#151515", "bob", "#9b6cff", "#ffd23e", "muffs") },
+  { n: "Lucas", x: -46, z: 12, rot: Math.PI / 2, wall: "#d6f2d2", roof: "#3e8f56", L: FL("#f0c9a4", "#5a3a1a", "short", "#2f8f4e", "#4aa6f0") },
+  { n: "Charlotte", x: -46, z: 24, rot: Math.PI / 2, wall: "#cfe4ff", roof: "#3d6fb3", L: FL("#fce0c2", "#d6a85a", "pony", "#4aa6f0", "#ff8fb8") },
+  { n: "Christina", x: 47, z: 8, rot: -Math.PI / 2, wall: "#fff0c9", roof: "#c9772e", L: FL("#e0ac69", "#2a1a10", "pigtails", "#ffb03e", "#e23b3b") },
+  { n: "DJ", x: 47, z: 20, rot: -Math.PI / 2, wall: "#f3d9b8", roof: "#8a4b2a", L: FL("#c68642", "#151515", "short", "#e23b3b", "#2c2c3a") },
+];
+const WP = [[0, 9], [0, 20], [-8, 12], [8, 13], [-10, -6], [10, -9], [0, -18], [-15, -25], [15, -25], [-13, 3], [11, 2], [-15, 29], [15, 29], [-38, -8], [-38, 14], [-36, -26], [41, 14], [34, -24]];
+const PAL_LINES = ["Hi {me}! Isn't the snow so pretty today? ❄️", "I love your coat! Where did you get it? 🧥", "Want to build a snowman later? ⛄", "I can't wait for Christmas morning! 🎄", "Did you see the big tree? The lights are twinkling! ✨", "Your pet is the cutest pet in the whole village! 🐾", "Let's go sledding! I bet I can beat you! 🛷", "Come over to my house and play! 🏠", "I'm going to watch you at the skating contest! ⛸"];
+const GIFTS = [["🧸", "teddy bear"], ["📚", "storybook"], ["🧦", "pair of fuzzy socks"], ["🎨", "paint set"], ["🍫", "box of chocolates"], ["🪀", "yo-yo"], ["💎", "sparkly necklace"], ["🧩", "puzzle"]];
+const PLAYS = ["You played a board game and you both laughed so hard! 🎲", "You built a giant pillow fort together! 🏰", "You had a dance party in the living room! 💃", "You drew Christmas cards with glitter pens! ✨", "You played hide and seek. Best hiding spot ever! 🙈"];
+let pals = [], homeF = null;
+const palName = f => f.sib ? (S.hero === "nora" ? "Jules" : "Nora") : f.n;
+function buildFriendHouses() {
+  FRIENDS.forEach((f, i) => { const g = building({ x: f.x, z: f.z, w: 7, d: 6, h: 3, rot: f.rot, wall: f.wall, roof: f.roof, door: f.roof, chimney: i % 2 === 0, sign: " ", signFg: f.roof }); f.door = g.userData.door; f.sign = g.userData.sign;
+    hot(f.door.x, f.door.z, 1.8, () => "🚪 Visit " + palName(f) + "'s house", () => visit(i)); });
+  path(-41, -27, -34, -27, 3.2); path(-40.6, -28.5, -40.6, 27, 3); path(-29, -10, -40.6, -10, 2.6); path(42.6, 3, 42.6, 23.5, 2.6);
+  hot(0, 4.9, 1.7, "🎁 Open a present from under the tree", treeGift);
+}
+function spawnFriends() {
+  pals.forEach(F => scene.remove(F.P.g)); pals = FRIENDS.map((f, i) => { const n = palName(f), P = makePerson(f.sib ? lookOf(n.toLowerCase()) : f.L), w = WP[i * 2 % WP.length]; scene.add(P.g); setSign(f.sign, n + "'s House");
+    return { f, n, P, x: w[0], z: w[1], hdg: 0, tx: w[0], tz: w[1], wait: rnd(0, 3), stuck: 0, mode: "wander" }; });
+}
+function updateFriends(dt) {
+  for (const F of pals) { let mv = 0;
+    if (F.mode === "wander") {
+      if (F.wait > 0) F.wait -= dt;
+      else { const dx = F.tx - F.x, dz = F.tz - F.z, d = Math.hypot(dx, dz);
+        if (d < .7 || F.stuck > 1.2) { F.wait = rnd(1.5, 5); const w = WP[Math.floor(Math.random() * WP.length)]; F.tx = w[0] + rnd(-1.5, 1.5); F.tz = w[1] + rnd(-1.5, 1.5); F.stuck = 0; }
+        else { const ox = F.x, oz = F.z; F.x += dx / d * 1.6 * dt; F.z += dz / d * 1.6 * dt; palBlock(F); if (Math.hypot(F.x - ox, F.z - oz) < 1.6 * dt * .5) F.stuck += dt; else F.stuck = 0; F.hdg += wrap(Math.atan2(dx, dz) - F.hdg) * (1 - Math.exp(-dt * 8)); mv = .55; } }
+    } else if (F.mode === "follow" && !zone) {
+      let dx = pl.x - F.x, dz = pl.z - F.z, d = Math.hypot(dx, dz); if (d > 34) { F.x = pl.x - Math.sin(pl.hdg) * 2.5; F.z = pl.z - Math.cos(pl.hdg) * 2.5; d = 0; }
+      if (d > 2) { const sp = Math.min(8, (d - 2) * 3 + 1); F.x += dx / d * sp * dt; F.z += dz / d * sp * dt; palBlock(F); F.hdg += wrap(Math.atan2(dx, dz) - F.hdg) * (1 - Math.exp(-dt * 8)); mv = clamp(sp / 4.4, .2, 1); }
+    }
+    F.P.g.position.set(F.x, 0, F.z); F.P.g.rotation.y = F.hdg;
+    applyPose(F.P, mv ? poseWalk(F.P, dt, mv) : F.mode === "watch" ? { lL: 0, lR: 0, aL: 0, aR: 0, az: 2.4 + Math.sin(tNow * 8 + F.P.ph) * .4, tilt: 0, y: Math.abs(Math.sin(tNow * 6 + F.P.ph)) * .12 } : poseIdle(F.P, tNow), dt); }
+}
+function palBlock(F) { collide(F, .35); const ex = (F.x - RINK.cx) / (RINK.a + .6), ez = (F.z - RINK.cz) / (RINK.b + .6), ff = ex * ex + ez * ez; if (ff < 1) { const s = 1 / Math.sqrt(ff); F.x = RINK.cx + (F.x - RINK.cx) * s; F.z = RINK.cz + (F.z - RINK.cz) * s; } }
+function friendsWatch(on) { pals.forEach((F, i) => { if (on) { if (F.mode === "home") return; F.back = F.mode; F.mode = "watch"; F.x = RINK.cx + 4.5 + i * 1.45; F.z = RINK.cz - RINK.b - 1.3 - (i % 2) * .7; F.hdg = 0; } else if (F.mode === "watch") { F.mode = F.back === "follow" ? "follow" : "wander"; F.wait = rnd(0, 2); } }); }
+function talk(i) { const F = pals[i]; curShop = () => talk(i);
+  openModal('<h2>💬 ' + esc(F.n) + '</h2><div class="bub">' + esc(PAL_LINES[Math.floor(Math.random() * PAL_LINES.length)].replace("{me}", pl.L.name)) + '</div><div class="row"><button class="btn" data-act="palgift" data-arg="' + i + '">🎁 Swap presents</button>' + (F.mode === "home" ? "" : '<button class="btn" data-act="palfollow" data-arg="' + i + '">' + (F.mode === "follow" ? "👋 See you later" : "🤝 Walk with me") + '</button>') + '<button class="btn alt" data-act="close">Bye!</button></div>'); }
+function visit(i) { const F = pals[i], f = F.f, R = rooms.friend; homeF = F; R.out = { x: f.door.x, z: f.door.z, h: f.door.h }; mats.FRWALL.color.set(f.wall); mats.FRFLOOR.color.set(f.roof).lerp(new THREE.Color(0xffffff), .55); mats.FRBED.color.set(f.roof);
+  F.back = F.mode === "follow" ? "follow" : "wander"; F.mode = "home"; F.x = 900 + 1.6; F.z = -1; F.hdg = 0; enter(R); toast("🏠 Welcome to " + F.n + "'s house!"); }
+function friendLeft() { if (!homeF) return; const F = homeF, d = F.f.door; F.mode = F.back || "wander"; F.x = d.x + Math.cos(d.h) * 1.5; F.z = d.z - Math.sin(d.h) * 1.5; F.wait = 2; homeF = null; }
+function buildFriendRoom() {
+  mats.FRWALL = new THREE.MeshLambertMaterial({ color: 0xffffff }); mats.FRFLOOR = new THREE.MeshLambertMaterial({ color: 0xffffff }); mats.FRBED = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const R = makeRoom({ id: "friend", cx: 900, w: 12, d: 9, floor: "FRFLOOR", wall: "FRWALL", trim: "#ffffff", out: { x: 0, z: 0, h: 0 } }), nm = () => homeF ? homeF.n : "your friend";
+  R.B(2.6, 1.9, .1, "#ffffff", 0, 2, -4.48); M(new THREE.BoxGeometry(2.3, 1.6, .12), glow(0xbfd8ff), 900, 2, -4.47, scene, true); R.B(.08, 1.6, .16, "#ffffff", 0, 2, -4.45); R.B(2.3, .08, .16, "#ffffff", 0, 2, -4.45);
+  bed(R, 4.4, -2.6, "#ffffff", "FRBED");
+  R.B(3, .9, 1, "#ffd9a8", -3.6, .45, -3.8); R.B(3, 1.4, .3, "#ffd9a8", -3.6, .8, -4.3); for (const s of [-1, 1]) R.B(.35, 1.1, 1.05, "#f2c188", -3.6 + s * 1.5, .55, -3.8); R.solid(-3.6, -3.9, 3.4, 1.2);
+  R.B(4, .03, 2.6, "FRBED", -1.2, .02, .2); cyl(.7, .7, .08, "#8a5a3a", 900 - 1.2, .55, .2); cyl(.09, .09, .55, "#6e452b", 900 - 1.2, .27, .2); for (const s of [-1, 1]) { cyl(.11, .09, .16, "#ffffff", 900 - 1.2 + s * .3, .67, .2); cyl(.09, .09, .02, "#6b3a1e", 900 - 1.2 + s * .3, .75, .2); } solidCircle(900 - 1.2, .2, .8);
+  R.B(1.8, 2, .5, "#8a5a3a", -4.9, 1, .8); for (let i = 0; i < 3; i++) { R.B(1.6, .06, .52, "#6e452b", -4.9, .5 + i * .6, .82); for (let j = 0; j < 4; j++) R.B(.22, .34, .3, RB[(i * 4 + j) % 6], -5.5 + j * .4, .72 + i * .6, .85); } R.solid(-4.9, .8, 1.8, .6);
+  smallTree(900 + 1.6, -3.6);
+  R.hot(-1.2, 1.5, 1.4, () => "☕ Drink hot chocolate with " + nm(), () => { SFX.coin(); toast("☕ You and " + nm() + " drank hot chocolate with marshmallows. Cheers!"); });
+  R.hot(-3.6, -2.4, 1.5, () => "🎲 Play with " + nm(), () => { SFX.yay(); earn(2); toast(PLAYS[Math.floor(Math.random() * PLAYS.length)]); });
+}
+function gotGift(g, from) { S.gifts.push({ e: g[0], n: g[1], from }); if (S.gifts.length > 40) S.gifts.shift(); save(); }
+function treeGift() { const day = new Date().toDateString(); if (S.treeDay === day) return toast("🎄 You already opened today's present. Come back tomorrow for another one!"); S.treeDay = day; const g = GIFTS[Math.floor(Math.random() * GIFTS.length)]; gotGift(g, "the big tree"); earn(10); SFX.yay(); pop(g[0]); toast("🎁 You opened a present: a " + g[1] + "! And $10 was tucked inside."); }
+function myPresents() { openModal('<h2>🎁 My presents</h2>' + (S.gifts.length ? '<div class="row">' + S.gifts.slice().reverse().map(g => '<div class="hcard" style="flex:0 1 120px"><span>' + g.e + '</span>' + esc(g.n) + '<small>from ' + esc(g.from) + '</small></div>').join("") + '</div>' : "<p>No presents yet. Swap presents with a friend, or look under the big tree!</p>") + DONE); }
+
+/* ------------------------------ sledding ------------------------------ */
+const SLED = { obs: [], boosts: [] };
+const SLED_POSE = { lL: -1.35, lR: -1.35, aL: -.9, aR: -.9, az: .2, tilt: -.12, y: -.36, roll: 0 };
+function slopeBase(cx) {
+  const th = Math.atan(SKI.TAN), L = 440 / Math.cos(th);
+  const sl = M(new THREE.BoxGeometry(76, .5, L), "#f6f7ff", cx, skiY(-220) - .26, -220, scene, true); sl.rotation.x = -th; sl.receiveShadow = true;
+  const top = M(new THREE.BoxGeometry(76, .5, 40), "#f6f7ff", cx, -.25, 20, scene, true); top.receiveShadow = true; const bot = M(new THREE.BoxGeometry(76, .5, 120), "#f6f7ff", cx, skiY(-440) - .25, -500, scene, true); bot.receiveShadow = true;
+  for (let z = 34; z > -540; z -= 6.5) for (const s of [-1, 1]) for (let r = 0; r < 2; r++) pine(cx + s * (18.5 + r * 8 + srand() * 6), z + srand() * 4, 1 + srand() * 1.2, skiY(z) - .1);
+  for (const z of [-4, -400]) { const y = skiY(z); for (const s of [-1, 1]) cyl(.14, .14, 5.4, "#e23b3b", cx + s * 8, y + 2.7, z); const sg = makeSign(z < -10 ? "🏁 FINISH 🏁" : "START", 15.6, 1.5, "#ffffff", "#c0392b"); sg.position.set(cx, y + 4.7, z); scene.add(sg); bulbLine(cx - 8, y + 3.8, z, cx + 8, y + 3.8, z, 20, .5); }
+}
+function buildSled() {
+  const cx = 2300; slopeBase(cx);
+  for (let i = 0; i < 16; i++) { const z = -55 - i * 21, x = cx + srand() * 24 - 12, y = skiY(z); sph(.85, "#eef2fb", x, y + .5, z).scale.y = .8; sph(.52, "#eef2fb", x, y + 1.3, z + .05); cone(.06, .3, "#ff8a2a", x, y + 1.3, z + .6, scene, 6).rotation.x = Math.PI / 2; for (const s of [-1, 1]) sph(.05, "#222222", x + s * .17, y + 1.42, z + .48); SLED.obs.push({ x, z }); }
+  for (let i = 0; i < 6; i++) { const z = -85 - i * 55, x = cx + srand() * 18 - 9, y = skiY(z); for (const s of [-1, 1]) { cyl(.13, .13, 3.2, "#ffffff", x + s * 2.3, y + 1.6, z); for (let j = 0; j < 4; j++) flat(tor(.135, .04, "#e23b3b", x + s * 2.3, y + .5 + j * .7, z)); } box(4.9, .26, .26, "#e23b3b", x, y + 3.25, z); bulbLine(x - 2.2, y + 2.95, z, x + 2.2, y + 2.95, z, 8, .3); SLED.boosts.push({ x, z }); }
+}
+function skiMenu() { openModal('<h2>⛷ The Ski &amp; Sled Hill</h2><p>Zoom down the mountain! Steer left and right. Push <b>up</b> to go faster.</p><p><b>Slalom:</b> ski through the red and blue gates. A missed gate adds 2 seconds.</p><p><b>Sled race:</b> race three other sledders. Dodge the snowmen and zoom through the candy cane arches!</p><div class="row"><button class="btn red" data-act="ski" data-arg="race">🏁 Slalom contest</button><button class="btn" data-act="ski" data-arg="fun">⛷ Ski for fun</button></div><div class="row"><button class="btn red" data-act="ski" data-arg="sledrace">🏁 Sled race</button><button class="btn" data-act="ski" data-arg="sledfun">🛷 Sled for fun</button></div><div class="row"><button class="btn alt" data-act="close">Not now</button></div>'); }
+function startSki(kind) {
+  closeModal(); if (riding) dismount(); if (zone && !zone.ski) outdoorLook(); snap = true; zone = SKI; mode = "ski"; const sled = kind.indexOf("sled") === 0;
+  Object.assign(SKI, { kind, sled, cx: sled ? 2300 : 2000, state: "count", count: 3.6, last: 4, time: 0, gi: 0, miss: 0, pass: 0, race: /race$/.test(kind), v: 0, ang: 0, doneT: 0 });
+  pl.x = SKI.cx + (sled && SKI.race ? 6 : 0); pl.z = -1; pl.y = 0; pl.vx = pl.vz = 0; pl.ice = null; pl.fall = 0; T = null; setBlades(pl, false); setSkis(pl, !sled); pl.sled.visible = sled; $("timer").hidden = false; $("ring").hidden = true;
+  SLED.obs.forEach(o => o.hit = false); SLED.boosts.forEach(o => o.hit = false);
+  rivals.forEach((r, i) => { const on = sled && SKI.race; r.sled.visible = on; setBlades(r, !on); if (on) { r.sz = -1; r.sx = SKI.cx - 6 + i * 4; r.sv = Math.min(19, 13.8 + i + S.sledWins * .4); r.ft = 0; } });
+}
+function leaveSki() { closeModal(); zone = null; mode = "play"; setSkis(pl, false); pl.sled.visible = false; rivals.forEach(r => { r.sled.visible = false; setBlades(r, true); }); pl.x = 37.4; pl.z = -19; pl.y = 0; pl.vx = pl.vz = 0; pl.hdg = -Math.PI / 2; camYaw = -Math.PI / 2; snap = true; $("timer").hidden = true; }
+function skiUpdate(dt) {
+  const K = SKI, inp = $("modal").hidden ? getInput() : { x: 0, y: 0 }, sr = K.sled && K.race;
+  if (K.state === "count") { K.count -= dt; const n = Math.ceil(K.count - .6); if (n !== K.last) { K.last = n; if (n > 0) { pop(String(n)); tone(440, .15, "square", .06); } else { pop("GO!"); tone(880, .3, "square", .07); } } if (K.count <= 0) K.state = "run"; }
+  else if (K.state === "run") {
+    K.time += dt; K.ang += (inp.x * .95 - K.ang) * (1 - Math.exp(-dt * 5));
+    K.v += (6 * Math.cos(K.ang) + (inp.y > .3 ? 2.2 : 0) - (inp.y < -.3 ? 9 : 0) - K.v * .45) * dt; K.v = Math.max(2, K.v);
+    pl.x += Math.sin(K.ang) * K.v * dt; pl.z -= Math.cos(K.ang) * K.v * dt;
+    if (Math.abs(pl.x - K.cx) > 15) { pl.x = K.cx + Math.sign(pl.x - K.cx) * 15; K.v *= 1 - dt * 2; }
+    if (K.sled) {
+      for (const o of SLED.obs) if (!o.hit && Math.abs(pl.z - o.z) < 1.1 && Math.abs(pl.x - o.x) < 1.35) { o.hit = true; K.v *= .4; pop("Bonk! ⛄"); SFX.fall(); }
+      for (const o of SLED.boosts) if (!o.hit && Math.abs(pl.z - o.z) < 1.3 && Math.abs(pl.x - o.x) < 2.1) { o.hit = true; K.v = Math.min(24, K.v + 7); pop("Whee! 🍭"); SFX.land(3); }
+    } else while (K.gi < K.gates.length && pl.z <= K.gates[K.gi].z) { const gt = K.gates[K.gi++]; if (Math.abs(pl.x - gt.x) < 2.75) { K.pass++; SFX.coin(); } else { K.miss++; pop("Missed! +2s"); SFX.fall(); } }
+    if (pl.z <= -400) { K.state = "done"; K.doneT = 1.7; SFX.cheer(); pop("🏁 Finish!"); }
+  } else if (K.state === "done") { K.v *= Math.exp(-dt * 1.4); pl.z -= K.v * dt; K.ang *= .92; K.doneT -= dt; if (K.doneT <= 0) { K.state = "end"; skiResults(); } }
+  if (sr) rivals.forEach((r, i) => { if (K.state === "run" || K.state === "done") { if (r.sz > -400) { r.sz -= r.sv * Math.min(1, K.time / 2.5) * dt; if (r.sz <= -400) r.ft = K.time; } else r.sz -= r.sv * .4 * dt; }
+    r.g.position.set(r.sx + Math.sin(K.time * .7 + i * 2) * 1.4, skiY(r.sz), r.sz); r.g.rotation.y = Math.PI; applyPose(r, SLED_POSE, dt); });
+  pl.y = skiY(pl.z); pl.hdg = Math.atan2(Math.sin(K.ang), -Math.cos(K.ang)); pl.g.position.set(pl.x, pl.y, pl.z); pl.g.rotation.y = pl.hdg;
+  applyPose(pl, K.sled ? SLED_POSE : { lL: -.45, lR: -.45, aL: -.7, aR: -.7, az: .4, tilt: .45 + (inp.y > .3 ? .25 : 0), y: .04, roll: K.ang * .45 }, dt);
+}
+function skiResults() {
+  const K = SKI, tot = K.time + K.miss * 2, again = '<button class="btn alt" data-act="ski" data-arg="' + K.kind + '">Go again</button>', tbl = rows => '<table class="sc">' + rows.map((r, i) => '<tr class="' + (r.me ? "me" : "") + '"><td>' + ["🥇", "🥈", "🥉", "4"][i] + '</td><td class="n">' + esc(r.name) + '</td><td><b>' + r.t.toFixed(1) + ' s</b></td></tr>').join("") + '</table>';
+  if (!K.race) { earn(10); return openModal('<h2>' + (K.sled ? "🛷" : "⛷") + ' Wheee!</h2><p>You zoomed down the whole mountain in <b>' + tot.toFixed(1) + ' seconds</b>. You earned <b>$10</b> for having fun!</p><div class="row"><button class="btn" data-act="skiDone">Back to the village</button>' + again + '</div>'); }
+  const rows = [{ name: pl.L.name, me: true, t: tot }].concat(rivals.map((r, i) => ({ name: r.L.name, t: K.sled ? (r.ft || K.time + Math.max(0, r.sz + 400) / r.sv) : Math.max(RIVAL_MIN, RIVAL_T - S.skiWins * 1.3 + i * 2.2 + rnd(0, 3)) }))); rows.sort((a, b) => a.t - b.t || (a.me ? -1 : 1));
+  const won = rows[0].me, prize = won ? (K.sled ? 250 : 300) : 40; if (won) { if (K.sled) S.sledWins++; else S.skiWins++; SFX.yay(); } earn(prize);
+  openModal('<h2>' + (won ? (K.sled ? "🥇 You won the sled race!" : "🥇 You won the slalom!") : (K.sled ? "Great sledding!" : "Great skiing!")) + '</h2>' + tbl(rows) + '<p>' + (K.sled ? "" : 'You went through ' + K.pass + ' of 18 gates' + (K.miss ? " and missed " + K.miss + " (+" + K.miss * 2 + " seconds)" : "") + '. ') + 'You earned <b>$' + prize + '</b>!</p><div class="row"><button class="btn" data-act="skiDone">' + (won ? "Yay!" : "Back to the village") + '</button>' + again + '</div>');
+}
+
+/* ------------------------------ jobs ------------------------------ */
+let J = null, JOB = null;
+const NEEDS = [["🍖", "is hungry"], ["🛁", "is all muddy"], ["💕", "wants a cuddle"], ["🎾", "wants to play"], ["🛏", "is sleepy"], ["💧", "is thirsty"]];
+const ANIMALS = ["🐶 The puppy", "🐱 The kitten", "🐰 The bunny", "🐹 The hamster", "🐴 The pony", "🦜 The parrot"];
+const TOOLS = [["🧴", "Wash"], ["✂️", "Cut"], ["💨", "Dry"], ["🎀", "Bow"], ["✨", "Sparkles"], ["🖌", "Colour"]];
+const JOBNAMES = { bakery: "🧁 Bakery helper", animals: "🐾 Animal shop helper", salon: "💇 Hair stylist", shovel: "⛸ Ice rink helper", judge: "⭐ Skating judge" };
+function startJob(k) { if (mode !== "play") return; if (k === "shovel") return startShovel(); if (k === "judge") return startJudgeJob(); J = { k, round: 0, right: 0, total: k === "salon" ? 4 : 8 }; jobRound(); }
+function jobRound() {
+  const j = J; if (j.round >= j.total) { const pay = j.right * (j.k === "salon" ? 25 : 12); J = null; earn(pay); SFX.yay(); return openModal('<h2>💼 Good work!</h2><p>You helped <b>' + j.right + ' of ' + j.total + '</b> customers. You earned <b>$' + pay + '</b>!</p>' + DONE); }
+  j.round++; j.ans = Math.floor(Math.random() * 6);
+  if (j.k === "bakery") { j.q = 'A customer says: "One <b>' + BAKE[j.ans][1] + '</b>, please!"'; j.opts = BAKE.map(b => [b[0], ""]); }
+  else if (j.k === "animals") { j.q = ANIMALS[Math.floor(Math.random() * 6)] + " <b>" + NEEDS[j.ans][1] + "</b>! What does it need?"; j.opts = NEEDS.map(n => [n[0], ""]); }
+  else { const idx = [0, 1, 2, 3, 4, 5].sort(() => Math.random() - .5).slice(0, j.round > 2 ? 4 : 3); j.seq = idx; j.pos = 0; j.q = "The customer wants:<br><b>" + idx.map(i => TOOLS[i][0] + " " + TOOLS[i][1]).join(" → ") + "</b><br>Tap them in that order!"; j.opts = TOOLS; }
+  drawJob();
+}
+function drawJob(msg) { const j = J; openModal('<h2>' + JOBNAMES[j.k] + '</h2><p>Customer ' + j.round + ' of ' + j.total + '</p><p style="font-size:19px">' + j.q + '</p><div class="row">' + j.opts.map((o, i) => '<button class="hcard" style="flex:1 1 84px" data-act="jobpick" data-arg="' + i + '"><span>' + o[0] + '</span>' + o[1] + '</button>').join("") + '</div><p><b>' + (msg || "&nbsp;") + '</b></p><div class="row"><button class="btn alt" data-act="jobquit">Stop working</button></div>'); }
+function rinkReady() { closeModal(); if (riding) dismount(); if (zone) { if (zone.ski) leaveSki(); else { outdoorLook(); zone = null; } } T = null; pl.fall = 0; pl.vx = pl.vz = 0; snap = true; }
+function startShovel() {
+  rinkReady(); mode = "job"; pl.x = RINK.cx; pl.z = RINK.cz; pl.ice = RINK; setBlades(pl, true); camYaw = 0; const piles = [];
+  for (let i = 0; i < 12; i++) { const a = rnd(0, 6.283), r = .25 + Math.sqrt(Math.random()) * .6, m = sph(.6, "#ffffff", RINK.cx + Math.cos(a) * RINK.a * r, .2, RINK.cz + Math.sin(a) * RINK.b * r); m.scale.y = .5; piles.push(m); }
+  JOB = { k: "shovel", t: 45, got: 0, piles }; $("timer").hidden = false; toast("⛸ Skate over the snow piles to clear the ice before the time runs out!", 4200);
+}
+function startJudgeJob() {
+  rinkReady(); mode = "judgejob"; const jz = RINK.cz - RINK.b - 2.3; pl.ice = null; setBlades(pl, false); pl.x = RINK.cx + 3.7; pl.z = jz - .9; pl.hdg = 0;
+  cine = { pos: new THREE.Vector3(RINK.cx, 3.6, jz + .4), look: new THREE.Vector3(RINK.cx, .9, RINK.cz - 1) }; JOB = { k: "judge", round: 0, right: 0, total: 5, t: 0, phase: "" }; judgeNext();
+}
+function judgeNext() {
+  const j = JOB; if (j.round >= j.total) { const pay = j.right * 15 + 10; JOB = null; cine = null; mode = "play"; snap = true; camYaw = 0; earn(pay); SFX.yay(); return openModal('<h2>⭐ Good judging!</h2><p>You gave the right score <b>' + j.right + ' of ' + j.total + '</b> times. You earned <b>$' + pay + '</b>!</p>' + DONE); }
+  closeModal(); j.round++; j.r = rivals[(j.round - 1) % rivals.length]; j.out = Math.floor(Math.random() * 4); j.t = 0; j.phase = "anim"; pop(j.r.L.name + "'s turn!");
+  rivals.forEach((r, i) => { r.g.position.set(RINK.cx - 9 + i * 1.4, 0, RINK.cz + 5); r.g.rotation.y = Math.PI; }); j.r.g.position.set(RINK.cx, 0, RINK.cz - 1); j.r.pose.roll = 0;
+}
+function updateJob(dt) {
+  const j = JOB;
+  if (j.k === "shovel") { j.t -= dt; j.piles = j.piles.filter(m => { if (Math.hypot(pl.x - m.position.x, pl.z - m.position.z) < 1.25) { scene.remove(m); j.got++; SFX.coin(); pop("+$8"); return false; } return true; });
+    if (j.t <= 0 || !j.piles.length) { const all = !j.piles.length, pay = j.got * 8 + (all ? 24 : 0); j.piles.forEach(m => scene.remove(m)); JOB = null; mode = "play"; $("timer").hidden = true; earn(pay); SFX.yay(); openModal('<h2>⛸ ' + (all ? "The ice is perfect!" : "Time is up!") + '</h2><p>You cleared <b>' + j.got + ' of 12</b> snow piles. You earned <b>$' + pay + '</b>!</p>' + DONE); }
+    return; }
+  j.t += dt; const u = clamp(j.t / 2.4, 0, 1), e = u * u * (3 - 2 * u), o = j.out, after = j.t > 2.4; let pose, spin = 0;
+  if (o === 0) { spin = e * Math.PI * 8; pose = after ? { lL: 0, lR: .9, aL: 0, aR: 0, az: 2.7, tilt: 0, y: .05 } : { lL: .1, lR: -.1, aL: 0, aR: 0, az: 2.9, tilt: 0, y: Math.sin(u * Math.PI) * 1.4 }; }
+  else if (o === 1) { spin = e * Math.PI * 6; pose = after ? { lL: 0, lR: .5, aL: 0, aR: 0, az: 1.5, tilt: 0, y: .05 } : { lL: -.2, lR: .9, aL: 0, aR: 0, az: 1.5, tilt: .1, y: Math.sin(u * Math.PI) * .45 }; }
+  else if (o === 2) { spin = e * Math.PI * 4; pose = after ? { lL: Math.sin(tNow * 13) * .5, lR: -Math.sin(tNow * 13) * .5, aL: 0, aR: 0, az: 1.6 + Math.sin(tNow * 17) * .7, tilt: .2, y: .05, roll: Math.sin(tNow * 11) * .4 } : { lL: .2, lR: -.2, aL: -.7, aR: -.7, az: .2, tilt: 0, y: Math.sin(u * Math.PI) * .5 }; }
+  else { spin = e * Math.PI * 3; pose = u > .75 ? { lL: -1.25, lR: -1.25, aL: .6, aR: .6, az: .5, tilt: -.95, y: -.42 } : { lL: .2, lR: -.2, aL: -.7, aR: -.7, az: .2, tilt: 0, y: Math.sin(u * Math.PI) * .6 }; }
+  rivals.forEach(r => applyPose(r, r === j.r ? pose : poseIdle(r, tNow), dt, r === j.r ? spin : 0));
+  if (j.phase === "anim" && j.t > 3.7) { j.phase = "ask"; openModal('<h2>⭐ What score do you give ' + esc(j.r.L.name) + '?</h2><div class="row">' + [["10", "Perfect!"], ["8", "Great"], ["5", "Wobbly"], ["2", "Fell down"]].map((s, i) => '<button class="hcard" style="flex:1 1 90px" data-act="score" data-arg="' + i + '"><span>' + s[0] + '</span>' + s[1] + '</button>').join("") + '</div>', true); }
+}
+function jobsMenu(rinkOnly) { openModal('<h2>💼 Pick a job</h2><p>Work a shift and earn money!</p><div class="row">' + Object.keys(JOBNAMES).filter(k => !rinkOnly || k === "shovel" || k === "judge").map(k => '<button class="btn" data-act="job" data-arg="' + k + '">' + JOBNAMES[k] + '</button>').join("") + '</div><div class="row"><button class="btn alt" data-act="close">Not now</button></div>'); }
+function buildJobSpot() { const x = 21.6, z = RINK.cz - RINK.b - 2.3; cyl(.07, .07, 2.2, "#2c2c3a", x, 1.1, z); const sg = makeSign("💼 Jobs", 1.8, .6, "#ffd23e", "#7a2b12"); sg.position.set(x, 2.3, z + .05); scene.add(sg); solidCircle(x, z, .25); hot(x, z + 1, 1.7, "💼 Work at the ice rink", () => jobsMenu(true)); }
+
+Object.assign(ACTS, {
+  palgift: i => openModal('<h2>🎁 Pick a present for ' + esc(pals[i].n) + '</h2><div class="row">' + GIFTS.map((g, k) => '<button class="hcard" style="flex:1 1 100px" data-act="gift" data-arg="' + i + "|" + k + '"><span>' + g[0] + '</span>' + g[1] + '</button>').join("") + '</div><div class="row"><button class="btn alt" data-act="close">Not now</button></div>'),
+  gift: a => { const [i, k] = a.split("|"), F = pals[+i], g = GIFTS[+k], back = GIFTS[(+k + 1 + Math.floor(Math.random() * 7)) % 8]; gotGift(back, F.n); earn(2); SFX.yay(); openModal('<h2>🎁 Present swap!</h2><div class="bub">Wow, a ' + g[1] + ' ' + g[0] + '! Thank you, ' + esc(pl.L.name) + '! I got something for you too!</div><p>' + esc(F.n) + ' gave you a <b>' + back[1] + '</b> ' + back[0] + '</p><p>Your presents are under the little tree in your cabin.</p>' + DONE); },
+  palfollow: i => { const F = pals[i]; F.mode = F.mode === "follow" ? "wander" : "follow"; F.wait = 1; closeModal(); toast(F.mode === "follow" ? "🤝 " + F.n + " is walking with you!" : "👋 " + F.n + " says: See you later!"); },
+  job: startJob, jobs: () => { if (mode === "play") jobsMenu(false); }, jobquit: () => { J = null; closeModal(); },
+  jobpick: i => { i = +i; const j = J; if (!j) return;
+    if (j.k === "salon") { if (i === j.seq[j.pos]) { j.pos++; if (j.pos >= j.seq.length) { j.right++; SFX.coin(); pop("💇 Beautiful!"); jobRound(); } else { SFX.tap(); drawJob("Good! Now step " + (j.pos + 1) + "."); } } else { j.pos = 0; SFX.fall(); drawJob("Oops! Start again from the first step."); } }
+    else { if (i === j.ans) { j.right++; SFX.coin(); pop("👍 Thank you!"); } else { SFX.fall(); pop("Oops!"); } jobRound(); } },
+  score: i => { const j = JOB; if (!j || j.phase !== "ask") return; if (+i === j.out) { j.right++; SFX.coin(); pop("👍 Good judging!"); } else { SFX.fall(); pop("The other judges said: " + ["Perfect", "Great", "Wobbly", "Fell down"][j.out]); } judgeNext(); },
+  mypresents: myPresents,
+});
+
 /* ------------------------------ every frame ------------------------------ */
 function rinkAt() { for (const R of rinks) if (Math.abs(pl.x - R.cx) < R.a + 4 && Math.abs(pl.z - R.cz) < R.b + 4) return R; return null; }
 function updatePlayer(dt) {
   if (zone && zone.ski) return skiUpdate(dt);
-  const inp = (pl.fall > 0 || (C && C.count > 0) || mode === "judging" || !$("modal").hidden) ? { x: 0, y: 0 } : getInput();
+  const inp = (pl.fall > 0 || (C && C.count > 0) || mode === "judging" || mode === "judgejob" || !$("modal").hidden) ? { x: 0, y: 0 } : getInput();
   const yaw = zone ? 0 : camYaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
   const mx = fx * inp.y + rx * inp.x, mz = fz * inp.y + rz * inp.x, ml = Math.hypot(mx, mz);
   if (pl.ice) { pl.vx += mx * 9 * dt; pl.vz += mz * 9 * dt; const f = Math.exp(-dt * (pl.fall > 0 ? 3 : .8)); pl.vx *= f; pl.vz *= f; const sp = Math.hypot(pl.vx, pl.vz); if (sp > 8.5) { pl.vx *= 8.5 / sp; pl.vz *= 8.5 / sp; } }
@@ -933,17 +1081,19 @@ function updateWorld(dt) {
       if (y < 0) y += 26; if (x < cx - 35) x += 70; else if (x > cx + 35) x -= 70; if (z < cz - 35) z += 70; else if (z > cz + 35) z -= 70; a.setXYZ(i, x, y, z); } a.needsUpdate = true; }
   if (fireMesh) { fireMesh.scale.y = 1 + Math.sin(tNow * 13) * .18; fireLight.intensity = .8 + Math.sin(tNow * 17) * .15 + Math.sin(tNow * 7.3) * .1; }
   const onSki = zone && zone.ski; sky.position.copy(camera.position); if (!onSki) sky.position.y = 0; snow.position.y = onSki ? camera.position.y - 12 : 0;
-  updatePet(dt); updateGarden();
+  updatePet(dt); updateGarden(); updateFriends(dt);
   const f = pl || { x: 0, z: 0 }, fy = f.y || 0; sun.position.set(f.x + 22, fy + 34, f.z + 16); sun.target.position.set(f.x, fy, f.z);
   judges.forEach(j => applyPose(j, poseIdle(j, tNow), dt)); chefs.forEach(c => applyPose(c, { lL: 0, lR: 0, aL: -.9 + Math.sin(tNow * 6 + c.ph) * .25, aR: -.9 - Math.sin(tNow * 6 + c.ph) * .25, az: .1, tilt: .05, y: 0 }, dt));
   // the other skaters glide around the rink, or stand and watch during the contest
-  if (pl) rivals.forEach(r => { if (mode === "contest" || mode === "judging") { applyPose(r, poseIdle(r, tNow), dt); return; } r.ang += dt * r.spd; const x = RINK.cx + Math.cos(r.ang) * RINK.a * r.k, z = RINK.cz + Math.sin(r.ang) * RINK.b * r.k; r.g.position.set(x, 0, z); r.g.rotation.y = Math.atan2(-Math.sin(r.ang) * RINK.a, Math.cos(r.ang) * RINK.b); applyPose(r, poseSkate(r, dt, .6), dt); });
+  if (pl && mode !== "judgejob" && !(mode === "ski" && SKI.sled && SKI.race)) rivals.forEach(r => { if (mode === "contest" || mode === "judging") { applyPose(r, poseIdle(r, tNow), dt); return; } r.ang += dt * r.spd; const x = RINK.cx + Math.cos(r.ang) * RINK.a * r.k, z = RINK.cz + Math.sin(r.ang) * RINK.b * r.k; r.g.position.set(x, 0, z); r.g.rotation.y = Math.atan2(-Math.sin(r.ang) * RINK.a, Math.cos(r.ang) * RINK.b); applyPose(r, poseSkate(r, dt, .6), dt); });
 }
 function updateUI() {
   curHot = null;
   if (mode === "play" && $("modal").hidden) { let best = 1e9; for (const h of hots) { const d = Math.hypot(pl.x - h.x, pl.z - h.z); if (d < h.r && d < best) { best = d; curHot = h; } } }
+  if (mode === "play" && $("modal").hidden && !curHot && !riding && !pl.ice) { let bd = 1.9; pals.forEach((F, i) => { const d = Math.hypot(pl.x - F.x, pl.z - F.z); if (d < bd) { bd = d; curHot = { label: "💬 Talk to " + F.n, fn: () => talk(i) }; } }); }
+  if (mode === "job" && JOB) $("timer").textContent = "⏱ " + Math.ceil(JOB.t) + "   ❄️ " + JOB.got + "/12";
   if (mode === "play" && $("modal").hidden && pet) { if (riding) curHot = { label: "⬇ Get off " + petName(), fn: dismount }; else if (!pl.ice && !curHot && Math.hypot(pl.x - pet.x, pl.z - pet.z) < (PETS[pet.id].big ? 2.7 : 1.6)) curHot = { label: PETS[pet.id].e + " " + petName(), fn: petMenu }; }
-  if (mode === "ski") $("timer").textContent = "⏱ " + SKI.time.toFixed(1) + (SKI.race ? "   🚩 " + SKI.pass + "/18" + (SKI.miss ? "   ❌ " + SKI.miss : "") : "");
+  if (mode === "ski") $("timer").textContent = "⏱ " + SKI.time.toFixed(1) + (SKI.sled ? "   🛷" : SKI.race ? "   🚩 " + SKI.pass + "/18" + (SKI.miss ? "   ❌ " + SKI.miss : "") : "");
   const a = $("act"); if (curHot && !pl.ice) { a.hidden = false; const t = typeof curHot.label === "function" ? curHot.label() : curHot.label; if (a.textContent !== t) a.textContent = t; } else { a.hidden = true; if (pl && pl.ice) curHot = null; }
   $("trick").hidden = !(pl && pl.ice && (mode === "play" || mode === "contest") && $("modal").hidden);
   if (C && mode === "contest") $("timer").textContent = C.count > 0 ? "Get ready!" : "⏱ " + Math.ceil(C.t) + "   ⭐ " + C.score + "   Next: " + TRICKS[trickI % TRICKS.length].name;
@@ -954,13 +1104,13 @@ function frame(now) {
   if (pl && mode !== "title" && mode !== "pick") {
     updatePlayer(dt);
     if (C && mode === "contest") { if (C.count > 0) { C.count -= dt; const n = Math.ceil(C.count - .6); if (n !== C.last) { C.last = n; if (n > 0) { pop(String(n)); tone(440, .15, "square", .06); } else { pop("GO!"); tone(880, .3, "square", .07); } } } else { C.t -= dt; if (C.t <= 0 && !T) finishContest(); } }
-    if (C && mode === "judging" && tNow > C.until) showResults();
+    if (C && mode === "judging" && tNow > C.until) showResults(); if (JOB) updateJob(typeof dt === "number" ? dt : .033);
   }
   updateWorld(dt); updateCamera(dt); if (pl) updateUI();
   renderer.render(scene, camera); requestAnimationFrame(frame);
 }
 
-window.__step = n => { for (let i = 0; i < n; i++) { tNow += .033; if (pl && mode !== "title" && mode !== "pick") { updatePlayer(.033); if (C && mode === "contest") { if (C.count > 0) C.count -= .033; else { C.t -= .033; if (C.t <= 0 && !T) finishContest(); } } if (C && mode === "judging" && tNow > C.until) showResults(); } updateWorld(.033); updateCamera(.033); if (pl) updateUI(); } renderer.render(scene, camera); };
+window.__step = n => { for (let i = 0; i < n; i++) { tNow += .033; if (pl && mode !== "title" && mode !== "pick") { updatePlayer(.033); if (C && mode === "contest") { if (C.count > 0) C.count -= .033; else { C.t -= .033; if (C.t <= 0 && !T) finishContest(); } } if (C && mode === "judging" && tNow > C.until) showResults(); if (JOB) updateJob(typeof dt === "number" ? dt : .033); } updateWorld(.033); updateCamera(.033); if (pl) updateUI(); } renderer.render(scene, camera); };
 buildWorld();
 camera.position.set(0, 7, 22);
 showTitle();
