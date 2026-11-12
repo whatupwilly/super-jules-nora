@@ -132,7 +132,7 @@ const SAVE_KEY = Arcade.key("cheerSave");
 const S = { hero: null, money: 100, wins: 0, houses: [], best: 0, music: true };
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
 (function load() { try { const d = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); if (d) Object.assign(S, d); } catch (e) {} })();
-S.custom = S.custom || {}; S.pets = S.pets || {}; S.garden = S.garden || [null, null, null, null, null, null, null, null, null]; S.treats = S.treats || 0; S.skiWins = S.skiWins || 0; S.sledWins = S.sledWins || 0; S.gifts = S.gifts || [];
+S.custom = S.custom || {}; S.pets = S.pets || {}; S.garden = S.garden || [null, null, null, null, null, null, null, null, null]; S.treats = S.treats || 0; S.skiWins = S.skiWins || 0; S.sledWins = S.sledWins || 0; S.gifts = S.gifts || []; S.gifts.forEach(g => { if (g.from === "Nay" + "un") g.from = "Naeun"; });
 
 /* ------------------------------ sound ------------------------------ */
 let AC = null;
@@ -818,7 +818,7 @@ const CALLS = ["Hi {me}! I'm at the ice rink. Come skate with me! ⛸", "Guess w
 const TEXTS = [["Hi! 👋", "Hi {me}!! 😄"], ["Want to go ice skating? ⛸", "Yes! Meet you at the rink! ⛸✨"], ["Come see my pet! 🐾", "Awww, I'm coming right now! 😍"], ["Merry Christmas! 🎄", "Merry Christmas to you too! 🎁❤️"], ["I won the contest! 🏆", "WOW! You're the best skater ever! 🥇"], ["Let's ski! ⛷", "Race you down the hill! 🏁"]];
 const SURPRISE = ["a sparkly snow globe ❄️", "fuzzy reindeer slippers 🦌", "a giant candy cane 🍭", "a glitter pen set ✨", "a tiny snowman that never melts ⛄", "a jingle bell bracelet 🔔"];
 const threads = {};
-const friends = () => ["Sonia", S.hero === "nora" ? "Jules" : "Nora", "Nayun", "Lucas", "Charlotte", "Christina", "DJ"];
+const friends = () => ["Sonia", S.hero === "nora" ? "Jules" : "Nora", "Naeun", "Lucas", "Charlotte", "Christina", "DJ"];
 function phoneView(v, a) {
   const me = pl.L.name, back = '<div class="row"><button class="btn alt" data-act="phone">⬅ Back</button><button class="btn alt" data-act="close">Close</button></div>', list = act => '<div class="row">' + friends().map(f => '<button class="chip" data-act="' + act + '" data-arg="' + f + '">' + f + '</button>').join("") + '</div>'; let h; curShop = null;
   if (v === "map") h = '<h2>🗺 Map</h2><div id="map">' + PLACES.map((p, i) => '<button data-act="goto" data-arg="' + i + '" style="left:' + (p[2] + 50) + '%;top:' + ((p[3] + 45) / 95 * 100) + '%">' + p[0] + '</button>').join("") + (zone ? "" : '<i style="left:' + clamp(pl.x + 50, 3, 97) + '%;top:' + clamp((pl.z + 45) / 95 * 100, 6, 97) + '%">📍</i>') + '</div><p>Tap a place and you zoom right there!</p>' + back;
@@ -854,7 +854,7 @@ const FL = (skin, hair, style, coat, hat, head) => ({ skin, hair: [hair], style,
 const FRIENDS = [
   { n: "Sonia", x: -46, z: -24, rot: Math.PI / 2, wall: "#f6c8d8", roof: "#b0476a", L: FL("#e8b98f", "#3a2418", "long", "#ff8fb8", "#ffffff") },
   { sib: true, x: -46, z: -12, rot: Math.PI / 2, wall: "#d9f0ea", roof: "#3f9d8a" },
-  { n: "Nayun", x: -46, z: 0, rot: Math.PI / 2, wall: "#e6d6ff", roof: "#7a4fc8", L: FL("#f3d2b0", "#151515", "bob", "#9b6cff", "#ffd23e", "muffs") },
+  { n: "Naeun", x: -46, z: 0, rot: Math.PI / 2, wall: "#e6d6ff", roof: "#7a4fc8", L: FL("#f3d2b0", "#151515", "bob", "#9b6cff", "#ffd23e", "muffs") },
   { n: "Lucas", x: -46, z: 12, rot: Math.PI / 2, wall: "#d6f2d2", roof: "#3e8f56", L: FL("#f0c9a4", "#5a3a1a", "short", "#2f8f4e", "#4aa6f0") },
   { n: "Charlotte", x: -46, z: 24, rot: Math.PI / 2, wall: "#cfe4ff", roof: "#3d6fb3", L: FL("#fce0c2", "#d6a85a", "pony", "#4aa6f0", "#ff8fb8") },
   { n: "Christina", x: 47, z: 8, rot: -Math.PI / 2, wall: "#fff0c9", roof: "#c9772e", L: FL("#e0ac69", "#2a1a10", "pigtails", "#ffb03e", "#e23b3b") },
