@@ -341,7 +341,7 @@
       <h1 class="wordmark">Super Young<br>Sisters</h1>
       <p class="sub">A little arcade built by two sisters, one game at a time. Platformers, kart racing, doubles tennis, a whole city, and a night full of zombies — <em>all in your browser</em>, nothing to download.</p>
       <div class="cta">
-        <a class="btn primary" href="newcity/">▶ Play the newest game</a>
+        <a class="btn primary" id="playNewest" href="cheer/">▶ Play the newest game</a>
         <a class="btn ghost" href="#games">Browse all 14 →</a>
       </div>
       <div class="stats">
@@ -526,6 +526,7 @@
   var HEROES = ["PRINCESS ROSALINA","SPARKLE","ICY","MISTY","CUTIE","SQUISHY","APPY","BAMBOO","CHUN MI","NORTHERN LIGHT","NORA","JULES","PEACH THE PUG"];
 
   var FEATURED = ["cheer/", "surf/", "zombie/"];
+  var pn = document.getElementById("playNewest"); if (pn) pn.href = FEATURED[0];
 
   function el(tag, cls, html) {
     var n = document.createElement(tag);
