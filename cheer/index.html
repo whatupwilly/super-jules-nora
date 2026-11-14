@@ -73,6 +73,19 @@
   #gamesMenu a { display:block; padding:7px 10px; border-radius:9px; color:#2a3a55; text-decoration:none; font-weight:700; font-size:14px; }
   #gamesMenu a:hover, #gamesMenu a:active { background:#eef3fb; }
   #gamesMenu a.here { background:#ffd166; color:#7a4b12; }
+  .ov.low .card { max-height:max(52vh, 290px); }
+  #dark { position:fixed; inset:0; z-index:30; background:#070a26; opacity:0; pointer-events:none; }
+  .bell { width:58px; height:58px; border-radius:50%; border:4px solid #fff; font-size:26px; opacity:.5; padding:0; }
+  .bell.on { opacity:1; transform:scale(1.22); box-shadow:0 0 0 5px #ffd23e, 0 0 24px #ffd23e; }
+  .gbox { position:relative; width:110px; height:92px; margin:22px auto 8px; border-radius:10px; box-shadow:inset 0 -10px 0 rgba(0,0,0,.12); }
+  .gbox i { position:absolute; left:46px; top:0; bottom:0; width:18px; } .gbox b { position:absolute; top:37px; left:0; right:0; height:18px; }
+  .gbox u { position:absolute; left:33px; top:-16px; width:44px; height:22px; border-radius:50% 50% 8px 8px; }
+  #bake { position:relative; height:34px; margin:18px 12px; border-radius:17px; background:linear-gradient(90deg,#fff3d6,#f2c188 55%,#8a5a3a); }
+  #bake .zone { position:absolute; left:52%; width:28%; top:-5px; bottom:-5px; border:4px solid #1f9d55; border-radius:12px; box-sizing:border-box; }
+  #bake i { position:absolute; top:-7px; width:12px; height:48px; margin-left:-6px; background:#d63a3a; border-radius:6px; animation:bakeMv 1.6s linear infinite alternate; }
+  @keyframes bakeMv { from { left:0; } to { left:100%; } }
+  .ck { position:relative; display:inline-flex; align-items:center; justify-content:center; width:58px; height:58px; border-radius:50%; background:#d9a05b; font-size:24px; }
+  .ck small { position:absolute; right:-3px; top:-5px; font-size:15px; }
 </style>
 </head>
 <body>
@@ -102,6 +115,7 @@
 <button id="trick" type="button" hidden>✨ TRICK</button>
 <div id="ring" hidden><b id="ringName"></b><div class="tgt"></div><div class="mv" id="ringMv"></div></div>
 <div id="pop"></div>
+<div id="dark"></div>
 <div id="joyB" hidden></div><div id="joyK" hidden></div>
 <div id="toast" hidden></div>
 <div id="modal" class="ov" hidden><div class="card" id="modalCard"></div></div>
@@ -115,7 +129,10 @@
    Part two: pets you can ride and dress up, six stores, a phone (map, call, text, order),
    Nora's magic winter garden, and a ski hill with a slalom contest.
    Part three: friends who walk around and have houses you can visit, swapping presents,
-   sledding with races, and five jobs. */
+   sledding with races, and five jobs.
+   Part four: really getting into bed, day and night, stores you walk into, snow angels,
+   snowmen and snowball fights, decorating, baking cookies, Santa's sleigh, caroling, a shy
+   reindeer, more characters and a make-your-own character. */
 if (!window.THREE) document.body.insertAdjacentHTML("beforeend", '<div class="ov"><div class="card"><h2>Oops!</h2><p>The 3D part could not load. Check the internet and try again.</p></div></div>');
 
 const $ = id => document.getElementById(id);
@@ -219,10 +236,10 @@ function setSign(m, text) { const { c, bg, fg } = m.userData, x = c.getContext("
   x.fillStyle = fg; x.fillText(text, c.width / 2, c.height / 2 + 2); m.material.map.needsUpdate = true; }
 
 /* things you bump into, and things you can do */
-const cols = [], hots = [], rinks = [], rooms = {};
+const cols = [], hots = [], rinks = [], rooms = {}, HOMES = [];
 function solidBox(x, z, w, d) { cols.push({ x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2 }); }
 function solidCircle(x, z, r) { cols.push({ x, z, r }); }
-function hot(x, z, r, label, fn) { hots.push({ x, z, r, label, fn }); }
+function hot(x, z, r, label, fn) { const h = { x, z, r, label, fn }; hots.push(h); return h; }
 function collide(p, r) {
   for (const c of cols) {
     if (c.r !== undefined) { const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), m = c.r + r; if (d < m && d > 1e-4) { p.x = c.x + dx / d * m; p.z = c.z + dz / d * m; } }
@@ -245,7 +262,7 @@ function building(o) {
   const n = Math.round(w * 1.1);
   for (let i = 0; i <= n; i++) { const t = i / n; for (const s of [-1, 1]) { const v = wp(g, s * lerp(w / 2 + .45, 0, t), h + lerp(-.05, rh, t) + .05, d / 2 + .52); bulb(v.x, v.y, v.z); } }
   if (o.sign) { const sg = makeSign(o.sign, Math.min(w - 1, 6.5), 1, o.signBg || "#fff8e8", o.signFg || "#c0392b"); sg.position.set(0, h - .35, d / 2 + .09); g.add(sg); g.userData.sign = sg; }
-  const sw = Math.abs(Math.sin(o.rot || 0)) > .5; solidBox(o.x, o.z, sw ? d : w, sw ? w : d);
+  const sw = Math.abs(Math.sin(o.rot || 0)) > .5; solidBox(o.x, o.z, sw ? d : w, sw ? w : d); HOMES.push({ x: o.x, z: o.z, h: h + rh });
   const dr = wp(g, 0, 0, d / 2 + 1.2); g.userData.door = { x: dr.x, z: dr.z, h: o.rot || 0 };
   return g;
 }
@@ -262,12 +279,25 @@ const HERO_SRC = [
   ["appy", "Appy", "#f3cba5", ["#f0564a", "#c22c24"], "short", "#241a12", "leaf", "#f0564a", "#ffd94d"],
   ["bamboo", "Bamboo", "#f7efe2", ["#ec8a44", "#d2622e"], "bob", "#140f0c", "panda", "#2c211c", "#d2622e"],
   ["northern", "Northern Light", "#fcfdff", ["#ffffff", "#d6e0f0"], "long", "#181320", "foxears", "#8ef0c8", "#c69bff"],
+  ["holly", "Holly the Elf", "#fce0c2", ["#b5532a", "#8a3a1c"], "pigtails", "#2a1c12", "elf", "#2f8f4e", "#e23b3b"],
+  ["jingle", "Jingle the Elf", "#f3cba5", ["#3a2418"], "short", "#2a1c12", "elf", "#e23b3b", "#2f8f4e"],
+  ["candy", "Candy Cane", "#fce0c2", ["#ffffff", "#ff5e6c"], "long", "#2a1c22", "bow", "#ff5e6c", "#ffffff"],
+  ["ginger", "Ginger Snap", "#c98a4b", ["#ffffff"], "bob", "#3a2418", "none", "#a8642e", "#ffffff"],
+  ["pip", "Pip the Penguin", "#ffffff", ["#20222c"], "short", "#16181d", "beak", "#20222c", "#ff9a2e"],
+  ["dasher", "Dasher", "#e0ac69", ["#7a4a22", "#5a3418"], "pony", "#2a1c12", "antlers", "#8a5a3a", "#e23b3b"],
+  ["crystal", "Snow Queen Crystal", "#fdf6ff", ["#dff1ff", "#bcdcff"], "long", "#3d6fb3", "crown", "#9fd8ff", "#ffffff"],
+  ["leo", "Leo", "#f0c9a4", ["#d6a85a"], "short", "#2a5a8c", "none", "#3f6fe0", "#ffd23e"],
+  ["twinkle", "Twinkle Star", "#f8ddc2", ["#ffd23e", "#ffb03e"], "pigtails", "#2a1c12", "star", "#9b6cff", "#ffd23e"],
 ];
 const LOOKS = [
   { id: "jules", name: "Jules", skin: "#f0c9a4", hair: ["#1c1512", "#2a1f1a"], style: "shoulder", eye: "#2a1c12", head: "muffs", clips: true, coat: "#7fd6c2", scarf: "#ffffff", hat: "#ffffff", pants: "#4a5a8a", boots: "#f4f0ea", mitt: "#ffffff", scale: 1 },
   { id: "nora", name: "Nora", skin: "#f2cda8", hair: ["#1c1512", "#2a1f1a"], style: "shoulder", bangs: true, eye: "#2a1c12", head: "muffs", clips: true, coat: "#2b3f8c", scarf: "#ffc2b0", hat: "#ffc2b0", pants: "#ffb59e", boots: "#f4f0ea", mitt: "#ffc2b0", scale: .86 },
 ].concat(HERO_SRC.map(h => ({ id: h[0], name: h[1], skin: h[2], hair: h[3], style: h[4], eye: h[5], acc: h[6], head: "beanie", coat: h[7], scarf: h[8], hat: h[8], pants: "#3b4a6b", boots: "#6b4a35", mitt: h[8], scale: .95 })));
 const lookOf = id => LOOKS.find(l => l.id === id) || LOOKS[0];
+/* the character you make yourself: S.mine holds what you picked, MINE is the finished look */
+const MINE = { id: "custom" };
+function mineSync() { Object.assign(MINE, { name: "My Character", skin: "#f0c9a4", hairCol: "#5a3a1a", style: "long", bangs: false, eye: "#2a1c12", acc: "none", head: "beanie", coat: "#ff8fb8", scarf: "#ffffff", hat: "#9b6cff", pants: "#3b4a6b", boots: "#6b4a35", scale: .95, clips: false }, S.mine || {}); if (!MINE.name) MINE.name = "My Character"; MINE.hair = [MINE.hairCol]; MINE.mitt = MINE.scarf; }
+mineSync(); LOOKS.splice(2, 0, MINE);
 
 function makePerson(L) {
   const g = new THREE.Group(), rig = new THREE.Group(); g.add(rig); g.scale.setScalar(L.scale || 1);
@@ -292,7 +322,7 @@ function makePerson(L) {
   if (L.style === "pigtails") for (const s of [-1, 1]) { sph(.085, h0, s * .25, -.03, -.03, hd); cyl(.06, .03, .26, h1, s * .27, -.2, -.03, hd); }
   if (L.head === "beanie") {
     M(new THREE.SphereGeometry(.236, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), L.hat, 0, .1, -.01, hd); flat(tor(.232, .04, "#ffffff", 0, .115, -.01, hd)); sph(.07, "#ffffff", 0, .36, -.01, hd);
-    const a = L.acc;
+  } { const a = L.acc;
     if (a === "crown") { cyl(.11, .09, .09, "#ffd23e", 0, .34, -.01, hd, 8); for (let i = 0; i < 5; i++) cone(.025, .07, "#ffd23e", Math.cos(i * 1.257) * .095, .41, Math.sin(i * 1.257) * .095 - .01, hd, 6); }
     if (a === "horn") { const c = cone(.04, .22, "#ffd23e", 0, .36, .13, hd, 8); c.rotation.x = .5; }
     if (a === "foxears") for (const s of [-1, 1]) cone(.07, .16, "#ffffff", s * .13, .34, -.01, hd, 6);
@@ -300,7 +330,11 @@ function makePerson(L) {
     if (a === "bow") { for (const s of [-1, 1]) sph(.06, "#ff5fa2", s * .06, .3, .16, hd).scale.set(1, .8, .5); sph(.03, "#ffffff", 0, .3, .18, hd); }
     if (a === "antennae") for (const s of [-1, 1]) { cyl(.012, .012, .2, "#222222", s * .08, .42, -.01, hd, 6); sph(.035, "#e63b3b", s * .08, .53, -.01, hd); }
     if (a === "leaf") { const l = sph(.07, "#41a64b", .05, .45, -.01, hd); l.scale.set(1.4, .4, .7); l.rotation.z = .5; }
-  } else {
+    if (a === "elf") for (const s of [-1, 1]) cone(.05, .17, L.skin, s * .235, .02, -.01, hd, 6).rotation.z = -s * 1.25;
+    if (a === "antlers") for (const s of [-1, 1]) { cyl(.02, .025, .26, "#7a4a22", s * .12, .43, -.02, hd, 6).rotation.z = -s * .35; cyl(.016, .018, .14, "#7a4a22", s * .2, .47, -.02, hd, 6).rotation.z = -s * 1.2; }
+    if (a === "star") M(new THREE.OctahedronGeometry(.1), glow(0xffe066), 0, .5, -.01, hd, true).scale.set(1, 1.3, .5);
+    if (a === "beak") cone(.05, .13, "#ff9a2e", 0, -.02, .25, hd, 8).rotation.x = Math.PI / 2;
+  } if (L.head === "muffs") {
     tor(.228, .022, L.hat, 0, .02, -.02, hd, Math.PI);
     for (const s of [-1, 1]) sph(.085, L.hat, s * .225, .0, -.02, hd).scale.x = .6;
   }
@@ -371,13 +405,13 @@ function buildWorld() {
   // the stores
   STORES.forEach((s, i) => { const x = -30 + i * 12, b = building({ x, z: -33, w: 9, d: 7, h: 3.6, wall: s[1], roof: s[2], door: s[2], sign: s[0], signFg: s[2] });
     box(9.6, .12, 1.4, i % 2 ? "#e23b3b" : "#ffffff", x, 2.75, -33 + 4.1).rotation.x = .25;
-    hot(b.userData.door.x, b.userData.door.z, 1.9, s[0], () => SHOPS[i]()); });
+    hot(b.userData.door.x, b.userData.door.z, 1.9, "🚪 Go into " + s[0], () => enter(rooms["shop" + i])); });
 
   // lamp posts, snowmen, benches, trees
   [[-3.2, 9], [3.2, 9], [-3.2, 20], [3.2, 20], [-3.2, -10], [3.2, -10], [-3.2, -21], [3.2, -21], [-12, -6], [9, 7], [-18, 28.5], [18, 28.5], [-21, -24.5], [21, -24.5]].forEach(p => lamp(p[0], p[1]));
   snowman(-7, 8, .6); snowman(8.5, -8, -.7); snowman(-15, 24, .3);
   [[-6, -5, .8], [6, 6, -2.4]].forEach(b => { const g = new THREE.Group(); g.position.set(b[0], 0, b[1]); g.rotation.y = b[2]; scene.add(g); box(2, .12, .6, "#8a5a3a", 0, .5, 0, g); box(2, .5, .1, "#8a5a3a", 0, .85, -.28, g); for (const s of [-1, 1]) box(.12, .5, .6, "#2c2c3a", s * .85, .25, 0, g); box(2.05, .06, .62, "#fff", 0, .58, 0, g); solidCircle(b[0], b[1], .9); });
-  const keep = [[0, 0, 8], [-24, -10, 9], [27, 4, 17], [0, -33, 40], [-28, 37, 12], [0, 39, 13], [28, 37, 12], [0, 15, 6], [0, -15, 6], [12, 8, 4], [43, -19, 10], [-25, 4, 8], [-46, -24, 8], [-46, -12, 8], [-46, 0, 8], [-46, 12, 8], [-46, 24, 8], [47, 8, 8], [47, 20, 8]];
+  const keep = [[0, 0, 8], [-24, -10, 9], [27, 4, 17], [0, -33, 40], [-28, 37, 12], [0, 39, 13], [28, 37, 12], [0, 15, 6], [0, -15, 6], [12, 8, 4], [43, -19, 10], [-25, 4, 8], [-46, -24, 8], [-46, -12, 8], [-46, 0, 8], [-46, 12, 8], [-46, 24, 8], [47, 8, 8], [47, 20, 8], [-17.5, -16.5, 4], [-8.5, 16, 7]];
   let placed = 0;
   for (let i = 0; i < 900 && placed < 190; i++) { const a = srand() * Math.PI * 2, r = 14 + srand() * 100, x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (keep.some(k => (k[3] ? Math.abs(x - k[0]) < k[2] && Math.abs(z - k[1]) < 8 : Math.hypot(x - k[0], z - k[1]) < k[2]))) continue;
@@ -386,7 +420,7 @@ function buildWorld() {
     if (r < 50 && srand() < .72) continue;
     pine(x, z, .9 + srand() * 1.1); if (r < 62) solidCircle(x, z, .55); placed++; }
 
-  buildRink(); buildPrizeHouses(); buildRooms(); buildGarden(); buildSki(); buildSled(); buildFriendHouses(); buildFriendRoom(); buildJobSpot();
+  buildRink(); buildPrizeHouses(); buildRooms(); buildGarden(); buildSki(); buildSled(); buildFriendHouses(); buildFriendRoom(); buildJobSpot(); buildPart4();
 
   // falling snow
   const N = 1400, pg = new THREE.BufferGeometry(), pa = new Float32Array(N * 3); for (let i = 0; i < N; i++) { pa[i * 3] = rnd(-35, 35); pa[i * 3 + 1] = rnd(0, 26); pa[i * 3 + 2] = rnd(-35, 35); }
@@ -426,7 +460,7 @@ function buildRink() {
 function houseSign(h, g, y, z) { const sg = makeSign("", 6, .95, "#fff8e8", "#7a4fc8"); sg.position.set(0, y, z); g.add(sg); h.sign = sg; }
 function refreshHouseSigns() { HOUSES.forEach(h => setSign(h.sign, S.houses.includes(h.id) ? h.emoji + " " + (pl ? pl.L.name + "'s " : "My ") + h.name : "🏆 " + h.name + " — for the champion")); }
 function buildPrizeHouses() {
-  const mk = h => { const g = new THREE.Group(); g.position.set(h.x, 0, h.z); g.rotation.y = Math.PI; scene.add(g); solidBox(h.x, h.z, 14, h.d);
+  const mk = h => { const g = new THREE.Group(); g.position.set(h.x, 0, h.z); g.rotation.y = Math.PI; scene.add(g); solidBox(h.x, h.z, 14, h.d); HOMES.push({ x: h.x, z: h.z, h: 11 });
     hot(h.x, h.z - h.d / 2 - 1.3, 2.1, () => S.houses.includes(h.id) ? "🚪 Go into my " + h.name : h.emoji + " " + h.name, () => S.houses.includes(h.id) ? enter(rooms[h.id]) : toast("🏆 Win the skating contest and you can pick this house!"));
     return g; };
   // ice castle
@@ -470,8 +504,8 @@ function makeRoom(o) {
   R.hot = (x, z, r, label, fn) => hot(cx + x, z, r, label, fn);
   rooms[o.id] = R; return R;
 }
-function bed(R, x, z, frame, quilt, big) { const w = big ? 2.6 : 1.7; R.B(w, .45, 3, frame, x, .3, z); R.B(w - .1, .25, 2.9, "#ffffff", x, .62, z); R.B(w - .05, .2, 2, quilt, x, .76, z + .45); R.B(w, 1.3, .2, frame, x, .75, z - 1.55); R.B(w * .7, .2, .55, "#fff7fb", x, .82, z - 1.1); R.solid(x, z, w, 3.1); }
-function smallTree(x, z) { cyl(.12, .14, .5, "#6b4a35", x, .25, z); for (let i = 0; i < 3; i++) cone(.85 - i * .22, 1, "#257a4d", x, .9 + i * .62, z, scene, 10); M(new THREE.OctahedronGeometry(.16), glow(0xffe066), x, 2.85, z, scene, true); for (let i = 0; i < 26; i++) { const t = i / 26, a = i * 1.1; bulb(x + Math.cos(a) * (.8 * (1 - t) + .1), .6 + t * 2, z + Math.sin(a) * (.8 * (1 - t) + .1), .7); } solidCircle(x, z, .7); }
+function bed(R, x, z, frame, quilt, big, label) { const w = big ? 2.6 : 1.7; R.B(w, .45, 3, frame, x, .3, z); R.B(w - .1, .25, 2.9, "#ffffff", x, .62, z); R.B(w - .05, .2, 2, quilt, x, .76, z + .45); R.B(w, 1.3, .2, frame, x, .75, z - 1.55); R.B(w * .7, .2, .55, "#fff7fb", x, .82, z - 1.1); R.solid(x, z, w, 3.1); const b = { x: R.cx + x, z, w, quilt, y: .76, side: x > 0 ? -1 : 1 }; R.hot(x + b.side * (w / 2 + .75), z + .3, 1.5, label || "😴 Get into bed", () => bedMenu(R, b)); }
+function smallTree(x, z) { const st = M(new THREE.OctahedronGeometry(.16), glow(0xffe066), x, 2.85, z, scene, true); cyl(.12, .14, .5, "#6b4a35", x, .25, z); for (let i = 0; i < 3; i++) cone(.85 - i * .22, 1, "#257a4d", x, .9 + i * .62, z, scene, 10); for (let i = 0; i < 26; i++) { const t = i / 26, a = i * 1.1; bulb(x + Math.cos(a) * (.8 * (1 - t) + .1), .6 + t * 2, z + Math.sin(a) * (.8 * (1 - t) + .1), .7); } solidCircle(x, z, .7); return st; }
 const YUM = ["🥞 Fluffy pancakes with syrup", "🍝 Cheesy pasta", "🍪 Warm chocolate chip cookies", "🍲 Cozy noodle soup", "🧇 Waffles with strawberries", "🍕 A whole pizza", "🥟 Yummy dumplings"];
 function buildRooms() {
   // --- the cozy cabin: kitchen, bedroom, window, fireplace ---
@@ -485,7 +519,7 @@ function buildRooms() {
   for (const s of [-1, 1]) cyl(.14, .14, .03, "#e23b3b", 500 - 4 + s * .26, 1.13, -4.4); cyl(.2, .17, .22, "#c0c7d1", 500 - 4.26, 1.25, -4.4); R.B(1, .5, .3, "#f4efe6", -5.2, 2.4, -4.8); R.B(1, .5, .3, "#f4efe6", -3.6, 2.4, -4.8);
   R.solid(-4.6, -4.4, 4.7, 1); R.solid(-6.3, -3.3, 1.2, 1);
   cyl(.9, .9, .08, "#8a5a3a", 500 - 4.2, .8, -1.2); cyl(.1, .1, .8, "#6e452b", 500 - 4.2, .4, -1.2); for (const s of [-1, 1]) { R.B(.5, .08, .5, "#c0392b", -4.2 + s * 1.3, .5, -1.2); R.B(.08, .5, .08, "#6e452b", -4.2 + s * 1.3, .25, -1.2); } solidCircle(500 - 4.2, -1.2, 1);
-  R.hot(-4.3, -3.4, 1.5, "🍳 Cook something yummy", () => { SFX.coin(); toast("You cooked " + YUM[Math.floor(Math.random() * YUM.length)] + ". Yum!"); });
+  R.hot(-4.3, -3.4, 1.5, "🍳 Cook or bake in the kitchen", kitchenMenu);
   // fireplace (right of the window)
   R.B(2.4, 2.6, .7, "#9a8f88", 3.4, 1.3, -4.65); R.B(1.3, 1.1, .5, "#2a2422", 3.4, .6, -4.45); R.B(2.8, .16, .9, "#6e452b", 3.4, 2.05, -4.6); R.solid(3.4, -4.6, 2.4, .9);
   fireMesh = M(new THREE.ConeGeometry(.35, .8, 8), glow(0xff9a2e), 503.4, .5, -4.25, scene, true); M(new THREE.ConeGeometry(.2, .5, 8), glow(0xffe066), 503.4, .42, -4.2, scene, true);
@@ -494,9 +528,8 @@ function buildRooms() {
   R.hot(3.4, -3.4, 1.5, "🔥 Warm up by the fire", () => toast("🔥 So warm and toasty. Your mittens are drying by the fire."));
   // bedroom (right)
   bed(R, 5.6, -2.6, "#8a5a3a", "#c0392b"); R.B(3.6, .03, 2.4, "#f6c8d8", 3.4, .02, .4); R.B(.7, .7, .7, "#8a5a3a", 4.3, .35, -3.9); M(new THREE.SphereGeometry(.2, 10, 8), glow(0xffe9a8), 504.3, 1, -3.9, scene, true);
-  R.hot(4.9, -1.4, 1.6, "😴 Take a cozy nap", () => { toast("😴 Zzz... You had the best nap ever."); SFX.yay(); });
-  smallTree(500 - 1.4, -3.9);
-  R.hot(-1.4, -2.6, 1.3, "🎁 Look at my presents", () => myPresents());
+  cabinStar = smallTree(500 - 1.4, -3.9);
+  R.hot(-1.4, -2.6, 1.3, "🎄 My tree and my presents", treeMenu);
   R.B(1.3, .2, 1, "#9b6cff", 1.4, .1, 2.4); R.B(1.05, .12, .75, "#ffffff", 1.4, .24, 2.4);
   R.hot(1.4, 2.4, 1.2, "🐾 Tuck my pet into bed", () => toast(!pet ? "You don't have a pet yet. Visit the Animal Shop!" : PETS[pet.id].big ? petName() + " is too big for this bed! It sleeps outside under a warm blanket. 💤" : petName() + " curled up in the cozy bed. 💤"));
   // --- ice castle ---
@@ -504,7 +537,6 @@ function buildRooms() {
   R.B(4, .3, 3, "#e8f7ff", 0, .15, -4.4); R.B(1.6, 1, 1.3, "#7fb8e6", 0, .8, -4.8); R.B(1.6, 2.6, .3, "#7fb8e6", 0, 1.6, -5.4); for (const s of [-1, 1]) cone(.3, .9, "#e8f7ff", 600 + s * .9, 3.3, -5.4, scene, 8); R.solid(0, -4.8, 1.8, 1.6);
   R.hot(0, -3.4, 1.5, "👑 Sit on the ice throne", () => toast("👑 All hail the Ice Skating Champion!"));
   bed(R, -6.4, -3.4, "#7fb8e6", "#e8f7ff", true); for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(.07, .07, 2.6, "#e8f7ff", 600 - 6.4 + sx * 1.25, 1.3, -3.4 + sz * 1.45); R.B(2.8, .08, 3.2, "#bfe6ff", -6.4, 2.6, -3.4);
-  R.hot(-5, -1.7, 1.6, "😴 Nap in the snowflake bed", () => toast("😴 The snowflake bed is soft like a cloud."));
   for (const p of [[5.5, -4], [7.5, -1], [-7.5, 2]]) { cone(.5, 1.6, "#e8f7ff", 600 + p[0], .8, p[1], scene, 6); cone(.3, 1, "#bfe6ff", 600 + p[0] + .4, .5, p[1] + .2, scene, 6); solidCircle(600 + p[0], p[1], .6); }
   M(new THREE.OctahedronGeometry(.7), glow(0xe8f7ff), 600, 3.3, -1, scene, true); for (let i = 0; i < 16; i++) bulb(600 + Math.cos(i * .39) * 1.2, 3.1, -1 + Math.sin(i * .39) * 1.2);
   R.B(3, .5, .9, "#e8f7ff", 5.5, .5, 1.5); R.B(3, .9, .25, "#bfe6ff", 5.5, .9, 1.05); R.solid(5.5, 1.4, 3, 1);
@@ -516,8 +548,8 @@ function buildRooms() {
   R.hot(-6, -3.3, 1.5, "📺 Watch a Christmas movie", () => toast("🎬 You watched a movie about a reindeer who learns to ice skate."));
   R.B(2.2, 1, 1.3, "#16161d", 6.5, .75, -4.4); R.B(2.3, .1, .5, "#ffffff", 6.5, 1.02, -3.9); R.B(1, .12, .5, "#16161d", 6.5, .5, -3.2); R.solid(6.5, -4.3, 2.3, 1.5);
   R.hot(6.5, -2.9, 1.4, "🎹 Play the piano", () => { [330, 330, 330, 330, 330, 330, 330, 392, 262, 294, 330].forEach((f, i) => tone(f * 2, .25, "triangle", .08, 0, i * .22)); toast("🎹 Jingle bells, jingle bells!"); });
-  bed(R, 8.2, 2.2, "#c9a45a", "#5b3fa8", true); R.hot(6.6, 3.2, 1.5, "😴 Nap in the fancy bed", () => toast("😴 The fanciest nap of your life."));
-  R.B(3, 1, 1.2, "#ffffff", -7, .5, 2); R.B(3.2, .08, 1.4, "#3d4660", -7, 1.04, 2); R.solid(-7, 2, 3.2, 1.4); R.hot(-7, 3.3, 1.4, "🍳 Cook in the giant kitchen", () => toast("You cooked " + YUM[Math.floor(Math.random() * YUM.length)] + ". Yum!"));
+  bed(R, 8.2, 2.2, "#c9a45a", "#5b3fa8", true);
+  R.B(3, 1, 1.2, "#ffffff", -7, .5, 2); R.B(3.2, .08, 1.4, "#3d4660", -7, 1.04, 2); R.solid(-7, 2, 3.2, 1.4); R.hot(-7, 3.3, 1.4, "🍳 Cook or bake in the giant kitchen", kitchenMenu);
   smallTree(700 + 3.6, -4.6);
   // --- dream house: cool beds, your own rink, chefs, amazing room, nice bathroom ---
   R = makeRoom({ id: "dream", cx: 800, w: 30, d: 18, floor: "#ffcfe2", wall: "#bfa6f5", trim: "#ff8fd8", out: { x: HOUSES[2].x, z: HOUSES[2].z - 6, h: Math.PI } });
@@ -527,7 +559,7 @@ function buildRooms() {
   R.solid(-12.5, -6.5, 2.2, 3.4); R.hot(-11.2, -4.4, 1.7, "🛝 Slide down from the top bunk", () => { SFX.swish(); toast("🛝 Wheeeee! Best bed ever."); });
   // cloud bed and a canopy bed
   for (let i = 0; i < 6; i++) sph(.8, "#ffffff", 800 - 8 + Math.cos(i) * 1.1, .7, -6.6 + Math.sin(i * 1.3) * .9).castShadow = false; R.B(1.6, .2, 2.2, "#bfe6ff", -8, 1.1, -6.6); R.solid(-8, -6.6, 3, 2.6);
-  R.hot(-8, -4.6, 1.5, "☁️ Nap on the cloud bed", () => toast("☁️ You floated off to sleep on a real cloud."));
+  R.hot(-8, -4.6, 1.5, "☁️ Sleep on the cloud bed", () => bedMenu(rooms.dream, { x: 792, z: -6.3, w: 1.6, quilt: "#bfe6ff", y: 1.2, side: 1 }));
   bed(R, -3.6, -7, "#ffd23e", "#ff8fd8", true); for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(.07, .07, 3, "#ffd23e", 800 - 3.6 + sx * 1.25, 1.5, -7 + sz * 1.45); R.B(2.9, .1, 3.3, "#ffb3d1", -3.6, 3, -7);
   for (let i = 0; i <= 10; i++) { bulb(800 - 4.85 + i * .25, 2.9, -5.5); }
   R.B(5, .03, 3.4, "#c9b3ff", -8, .02, -1.5); R.B(.9, .9, .9, "#ff8fd8", -13.6, .45, -1.5); for (let i = 0; i < 4; i++) sph(.22, ["#ffd23e", "#46cdc6", "#ff5e6c", "#9b6cff"][i], 800 - 13.6 + (i % 2) * .4 - .2, 1.1, -1.5 + (i > 1 ? .3 : -.3)); R.solid(-13.6, -1.5, 1, 1);
@@ -559,19 +591,19 @@ function spawnPlayer() {
   const L = curLook(); const P = makePerson(L); scene.add(P.g);
   pl = Object.assign(P, { x: 0, z: 11, vx: 0, vz: 0, head: P.head, hdg: Math.PI, ice: null, fall: 0, y: 0 }); camYaw = 0;
   // the other skaters: three heroes you didn't pick
-  rivals.forEach(r => scene.remove(r.g)); rivals = LOOKS.filter(l => l.id !== L.id && l.id !== "jules" && l.id !== "nora").sort((a, b) => (a.id + L.id > b.id + L.id ? 1 : -1)).slice(0, 3).map((l, i) => { const r = makePerson(l); scene.add(r.g); setBlades(r, true); r.ang = i * 2.1; r.spd = .32 + i * .07; r.k = .5 + i * .14; return r; });
+  rivals.forEach(r => scene.remove(r.g)); rivals = LOOKS.filter(l => l.id !== L.id && l.id !== "jules" && l.id !== "nora" && l.id !== "custom").sort((a, b) => (a.id + L.id > b.id + L.id ? 1 : -1)).slice(0, 3).map((l, i) => { const r = makePerson(l); scene.add(r.g); setBlades(r, true); r.ang = i * 2.1; r.spd = .32 + i * .07; r.k = .5 + i * .14; return r; });
   refreshHouseSigns(); hud(); spawnPet(false); spawnFriends();
 }
-function hud() { $("hud").innerHTML = '<span class="pill">🎄 ' + esc(pl ? pl.L.name : "") + '</span><span class="pill">💰 $' + S.money + '</span><span class="pill">🏆 ' + S.wins + '</span>' + (S.skiWins ? '<span class="pill">🎿 ' + S.skiWins + '</span>' : "") + (S.sledWins ? '<span class="pill">🛷 ' + S.sledWins + '</span>' : "") + '<button type="button" data-act="phone">📱 Phone</button><button type="button" data-act="music">' + (S.music ? "🔊" : "🔇") + '</button><button type="button" data-act="who">👤</button>'; }
+function hud() { $("hud").innerHTML = '<span class="pill">🎄 ' + esc(pl ? pl.L.name : "") + '</span><span class="pill">' + (night > .5 ? "🌙" : "☀️") + ' Day ' + S.days + '</span><span class="pill">💰 $' + S.money + '</span><span class="pill">🏆 ' + S.wins + '</span>' + (S.skiWins ? '<span class="pill">🎿 ' + S.skiWins + '</span>' : "") + (S.sledWins ? '<span class="pill">🛷 ' + S.sledWins + '</span>' : "") + '<button type="button" data-act="fun">❄️ Fun</button><button type="button" data-act="phone">📱 Phone</button><button type="button" data-act="music">' + (S.music ? "🔊" : "🔇") + '</button><button type="button" data-act="who">👤</button>'; }
 function earn(n) { S.money += n; hud(); save(); }
 
-function enter(R) { SFX.door(); snap = true; zone = R; pl.x = R.cx; pl.z = R.d / 2 - 2.2; pl.vx = pl.vz = 0; pl.hdg = Math.PI; scene.fog.near = 900; scene.fog.far = 1000; sky.visible = false; snow.visible = false; scene.background = new THREE.Color(0x2a2036); hemi.intensity = .82; }
+function enter(R) { SFX.door(); snap = true; zone = R; pl.x = R.cx; pl.z = R.d / 2 - 2.2; pl.vx = pl.vz = 0; pl.hdg = Math.PI; scene.fog.near = 900; scene.fog.far = 1000; sky.visible = false; snow.visible = false; scene.background = new THREE.Color(0x2a2036); hemi.intensity = .82; followIn(R); }
 function leave(R) { SFX.door(); if (R === rooms.friend) friendLeft(); snap = true; zone = null; pl.x = R.out.x; pl.z = R.out.z; pl.vx = pl.vz = 0; pl.hdg = R.out.h; camYaw = R.out.h; pl.ice = null; setBlades(pl, false); outdoorLook(); }
 
 /* ------------------------------ input ------------------------------ */
 const keys = {}; let joy = null, look = null;
 window.addEventListener("keydown", e => { if (e.target && e.target.tagName === "INPUT") return; keys[e.code] = true; if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
-  if (e.repeat || !$("modal").hidden) return; audio(); if (e.code === "Space") { if (pl && pl.ice) trickPress(); else doAction(); } if (e.code === "KeyE" || e.code === "Enter") doAction(); if (e.code === "KeyP") ACTS.phone(); });
+  if (e.repeat || !$("modal").hidden) return; audio(); if (e.code === "Space") { if (pl && (pl.ice || mode === "sleigh" || mode === "snowfight")) trickPress(); else doAction(); } if (e.code === "KeyE" || e.code === "Enter") doAction(); if (e.code === "KeyP") ACTS.phone(); });
 window.addEventListener("keyup", e => { keys[e.code] = false; });
 cv.addEventListener("pointerdown", e => { audio(); if (S.music && !songT) playSong(); if (e.pointerType !== "mouse" && e.clientX < window.innerWidth * .45 && !joy) { joy = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: 0, y: 0 }; $("joyB").hidden = $("joyK").hidden = false; $("joyB").style.left = $("joyK").style.left = e.clientX + "px"; $("joyB").style.top = $("joyK").style.top = e.clientY + "px"; }
   else if (!look) look = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { cv.setPointerCapture(e.pointerId); } catch (err) {} });
@@ -584,17 +616,18 @@ $("act").addEventListener("click", () => { audio(); doAction(); });
 $("trick").addEventListener("pointerdown", e => { e.preventDefault(); audio(); trickPress(); });
 function doAction() { if (mode !== "play" || !curHot) return; SFX.tap(); curHot.fn(); }
 $("gamesBtn").addEventListener("click", () => { $("gamesMenu").hidden = !$("gamesMenu").hidden; });
-document.addEventListener("click", e => { const a = e.target.closest && e.target.closest("[data-act]"); if (!a) return; audio(); const fn = ACTS[a.dataset.act]; if (fn) { SFX.tap(); fn(a.dataset.arg); } });
+document.addEventListener("click", e => { const a = e.target.closest && e.target.closest("[data-act]"); if (!a) return; audio(); const fn = ACTS[a.dataset.act]; if (fn) { if (!a.dataset.q) SFX.tap(); fn(a.dataset.arg); } });
 
 /* ------------------------------ menus ------------------------------ */
 function openModal(html, low) { $("modalCard").innerHTML = html; $("modal").hidden = false; $("modal").classList.toggle("low", !!low); }
 function closeModal() { $("modal").hidden = true; }
-function showTitle() { mode = "title"; openModal('<h1>🎄 Christmas Cheer</h1><p><b>by Jules &amp; Nora</b></p><p>A snowy village with friends, pets, stores, jobs, ice skating, skiing and sledding.</p><div class="row">' + (S.hero ? '<button class="btn" data-act="go">▶ Keep playing as ' + esc(lookOf(S.hero).name) + '</button><button class="btn alt" data-act="pick">Pick a character</button>' : '<button class="btn" data-act="pick">▶ Play</button>') + '</div>', true); }
+function showTitle() { mode = "title"; openModal('<h1>🎄 Christmas Cheer</h1><p><b>by Jules &amp; Nora</b></p><p>A snowy village with friends, pets, stores you can walk into, jobs, skating, skiing, sledding, snowball fights and a ride in the sleigh with Santa.</p><div class="row">' + (S.hero ? '<button class="btn" data-act="go">▶ Keep playing as ' + esc(lookOf(S.hero).name) + '</button><button class="btn alt" data-act="pick">Pick a character</button>' : '<button class="btn" data-act="pick">▶ Play</button>') + '</div>', true); }
 function showPick() { mode = "pick"; pickI = Math.max(0, LOOKS.findIndex(l => l.id === S.hero)); drawPick(); }
-function drawPick() { const L = LOOKS[pickI]; if (preview) scene.remove(preview.g); preview = makePerson(L); preview.g.position.set(0, 0, 9); scene.add(preview.g);
-  openModal('<h2>Who do you want to be?</h2><div class="chips">' + LOOKS.map((l, i) => '<button class="chip' + (i === pickI ? " on" : "") + '" data-act="chip" data-arg="' + i + '">' + esc(l.name) + '</button>').join("") + '</div><div class="row"><button class="btn" data-act="go">▶ Play as ' + esc(L.name) + '</button></div>', true);
-  const on = document.querySelector(".chip.on"); if (on && on.scrollIntoView) on.scrollIntoView({ inline: "center", block: "nearest" }); }
-function startGame() { if (mode === "pick") S.hero = LOOKS[pickI].id; if (!S.hero) return showPick(); if (preview) { scene.remove(preview.g); preview = null; } closeModal(); save(); spawnPlayer(); mode = "play"; snap = true; $("hud").hidden = false; if (S.music) { clearTimeout(songT); playSong(); }
+function drawPick() { const L = LOOKS[pickI], mine = L.id === "custom"; if (mine && !S.mine) { S.mine = {}; mineSync(); }
+  if (preview) scene.remove(preview.g); preview = makePerson(L); preview.g.position.set(0, 0, 9); scene.add(preview.g); const st = $("modalCard").scrollTop;
+  openModal('<h2>' + (mine ? "✨ Make your own character" : "Who do you want to be?") + '</h2><div class="chips">' + LOOKS.map((l, i) => '<button class="chip' + (i === pickI ? " on" : "") + '" data-act="chip" data-arg="' + i + '">' + (l.id === "custom" ? "✨ " + (S.mine ? esc(l.name) : "Make my own") : esc(l.name)) + '</button>').join("") + '</div>' + (mine ? makerHTML() : "") + '<div class="row"><button class="btn" data-act="go">▶ Play as ' + esc(L.name) + '</button></div>', true);
+  const on = document.querySelector(".chip.on"), bar = on && on.parentNode; if (bar) bar.scrollLeft = Math.max(0, on.offsetLeft - bar.clientWidth / 2 + on.offsetWidth / 2); $("modalCard").scrollTop = mine ? st : 0; }
+function startGame() { if (mode === "pick") { if (LOOKS[pickI].id === "custom") { rdName(); mineSync(); S.custom.custom = {}; } S.hero = LOOKS[pickI].id; } if (!S.hero) return showPick(); if (preview) { scene.remove(preview.g); preview = null; } closeModal(); save(); spawnPlayer(); mode = "play"; snap = true; $("hud").hidden = false; if (S.music) { clearTimeout(songT); playSong(); }
   toast("Welcome to the village, " + pl.L.name + "! Your cozy cabin has the red door. The ice rink is on the right. ⛸", 5200); }
 const ACTS = {
   pick: showPick, go: startGame, chip: i => { pickI = +i; drawPick(); }, close: closeModal,
@@ -606,6 +639,7 @@ const ACTS = {
 
 /* ------------------------------ skating and the contest ------------------------------ */
 function trickPress() {
+  if (mode === "sleigh") return dropGift(); if (mode === "snowfight") return playerThrow();
   if (!pl || !pl.ice || pl.fall > 0 || (mode !== "play" && mode !== "contest") || (C && C.count > 0)) return;
   if (!T) { if (trickCool > 0) return; const tr = TRICKS[trickI % TRICKS.length]; T = { tr, t: 0, dur: tr.id === "axel" ? 1.5 : 1.3, judged: false }; SFX.swish(); $("ring").hidden = false; $("ringName").textContent = tr.name + "!"; return; }
   if (T.judged) return;
@@ -711,7 +745,7 @@ function spawnPet(arrive, keep) {
   pet = { id: S.pet, M, x, z, y: 0, hdg: 0, ph: 0 }; if (keep && o) Object.assign(pet, { x: o.x, z: o.z, hdg: o.hdg, y: o.y }); scene.add(M.g); M.g.position.set(pet.x, pet.y, pet.z);
 }
 function updatePet(dt) {
-  if (!pet) return; const D = PETS[pet.id], M = pet.M; let mv = 0;
+  if (!pet) return; if (pet.sleep) { pet.M.g.position.set(pet.x, .2, pet.z); pet.M.g.rotation.set(0, .9, 0); pet.M.legs.forEach(l => l.rotation.x = 1.2); return; } const D = PETS[pet.id], M = pet.M; let mv = 0;
   if (riding) { pet.x = pl.x; pet.z = pl.z; pet.y = pl.y; pet.hdg = pl.hdg; mv = clamp(Math.hypot(pl.vx, pl.vz) / D.spd, 0, 1); }
   else {
     const room = zone && !zone.ski;
@@ -726,10 +760,12 @@ function updatePet(dt) {
   M.wings.forEach((w, i) => w.rotation.z = (i ? 1 : -1) * (.2 + Math.sin(tNow * (riding ? 9 : 4)) * .55));
   if (M.tail) M.tail.rotation.y = Math.sin(tNow * (pet.id === "dog" ? 9 : 3)) * .5;
   M.g.position.set(pet.x, pet.y, pet.z); M.g.rotation.y = pet.hdg;
+  if (pet.trick) { const tr = pet.trick, u = (tr.t += dt) / 1.4, g = M.g; if (tr.k === "spin") g.rotation.y = pet.hdg + u * Math.PI * 4; else if (tr.k === "roll") { g.rotation.z = u * Math.PI * 2; g.position.y += (1 - Math.cos(u * Math.PI * 2)) * .3 * g.scale.x; } else if (tr.k === "sit") g.rotation.x = -.5 * Math.sin(Math.min(1, u) * Math.PI); else g.position.y += Math.sin(Math.min(1, u) * Math.PI) * 1.1;
+    if (u >= 1) { g.rotation.x = g.rotation.z = 0; pet.trick = null; pop("Good " + petName() + "! 💕"); SFX.land(3); earn(1); } }
 }
 function petName() { return S.pets[pet.id].name; }
 function petMenu() { const D = PETS[pet.id]; curShop = petMenu;
-  openModal('<h2>' + D.e + ' ' + esc(petName()) + '</h2><div class="row"><button class="btn" data-act="petlove">💕 Pet</button><button class="btn" data-act="petfeed">🍖 Feed' + (S.treats ? " (" + S.treats + " treats)" : "") + '</button>' + (D.ride ? '<button class="btn red" data-act="mount">' + D.ride + '</button>' : "") + '</div><h3>Dress up</h3><div class="row">' +
+  openModal('<h2>' + D.e + ' ' + esc(petName()) + '</h2><div class="row"><button class="btn" data-act="petlove">💕 Pet</button><button class="btn" data-act="petfeed">🍖 Feed' + (S.treats ? " (" + S.treats + " treats)" : "") + '</button>' + (D.ride ? '<button class="btn red" data-act="mount">' + D.ride + '</button>' : "") + '</div><h3>Tricks</h3><div class="row">' + [["sit", "🐾 Sit"], ["spin", "🌀 Spin"], ["roll", "🙃 Roll over"], ["jump", "⬆ Jump"]].map(t => '<button class="btn alt" data-act="pettrick" data-arg="' + t[0] + '">' + t[1] + '</button>').join("") + '</div><h3>Dress up</h3><div class="row">' +
     D.acc.map(a => '<button class="chip' + (S.pets[pet.id].acc[a[0]] ? " on" : "") + '" data-act="petacc" data-arg="' + a[0] + '">' + a[1] + '</button>').join("") + '</div><h3>Name</h3><div class="row"><input id="petName" maxlength="12" value="' + esc(petName()) + '"><button class="btn alt" data-act="petname">Save name</button></div><div class="row"><button class="btn alt" data-act="close">Done</button></div>'); }
 function mount() { closeModal(); if (zone || pl.ice) return; riding = true; pl.x = pet.x; pl.z = pet.z; pl.vx = pl.vz = 0; pl.hdg = pet.hdg; SFX.yay(); toast(pet.id === "dragon" ? "🐉 Up, up and away! Steer to fly. Tap Get off to land." : "🏇 Giddy up! Steer to ride. Tap Get off when you are done.", 4200); }
 function dismount() { riding = false; pl.y = 0; pl.vx = pl.vz = 0; pl.x += Math.cos(pl.hdg) * 1.4; pl.z -= Math.sin(pl.hdg) * 1.4; collide(pl, .38); }
@@ -868,7 +904,7 @@ let pals = [], homeF = null;
 const palName = f => f.sib ? (S.hero === "nora" ? "Jules" : "Nora") : f.n;
 function buildFriendHouses() {
   FRIENDS.forEach((f, i) => { const g = building({ x: f.x, z: f.z, w: 7, d: 6, h: 3, rot: f.rot, wall: f.wall, roof: f.roof, door: f.roof, chimney: i % 2 === 0, sign: " ", signFg: f.roof }); f.door = g.userData.door; f.sign = g.userData.sign;
-    hot(f.door.x, f.door.z, 1.8, () => "🚪 Visit " + palName(f) + "'s house", () => visit(i)); });
+    hot(f.door.x, f.door.z, 1.8, () => "🏠 " + palName(f) + "'s house", () => houseMenu(i)); });
   path(-41, -27, -34, -27, 3.2); path(-40.6, -28.5, -40.6, 27, 3); path(-29, -10, -40.6, -10, 2.6); path(42.6, 3, 42.6, 23.5, 2.6);
   hot(0, 4.9, 1.7, "🎁 Open a present from under the tree", treeGift);
 }
@@ -877,23 +913,23 @@ function spawnFriends() {
     return { f, n, P, x: w[0], z: w[1], hdg: 0, tx: w[0], tz: w[1], wait: rnd(0, 3), stuck: 0, mode: "wander" }; });
 }
 function updateFriends(dt) {
-  for (const F of pals) { let mv = 0;
+  for (const F of pals) { if (F.mode === "sleep") continue; let mv = 0; if (F.in && F.in !== zone) { F.in = null; if (!zone) { F.x = pl.x - 1.5; F.z = pl.z + 1.5; } }
     if (F.mode === "wander") {
       if (F.wait > 0) F.wait -= dt;
       else { const dx = F.tx - F.x, dz = F.tz - F.z, d = Math.hypot(dx, dz);
         if (d < .7 || F.stuck > 1.2) { F.wait = rnd(1.5, 5); const w = WP[Math.floor(Math.random() * WP.length)]; F.tx = w[0] + rnd(-1.5, 1.5); F.tz = w[1] + rnd(-1.5, 1.5); F.stuck = 0; }
         else { const ox = F.x, oz = F.z; F.x += dx / d * 1.6 * dt; F.z += dz / d * 1.6 * dt; palBlock(F); if (Math.hypot(F.x - ox, F.z - oz) < 1.6 * dt * .5) F.stuck += dt; else F.stuck = 0; F.hdg += wrap(Math.atan2(dx, dz) - F.hdg) * (1 - Math.exp(-dt * 8)); mv = .55; } }
-    } else if (F.mode === "follow" && !zone) {
-      let dx = pl.x - F.x, dz = pl.z - F.z, d = Math.hypot(dx, dz); if (d > 34) { F.x = pl.x - Math.sin(pl.hdg) * 2.5; F.z = pl.z - Math.cos(pl.hdg) * 2.5; d = 0; }
-      if (d > 2) { const sp = Math.min(8, (d - 2) * 3 + 1); F.x += dx / d * sp * dt; F.z += dz / d * sp * dt; palBlock(F); F.hdg += wrap(Math.atan2(dx, dz) - F.hdg) * (1 - Math.exp(-dt * 8)); mv = clamp(sp / 4.4, .2, 1); }
-    }
+    } else if (F.mode === "follow" && (!zone || F.in === zone)) {
+      let dx = pl.x - F.x, dz = pl.z - F.z, d = Math.hypot(dx, dz); if (d > 34 && !zone) { F.x = pl.x - Math.sin(pl.hdg) * 2.5; F.z = pl.z - Math.cos(pl.hdg) * 2.5; d = 0; }
+      if (d > 2) { const sp = Math.min(8, (d - 2) * 3 + 1); F.x += dx / d * sp * dt; F.z += dz / d * sp * dt; if (F.in) { collide(F, .35); F.x = clamp(F.x, zone.cx - zone.w / 2 + .4, zone.cx + zone.w / 2 - .4); F.z = clamp(F.z, -zone.d / 2 + .4, zone.d / 2 - .4); } else palBlock(F); F.hdg += wrap(Math.atan2(dx, dz) - F.hdg) * (1 - Math.exp(-dt * 8)); mv = clamp(sp / 4.4, .2, 1); }
+    } else if (F.mode === "fight") mv = fightMove(F, dt);
     F.P.g.position.set(F.x, 0, F.z); F.P.g.rotation.y = F.hdg;
     applyPose(F.P, mv ? poseWalk(F.P, dt, mv) : F.mode === "watch" ? { lL: 0, lR: 0, aL: 0, aR: 0, az: 2.4 + Math.sin(tNow * 8 + F.P.ph) * .4, tilt: 0, y: Math.abs(Math.sin(tNow * 6 + F.P.ph)) * .12 } : poseIdle(F.P, tNow), dt); }
 }
 function palBlock(F) { collide(F, .35); const ex = (F.x - RINK.cx) / (RINK.a + .6), ez = (F.z - RINK.cz) / (RINK.b + .6), ff = ex * ex + ez * ez; if (ff < 1) { const s = 1 / Math.sqrt(ff); F.x = RINK.cx + (F.x - RINK.cx) * s; F.z = RINK.cz + (F.z - RINK.cz) * s; } }
 function friendsWatch(on) { pals.forEach((F, i) => { if (on) { if (F.mode === "home") return; F.back = F.mode; F.mode = "watch"; F.x = RINK.cx + 4.5 + i * 1.45; F.z = RINK.cz - RINK.b - 1.3 - (i % 2) * .7; F.hdg = 0; } else if (F.mode === "watch") { F.mode = F.back === "follow" ? "follow" : "wander"; F.wait = rnd(0, 2); } }); }
 function talk(i) { const F = pals[i]; curShop = () => talk(i);
-  openModal('<h2>💬 ' + esc(F.n) + '</h2><div class="bub">' + esc(PAL_LINES[Math.floor(Math.random() * PAL_LINES.length)].replace("{me}", pl.L.name)) + '</div><div class="row"><button class="btn" data-act="palgift" data-arg="' + i + '">🎁 Swap presents</button>' + (F.mode === "home" ? "" : '<button class="btn" data-act="palfollow" data-arg="' + i + '">' + (F.mode === "follow" ? "👋 See you later" : "🤝 Walk with me") + '</button>') + '<button class="btn alt" data-act="close">Bye!</button></div>'); }
+  openModal('<h2>💬 ' + esc(F.n) + '</h2><div class="bub">' + esc(PAL_LINES[Math.floor(Math.random() * PAL_LINES.length)].replace("{me}", pl.L.name)) + '</div><div class="row"><button class="btn" data-act="palgift" data-arg="' + i + '">🎁 Swap presents</button>' + (F.mode === "home" ? "" : '<button class="btn" data-act="palfollow" data-arg="' + i + '">' + (F.mode === "follow" ? "👋 See you later" : "🤝 Walk with me") + '</button>') + (F.mode === "home" || zone ? "" : '<button class="btn" data-act="fight" data-arg="' + i + '">❄️ Snowball fight</button>') + (S.cookies ? '<button class="btn" data-act="cookie" data-arg="' + i + '">🍪 Give a cookie</button>' : "") + '<button class="btn alt" data-act="close">Bye!</button></div>'); }
 function visit(i) { const F = pals[i], f = F.f, R = rooms.friend; homeF = F; R.out = { x: f.door.x, z: f.door.z, h: f.door.h }; mats.FRWALL.color.set(f.wall); mats.FRFLOOR.color.set(f.roof).lerp(new THREE.Color(0xffffff), .55); mats.FRBED.color.set(f.roof);
   F.back = F.mode === "follow" ? "follow" : "wander"; F.mode = "home"; F.x = 900 + 1.6; F.z = -1; F.hdg = 0; enter(R); toast("🏠 Welcome to " + F.n + "'s house!"); }
 function friendLeft() { if (!homeF) return; const F = homeF, d = F.f.door; F.mode = F.back || "wander"; F.x = d.x + Math.cos(d.h) * 1.5; F.z = d.z - Math.sin(d.h) * 1.5; F.wait = 2; homeF = null; }
@@ -901,7 +937,7 @@ function buildFriendRoom() {
   mats.FRWALL = new THREE.MeshLambertMaterial({ color: 0xffffff }); mats.FRFLOOR = new THREE.MeshLambertMaterial({ color: 0xffffff }); mats.FRBED = new THREE.MeshLambertMaterial({ color: 0xffffff });
   const R = makeRoom({ id: "friend", cx: 900, w: 12, d: 9, floor: "FRFLOOR", wall: "FRWALL", trim: "#ffffff", out: { x: 0, z: 0, h: 0 } }), nm = () => homeF ? homeF.n : "your friend";
   R.B(2.6, 1.9, .1, "#ffffff", 0, 2, -4.48); M(new THREE.BoxGeometry(2.3, 1.6, .12), glow(0xbfd8ff), 900, 2, -4.47, scene, true); R.B(.08, 1.6, .16, "#ffffff", 0, 2, -4.45); R.B(2.3, .08, .16, "#ffffff", 0, 2, -4.45);
-  bed(R, 4.4, -2.6, "#ffffff", "FRBED");
+  bed(R, 4.4, -2.6, "#ffffff", "FRBED", false, () => "🌙 Sleepover in " + nm() + "'s bed");
   R.B(3, .9, 1, "#ffd9a8", -3.6, .45, -3.8); R.B(3, 1.4, .3, "#ffd9a8", -3.6, .8, -4.3); for (const s of [-1, 1]) R.B(.35, 1.1, 1.05, "#f2c188", -3.6 + s * 1.5, .55, -3.8); R.solid(-3.6, -3.9, 3.4, 1.2);
   R.B(4, .03, 2.6, "FRBED", -1.2, .02, .2); cyl(.7, .7, .08, "#8a5a3a", 900 - 1.2, .55, .2); cyl(.09, .09, .55, "#6e452b", 900 - 1.2, .27, .2); for (const s of [-1, 1]) { cyl(.11, .09, .16, "#ffffff", 900 - 1.2 + s * .3, .67, .2); cyl(.09, .09, .02, "#6b3a1e", 900 - 1.2 + s * .3, .75, .2); } solidCircle(900 - 1.2, .2, .8);
   R.B(1.8, 2, .5, "#8a5a3a", -4.9, 1, .8); for (let i = 0; i < 3; i++) { R.B(1.6, .06, .52, "#6e452b", -4.9, .5 + i * .6, .82); for (let j = 0; j < 4; j++) R.B(.22, .34, .3, RB[(i * 4 + j) % 6], -5.5 + j * .4, .72 + i * .6, .85); } R.solid(-4.9, .8, 1.8, .6);
@@ -1023,9 +1059,353 @@ Object.assign(ACTS, {
   mypresents: myPresents,
 });
 
+/* ====================== PART FOUR: bedtime, day and night, walk-in stores, snow fun, decorating, baking, Santa, caroling ====================== */
+S.deco = S.deco || {}; S.deco.yard = S.deco.yard || {}; S.cookies = S.cookies || 0; S.days = S.days || 1; S.deer = S.deer || 0; S.snowman = S.snowman || { n: 0 };
+let X = null, dayT = 20, night = 0, wasNight = false, SF = null, SB = null, CK = null, CR = null, WR = null, curBed = null, stars = null, moon = null, deer = null, deerHot = null, cabinStar = null, sleigh = null, SL = null, petBed = null, smG = null, ballM = null, decoG = null, litG = null;
+const aur = [], angels = [], cup = { marsh: true, cream: true, cherry: true, cane: false };
+const DAYLEN = 420, FOGC = new THREE.Color(FOG);
+const nightAt = t => { const u = (t / DAYLEN) % 1; return u < .58 ? 0 : u < .66 ? (u - .58) / .08 : u < .92 ? 1 : 1 - (u - .92) / .08; };
+const chipRow = (act, k, cur, list) => '<div class="row">' + list.map(o => '<button class="chip' + (o[0] === cur ? " on" : "") + '" data-act="' + act + '" data-arg="' + k + "|" + o[0] + '">' + o[1] + '</button>').join("") + '</div>';
+const swr = (act, k, cur, pal) => '<div class="row">' + pal.map(c => '<button class="sw' + (c === cur ? " on" : "") + '" style="background:' + c + '" data-act="' + act + '" data-arg="' + k + "|" + c + '"></button>').join("") + '</div>';
+function outside() { if (zone || pl.ice || riding) { closeModal(); toast("Go outside and stand in the snow first! ❄️"); return false; } return true; }
+function lieDown(g, x, y, headZ, s) { g.position.set(x, y, headZ + 1.42 * s); g.rotation.set(-Math.PI / 2, 0, 0); }
+
+/* ------------------------------ day and night ------------------------------ */
+function buildSky() {
+  const N = 260, g = new THREE.BufferGeometry(), a = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) { const th = srand() * 6.283, ph = .1 + srand() * 1.35; a[i * 3] = Math.cos(th) * Math.cos(ph) * 420; a[i * 3 + 1] = Math.sin(ph) * 420; a[i * 3 + 2] = Math.sin(th) * Math.cos(ph) * 420; }
+  g.setAttribute("position", new THREE.BufferAttribute(a, 3));
+  stars = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 2.4, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false })); stars.frustumCulled = false; scene.add(stars);
+  moon = M(new THREE.SphereGeometry(15, 18, 12), new THREE.MeshBasicMaterial({ color: 0xfff6d8, transparent: true, opacity: 0, fog: false }), 0, 0, 0, scene, true); moon.frustumCulled = false;
+  for (let i = 0; i < 3; i++) { const pg = new THREE.PlaneGeometry(1, 1, 30, 1), p = pg.attributes.position;
+    for (let j = 0; j < p.count; j++) { const u = p.getX(j) + .5, v = p.getY(j) + .5, an = -2.5 + i * .45 + u * 1.5; p.setXYZ(j, Math.cos(an) * 330, 95 + i * 24 + v * 55 + Math.sin(u * 9 + i) * 12, Math.sin(an) * 330); }
+    const m = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ color: [0x4dffb0, 0x9b6cff, 0x5ec8ff][i], transparent: true, opacity: 0, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false, depthWrite: false })); m.frustumCulled = false; scene.add(m); aur.push(m); }
+}
+function newDay() { S.days++; save(); placeDeer(); hud(); }
+function updateSky(dt) {
+  if (pl && mode !== "title" && mode !== "pick" && mode !== "sleigh") dayT += dt;
+  const n = night = nightAt(dayT), k = 1 - n * .78, c = sky.material.color, dim = X && X.dim || 0, cp = camera.position;
+  c.setRGB(k, k, Math.min(1, k * 1.3)); scene.fog.color.copy(FOGC).multiply(c);
+  if (!zone || zone.ski) { hemi.intensity = lerp(.78, .36, n); sun.intensity = lerp(.7, .12, n); } else { hemi.intensity = lerp(.82, .46, dim); sun.intensity = lerp(.7, .32, dim); }
+  $("dark").style.opacity = dim * .28;
+  stars.material.opacity = n; stars.position.copy(cp); moon.material.opacity = n; moon.position.set(cp.x + 150, 230, cp.z - 300);
+  aur.forEach((m, i) => { m.material.opacity = n * (.2 + .14 * Math.sin(tNow * .6 + i * 2)); m.position.set(cp.x, Math.sin(tNow * .3 + i) * 6, cp.z); });
+  if (treeLight) treeLight.intensity = .9 + n * .8;
+  if (n > .5 && !wasNight) { wasNight = true; hud(); if (mode === "play") toast("🌙 It is night time! Santa's sleigh is waiting by the big tree. 🎅", 5200); }
+  else if (n < .5 && wasNight) { wasNight = false; newDay(); if (mode === "play") toast("☀️ Good morning! It is day " + S.days + "."); }
+  if (sleigh) sleigh.g.visible = n > .5 || mode === "sleigh";
+}
+
+/* ------------------------------ really getting into bed ------------------------------ */
+function bedMenu(R, b) { if (mode !== "play") return; curBed = { R, b }; const nt = night > .5, pal = R === rooms.friend && homeF ? homeF.n : "";
+  openModal('<h2>' + (pal ? "🌙 Sleepover at " + esc(pal) + "'s house!" : "😴 Bedtime!") + '</h2><p>Climb in, put your head on the pillow and pull up the cover.</p><div class="row">' + (nt ? "" : '<button class="btn" data-act="sleep" data-arg="night">😴 Nap until night time 🌙</button>') + '<button class="btn red" data-act="sleep" data-arg="morning">' + (nt ? "🌙 Sleep until morning" : "☀️ Sleep until tomorrow") + '</button><button class="btn alt" data-act="close">Not sleepy</button></div>'); }
+function sleepIn(until) {
+  if (!curBed || mode !== "play") return; const { R, b } = curBed, s = pl.L.scale || 1, tmp = []; closeModal(); mode = "scene"; pl.vx = pl.vz = 0; pl.x = b.x + b.side * (b.w / 2 + .75); pl.z = b.z + .3;
+  lieDown(pl.g, b.x, b.y + .22, b.z - 1.1, s);
+  const cov = box(b.w - .04, .5, 2.1, b.quilt, b.x, b.y + .25, b.z + .5); cov.castShadow = false; tmp.push(cov);
+  const sleepers = pals.filter(F => (F.in === R && F.mode === "follow") || (F === homeF && R === rooms.friend)).slice(0, 2);
+  sleepers.forEach((F, j) => { const bx = b.x + b.side * (b.w / 2 + 2 + j * 1.15), bz = b.z + 1.1, fs = F.P.L.scale || 1; F.was = F.mode; F.mode = "sleep";
+    tmp.push(box(.9, .12, 2, "#ffffff", bx, .06, bz), box(.86, .46, 1.45, RB[(j * 2 + 4) % 6], bx, .33, bz + .28), box(.6, .14, .4, "#fff7fb", bx, .16, bz - .78));
+    lieDown(F.P.g, bx, .26, bz - .75, fs); applyPose(F.P, poseIdle(F.P, 0), 1); F.x = bx; F.z = bz; });
+  if (pet && !PETS[pet.id].big) { pet.sleep = true; pet.x = b.x; pet.z = b.z + 2.05; petBed.position.set(pet.x, 0, pet.z); petBed.visible = true; }
+  cine = { pos: new THREE.Vector3(b.x + b.side * 2.2, 4.6, b.z + 4.2), look: new THREE.Vector3(b.x, .8, b.z) };
+  [392, 330, 392, 330, 349, 294, 262].forEach((f, i) => tone(f, .5, "sine", .05, 0, i * .5));
+  const wake = () => { tmp.forEach(m => scene.remove(m)); pl.g.rotation.set(0, 0, 0); pl.hdg = b.side * Math.PI / 2; sleepers.forEach(F => { F.mode = F.was; F.P.g.rotation.set(0, 0, 0); });
+    if (pet && pet.sleep) { pet.sleep = false; petBed.visible = false; } cine = null; X = null; mode = "play"; snap = true; const names = sleepers.map(F => F.n).join(" and ");
+    if (until === "morning") { const g = GIFTS[Math.floor(Math.random() * GIFTS.length)]; gotGift(g, "Santa 🎅"); earn(5 + sleepers.length * 5); SFX.yay(); toast("☀️ Good morning! It is day " + S.days + ". 🎅 Santa left a " + g[1] + " under your tree!" + (names ? " " + names + " loved the sleepover!" : ""), 6500); }
+    else toast("🌙 You woke up and it is night time. The village lights are twinkling!" + (names ? " " + names + " woke up too." : ""), 5200); };
+  X = { t: 0, dim: 0, z: 0, flip: false, upd(dt) { this.t += dt; const t = this.t; this.dim = t < 4 ? clamp(t / 1.2, 0, 1) : clamp(1 - (t - 4.2), 0, 1);
+    applyPose(pl, { lL: 0, lR: 0, aL: 0, aR: 0, az: .12, tilt: 0, y: 0 }, dt);
+    if (this.z < 2 && t > 1.3 + this.z * 1.1) { this.z++; pop("💤"); }
+    if (t >= 4 && !this.flip) { this.flip = true; const d0 = Math.floor(dayT / DAYLEN) * DAYLEN; if (until === "night") { dayT = d0 + DAYLEN * .68; wasNight = true; hud(); } else { dayT = d0 + DAYLEN + 3; wasNight = false; newDay(); } }
+    if (t >= 5.4) wake(); } };
+}
+function followIn(R) { let j = 0; pals.forEach(F => { if (F.mode === "follow") { F.in = R; F.x = pl.x + 1.1 + j++ * .9; F.z = pl.z + .4; } }); }
+
+/* ------------------------------ stores you can walk into ------------------------------ */
+const FLOORS = ["#e9c7d2", "#b9cfea", "#c9a27a", "#f0d9a6", "#bfe0bb", "#d3c2f0"];
+function keeper(R, x, z, coat, skin, hair, style) { const P = makePerson({ skin, hair: [hair], style, eye: "#2a1c12", head: "none", coat, scarf: "#ffffff", hat: "#ffffff", pants: "#2c2c3a", boots: "#2c2c3a", mitt: skin, scale: 1.08 }); box(.34, .42, .04, "#ffffff", 0, .86, .235, P.rig); P.g.position.set(R.cx + x, 0, z); scene.add(P.g); R.keeper = P; }
+function counter(R, x, col) { R.B(4.4, 1, .9, "#ffffff", x, .5, -3.4); R.B(4.6, .08, 1.05, col, x, 1.04, -3.4); R.B(.55, .32, .42, "#2c2c3a", x + 1.6, 1.24, -3.4); R.B(.4, .06, .3, "#9fe8c0", x + 1.6, 1.42, -3.4); R.solid(x, -3.4, 4.6, 1.05); }
+function chair(R, x, z, ry, col) { const g = new THREE.Group(); g.position.set(R.cx + x, 0, z); g.rotation.y = ry; scene.add(g); box(.5, .08, .5, col, 0, .48, 0, g); box(.5, .62, .07, col, 0, .82, -.23, g); for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.06, .46, .06, "#6e452b", sx * .2, .23, sz * .2, g); }
+function buildShops() {
+  STORES.forEach((s, i) => {
+    const R = makeRoom({ id: "shop" + i, cx: 1000 + i * 100, w: 14, d: 10, floor: FLOORS[i], wall: s[1], trim: s[2], out: { x: -30 + i * 12, z: -28.3, h: 0 } }), cx = R.cx, dark = s[2]; R.shop = i;
+    const sg = makeSign(s[0], 5, .8, "#fff8e8", dark); sg.position.set(cx, 3.1, -4.97); scene.add(sg);
+    if (i === 0) { // clothes
+      counter(R, 3.8, dark); keeper(R, 3.8, -4.3, "#b0476a", "#f3cba5", "#5a3a1a", "pony");
+      [-1.5, 1.5].forEach((z, r) => { for (const px of [-6, -2.2]) R.B(.08, 1.8, .08, "#2c2c3a", px, .9, z); R.B(3.9, .06, .06, "#c0c7d1", -4.1, 1.78, z); for (let j = 0; j < 8; j++) R.B(.4, .85, .2, PAL[(j + r * 5) % 12], -5.75 + j * .47, 1.3, z); R.solid(-4.1, z, 4, .5); });
+      R.B(1.5, 2.4, .1, "#c9a45a", -.4, 1.25, -4.95); M(new THREE.BoxGeometry(1.3, 2.2, .06), glow(0xd9f1ff), cx - .4, 1.25, -4.88, scene, true);
+      R.B(3.2, .08, .45, "#ffffff", -4.4, 2.3, -4.75); for (let j = 0; j < 5; j++) sph(.2, PAL[j * 2], cx - 5.6 + j * .6, 2.5, -4.75).scale.y = .8;
+      R.hot(3.8, -2.3, 1.5, "👗 Pick new clothes", shopClothes); R.hot(-.4, -3.8, 1.3, "🪞 Try on clothes at the mirror", shopClothes);
+    } else if (i === 1) { // ice skates
+      counter(R, 3.8, dark); keeper(R, 3.8, -4.3, "#3d6fb3", "#fce0c2", "#d6a85a", "bob");
+      [1, 1.75].forEach((y, r) => { R.B(5.8, .07, .5, "#ffffff", -3.6, y, -4.7); for (let j = 0; j < 6; j++) { const col = SKATES[(j + r * 3) % 6][0], x = -6 + j * .95; R.B(.24, .3, .38, col, x, y + .27, -4.72); R.B(.24, .14, .16, col, x, y + .19, -4.47); R.B(.04, .07, .5, "#dfe6ee", x, y + .08, -4.66); } });
+      R.solid(-3.6, -4.7, 5.8, .5); R.B(4.2, .03, 2.6, "#ffffff", -2.6, .02, 1); R.B(2.6, .12, .7, "#8a5a3a", -2.6, .5, .4); for (const sx of [-1, 1]) R.B(.12, .46, .6, "#2c2c3a", -2.6 + sx * 1.1, .23, .4); R.solid(-2.6, .4, 2.6, .7);
+      R.hot(3.8, -2.3, 1.5, "⛸ Pick my ice skates", shopSkates); R.hot(-2.6, 1.5, 1.4, "⛸ Try on skates", shopSkates);
+    } else if (i === 2) { // hot chocolate café
+      counter(R, -3.6, dark); keeper(R, -3.6, -4.3, "#8a4b2a", "#e0ac69", "#151515", "bob");
+      R.B(.9, .7, .6, "#c0c7d1", -4.9, 1.43, -3.4); for (let j = 0; j < 3; j++) cyl(.1, .08, .15, "#ffffff", cx - 3.9 + j * .3, 1.16, -3.4);
+      const ms = makeSign("🍫 Marshmallows  🍒 Cherry on top", 4.6, .6, "#fff8e8", dark); ms.position.set(cx + 3.6, 2.2, -4.97); scene.add(ms);
+      [[2.2, -1.8], [4.4, 1.2], [-.6, 1.4]].forEach(t => { cyl(.72, .72, .07, "#8a5a3a", cx + t[0], .78, t[1]); cyl(.09, .09, .76, "#6e452b", cx + t[0], .38, t[1]); solidCircle(cx + t[0], t[1], .5); chair(R, t[0] - 1.05, t[1], Math.PI / 2, dark); chair(R, t[0] + 1.05, t[1], -Math.PI / 2, dark);
+        R.hot(t[0], t[1] + .9, 1.25, "🪑 Sit down and sip", () => sip(R, { x: cx + t[0], z: t[1] })); });
+      smallTree(cx + 5.8, -4);
+      R.hot(-3.6, -2.3, 1.5, "☕ Make my hot chocolate", cocoaMenu);
+    } else if (i === 3) { // bakery
+      counter(R, 0, dark); keeper(R, 0, -4.3, "#c9772e", "#fce0c2", "#8a5a32", "bob");
+      for (let j = 0; j < 5; j++) { const x = cx - 2 + j * .62; cyl(.2, .2, .03, "#ffffff", x, 1.1, -3.4); if (j % 2) sph(.13, ["#ff8fb8", "#c98a4b"][(j >> 1) % 2], x, 1.22, -3.4).scale.y = .7; else { cyl(.1, .08, .14, "#f3d9b8", x, 1.18, -3.4); sph(.1, RB[j], x, 1.28, -3.4); } }
+      for (const sx of [-4.7, 4.7]) for (const y of [1.1, 1.8]) { R.B(3.4, .07, .5, "#8a5a3a", sx, y, -4.72); for (let j = 0; j < 4; j++) sph(.2, "#c98a4b", cx + sx - 1.2 + j * .8, y + .16, -4.72).scale.set(1.6, .75, 1); }
+      R.B(1.6, 1.9, 1, "#3a3a44", 6, .95, -1); M(new THREE.BoxGeometry(.1, .6, .7), glow(0xff9a2e), cx + 5.17, .9, -1, scene, true); R.solid(6, -1, 1.6, 1);
+      cyl(.6, .6, .9, "#ffffff", cx - 4.8, .45, .6); cyl(.48, .48, .3, "#ff8fb8", cx - 4.8, 1.05, .6); cyl(.32, .32, .25, "#ffffff", cx - 4.8, 1.32, .6); sph(.08, "#e2233b", cx - 4.8, 1.52, .6); solidCircle(cx - 4.8, .6, .7);
+      R.hot(0, -2.3, 1.5, "🧁 Pick a yummy treat", shopBakery);
+    } else if (i === 4) { // animal shop
+      counter(R, 3.8, dark); keeper(R, 3.8, -4.3, "#3e8f56", "#c68642", "#151515", "short");
+      for (const sz of [-1, 1]) { R.B(4.6, .08, .08, "#ffffff", -3.4, .55, -1.2 + sz * 1.6); R.B(4.6, .08, .08, "#ffffff", -3.4, .28, -1.2 + sz * 1.6); R.solid(-3.4, -1.2 + sz * 1.6, 4.6, .15); }
+      for (const sx of [-1, 1]) { R.B(.08, .08, 3.2, "#ffffff", -3.4 + sx * 2.3, .55, -1.2); R.solid(-3.4 + sx * 2.3, -1.2, .15, 3.2); for (const sz of [-1, 1]) R.B(.12, .7, .12, "#ffffff", -3.4 + sx * 2.3, .35, -1.2 + sz * 1.6); }
+      R.B(4.4, .03, 3, "#e8d6a8", -3.4, .02, -1.2); R.wags = [];
+      [["dog", -4.3, -1.4, .6], ["cat", -2.6, -.9, -.8]].forEach(a => { const m = makePet(a[0]); m.g.scale.multiplyScalar(.75); m.g.position.set(cx + a[1], 0, a[2]); m.g.rotation.y = a[3]; scene.add(m.g); R.wags.push(m); });
+      sph(.22, "#ffffff", cx - 3.5, .22, -2.1); sph(.15, "#ffffff", cx - 3.5, .45, -1.95); for (const sx of [-1, 1]) sph(.05, "#ffffff", cx - 3.5 + sx * .06, .66, -1.97).scale.y = 2.4;
+      R.B(2.2, .9, .7, "#8a5a3a", -4.6, .45, -4.6); M(new THREE.BoxGeometry(2, .9, .6), glow(0x7fd0ff), cx - 4.6, 1.35, -4.6, scene, true); for (let j = 0; j < 4; j++) sph(.07, "#ff8a2a", cx - 5.3 + j * .45, 1.2 + (j % 2) * .3, -4.28).scale.x = 1.6; R.solid(-4.6, -4.6, 2.2, .7);
+      R.hot(-3.4, 1, 1.5, "🐾 Say hi to the animals", () => { pop("💕"); SFX.land(3); toast("The puppy licked your hand and the kitten purred. So cute!"); });
+      R.hot(3.8, -2.3, 1.5, "🐾 Pick a pet", shopPets);
+    } else { // hair salon
+      counter(R, 4.2, dark); keeper(R, 4.2, -4.3, "#7a4fc8", "#fce0c2", "#d64c2a", "long");
+      [-5, -2.6, -.2].forEach((x, j) => { R.B(1.5, 1.8, .08, "#ffffff", x, 1.9, -4.96); M(new THREE.BoxGeometry(1.3, 1.6, .06), glow(0xd9f1ff), cx + x, 1.9, -4.9, scene, true); R.B(1.5, .08, .4, "#ffffff", x, 1, -4.75); for (let b = 0; b < 3; b++) cyl(.06, .06, .22, RB[(j * 2 + b) % 6], cx + x - .4 + b * .4, 1.15, -4.75); chair(R, x, -3.5, Math.PI, "#ff8fb8"); });
+      R.B(6.4, .03, 2.2, "#ffffff", -2.6, .02, -3.3);
+      R.hot(-2.6, -2.5, 2, "💇 Sit in the salon chair", shopSalon); R.hot(4.2, -2.3, 1.5, "💇 Pick a new hairstyle", shopSalon);
+    }
+  });
+}
+function cupMesh(c) { const g = new THREE.Group(), top = c.cream ? .36 : .2; cyl(.12, .095, .17, "#ffffff", 0, .085, 0, g); tor(.05, .016, "#ffffff", .14, .09, 0, g); cyl(.105, .105, .02, "#6b3a1e", 0, .165, 0, g);
+  if (c.cream) { sph(.1, "#fffaf0", 0, .2, 0, g).scale.y = .6; cone(.06, .1, "#fffaf0", 0, .29, 0, g, 8); }
+  if (c.marsh) for (let i = 0; i < 3; i++) box(.045, .04, .045, "#ffffff", Math.cos(i * 2.1) * .085, .2, Math.sin(i * 2.1) * .085, g);
+  if (c.cane) cyl(.012, .012, .3, "#e23b3b", -.07, .27, -.03, g, 6).rotation.z = .25;
+  if (c.cherry) { sph(.036, "#e2233b", 0, top, 0, g); cyl(.005, .005, .07, "#3a7a2a", .01, top + .05, 0, g, 4); }
+  g.traverse(o => { o.castShadow = false; }); return g; }
+function cocoaMenu() { curShop = cocoaMenu;
+  openModal('<h2>☕ Hot Chocolate Café</h2><p>What do you want on your hot chocolate? It is free!</p><div class="row">' + [["marsh", "☁️ Marshmallows"], ["cream", "🍦 Whipped cream"], ["cherry", "🍒 Cherry on top"], ["cane", "🍭 Candy cane"]].map(t => '<button class="chip' + (cup[t[0]] ? " on" : "") + '" data-act="cup" data-arg="' + t[0] + '">' + t[1] + '</button>').join("") + '</div><p>Then sit down at a table to drink it.</p>' + DONE); }
+function sip(R, tb) {
+  const s = pl.L.scale || 1, tmp = [], pal = pals.find(F => F.in === R && F.mode === "follow"), SIT = { lL: -1.4, lR: -1.4, aL: -.5, aR: -.5, az: .15, tilt: 0, y: 0 }; mode = "scene"; pl.vx = pl.vz = 0;
+  const seat = (g, x, ry, sc) => { g.position.set(x, .6 - .62 * sc, tb.z); g.rotation.set(0, ry, 0); };
+  seat(pl.g, tb.x - 1.05, Math.PI / 2, s); pl.x = tb.x; pl.z = tb.z + 1;
+  const c1 = cupMesh(cup), rest = new THREE.Vector3(tb.x - .38, .82, tb.z), lips = new THREE.Vector3(tb.x - .78, .6 + .68 * s, tb.z); c1.position.copy(rest); scene.add(c1); tmp.push(c1);
+  if (pal) { pal.was = pal.mode; pal.mode = "sleep"; seat(pal.P.g, tb.x + 1.05, -Math.PI / 2, pal.P.L.scale || 1); const c2 = cupMesh(cup); c2.position.set(tb.x + .38, .82, tb.z); scene.add(c2); tmp.push(c2); }
+  cine = { pos: new THREE.Vector3(tb.x, 2.5, tb.z + 3.9), look: new THREE.Vector3(tb.x, .95, tb.z) };
+  X = { n: 0, st: 0, upd(dt) { this.st -= dt; const up = this.st > 0; applyPose(pl, up ? Object.assign({}, SIT, { aR: -1.9 }) : SIT, dt); c1.position.lerp(up ? lips : rest, 1 - Math.exp(-dt * 10)); if (pal) applyPose(pal.P, SIT, dt); },
+    sip() { if (this.st > 0) return; this.st = .9; this.n++; tone(520, .12, "sine", .05, 200); pop(["Mmm! ☕", "So yummy!", "Warm and cozy! 💕"][this.n % 3]); if (this.n === 3) { earn(2); toast("☕ You drank it all up" + (pal ? " with " + pal.n : "") + "! Cheers!"); } },
+    done() { tmp.forEach(m => scene.remove(m)); if (pal) { pal.mode = pal.was; pal.P.g.rotation.set(0, 0, 0); pal.x = tb.x + 1.4; pal.z = tb.z + 1; } pl.hdg = Math.PI; cine = null; X = null; mode = "play"; snap = true; closeModal(); } };
+  openModal('<p><b>☕ So cozy!</b> Take a sip of your hot chocolate' + (pal ? " with " + esc(pal.n) : "") + '.</p><div class="row"><button class="btn" data-act="sipit">☕ Sip</button><button class="btn alt" data-act="sipdone">All done</button></div>', true);
+}
+
+/* ------------------------------ snow fun: angels, snowmen, snowball fights ------------------------------ */
+const SPOT = { x: -17.5, z: -16.5 }, BALLR = [.6, .43, .3], BALLY = [.5, 1.3, 1.9], smCol = { x: 9999, z: 9999, r: .6 }, ballGeo = new THREE.SphereGeometry(.13, 8, 6);
+function funMenu() { if (mode !== "play") return;
+  openModal('<h2>❄️ Snow fun</h2><div class="row"><button class="hcard" data-act="angel"><span>😇</span>Make a snow angel</button><button class="hcard" data-act="fight"><span>❄️</span>Snowball fight</button><button class="hcard" data-act="goSnowman"><span>⛄</span>My snowman</button></div><p>🦌 The shy reindeer is hiding <b>' + DEER_SPOTS[deerI()][2] + '</b>. Find it and feed it a carrot!</p><p>' + (night > .5 ? "🎅 Santa's sleigh is by the big tree right now!" : "🎅 Santa's sleigh comes to the big tree at night. Take a nap in your bed to make it night time.") + '</p><div class="row"><button class="btn alt" data-act="close">Close</button></div>'); }
+function snowAngel() { closeModal(); if (mode !== "play" || !outside()) return; mode = "scene"; pl.vx = pl.vz = 0; const s = pl.L.scale || 1, x = pl.x, z = pl.z;
+  lieDown(pl.g, x, .23, z - .7 * s, s); cine = { pos: new THREE.Vector3(x, 6.2, z + 3.4), look: new THREE.Vector3(x, 0, z - .2) }; SFX.swish();
+  X = { t: 0, upd(dt) { this.t += dt; const w = .5 - .5 * Math.cos(this.t * 5); applyPose(pl, { lL: 0, lR: 0, aL: 0, aR: 0, az: .35 + w * 2.1, tilt: 0, y: 0 }, dt); pl.legL.rotation.z = -w * .5; pl.legR.rotation.z = w * .5;
+    if (this.t > 3.4) { pl.legL.rotation.z = pl.legR.rotation.z = 0; pl.g.rotation.set(0, 0, 0); pl.z = z + 1.7; pl.hdg = Math.PI; angelPrint(x, z, s); cine = null; X = null; mode = "play"; snap = true; earn(1); SFX.land(3); pop("😇 Snow angel!"); } } }; }
+function angelPrint(x, z, s) { const g = new THREE.Group(), m = mat("#cddaf3"), A = (geo, px, py, sx, sy) => { const o = M(geo, m, px, py, 0, g, true); o.scale.set(sx || 1, sy || 1, 1); return o; };
+  A(new THREE.CircleGeometry(.3, 16), 0, -.05, 1, 2.1); A(new THREE.CircleGeometry(.23, 16), 0, .72); A(new THREE.CircleGeometry(.8, 12, Math.PI * .55, Math.PI * .6), -.18, .42); A(new THREE.CircleGeometry(.8, 12, -Math.PI * .15, Math.PI * .6), .18, .42); A(new THREE.CircleGeometry(.95, 12, Math.PI * 1.27, Math.PI * .46), 0, -.25);
+  g.rotation.x = -Math.PI / 2; g.position.set(x, .03, z); g.scale.setScalar(s); scene.add(g); angels.push(g); if (angels.length > 5) scene.remove(angels.shift()); }
+function drawSnowman() { if (smG) scene.remove(smG); const g = smG = new THREE.Group(), c = S.snowman; g.position.set(SPOT.x, 0, SPOT.z); g.rotation.y = .9; scene.add(g);
+  for (let i = 0; i < c.n; i++) sph(BALLR[i], "#ffffff", 0, BALLY[i], 0, g); smCol.x = c.n ? SPOT.x : 9999; smCol.z = c.n ? SPOT.z : 9999; if (c.n < 3) return;
+  for (const s of [-1, 1]) { sph(.035, "#222222", s * .1, 1.98, .27, g); cyl(.025, .02, .7, "#6b4a35", s * .62, 1.45, 0, g, 6).rotation.z = -s * 1.1; }
+  for (let i = 0; i < 3; i++) sph(.04, "#222222", 0, 1.1 + i * .2, .42 - Math.abs(i - 1) * .03, g);
+  const nose = c.nose || "carrot", hat = c.hat || "top", sc = c.scarf || "#e23b3b";
+  if (nose === "carrot") cone(.05, .28, "#ff8a2a", 0, 1.9, .38, g, 6).rotation.x = Math.PI / 2; else if (nose === "cherry") sph(.075, "#e2233b", 0, 1.9, .3, g); else if (nose === "candy") cyl(.035, .035, .24, "#ff5fa2", 0, 1.9, .37, g, 8).rotation.x = Math.PI / 2; else sph(.05, "#222222", 0, 1.9, .3, g);
+  flat(tor(.3, .07, sc, 0, 1.62, 0, g)); box(.12, .34, .06, sc, .16, 1.45, .28, g);
+  if (hat === "top") { cyl(.2, .2, .28, "#222222", 0, 2.28, 0, g); cyl(.32, .32, .04, "#222222", 0, 2.15, 0, g); }
+  else if (hat === "beanie") { M(new THREE.SphereGeometry(.3, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), "#e23b3b", 0, 2.05, 0, g); flat(tor(.29, .05, "#ffffff", 0, 2.07, 0, g)); sph(.08, "#ffffff", 0, 2.38, 0, g); }
+  else if (hat === "crown") { cyl(.2, .17, .14, "#ffd23e", 0, 2.2, 0, g, 10); for (let i = 0; i < 6; i++) cone(.04, .12, "#ffd23e", Math.cos(i * 1.047) * .17, 2.32, Math.sin(i * 1.047) * .17, g, 6); }
+  else if (hat === "pot") { cyl(.25, .17, .26, "#c9642e", 0, 2.27, 0, g); sph(.1, "#ff8fb8", 0, 2.46, 0, g); }
+}
+function snowAct() { const c = S.snowman; if (c.n >= 3) return snowDress();
+  if (!SB) { SB = { r: .18 }; ballM = sph(1, "#ffffff", pl.x, .2, pl.z); ballM.scale.setScalar(.18); return toast("⛄ Walk around and roll your snowball. It gets bigger and bigger!", 4500); }
+  if (SB.r < BALLR[c.n] - .005) return toast("Keep walking! The snowball gets bigger as you roll it. ⛄");
+  scene.remove(ballM); ballM = null; SB = null; c.n++; save(); drawSnowman(); SFX.land(c.n + 1);
+  if (c.n === 3) { earn(15); SFX.yay(); pop("⛄ +$15"); snowDress(); } else toast(c.n === 1 ? "⛄ That is the bottom! Now roll a middle snowball." : "⛄ Now roll a little one for the head!"); }
+function snowDress() { curShop = snowDress; const c = S.snowman;
+  openModal('<h2>⛄ My snowman</h2><h3>Hat</h3>' + chipRow("sm", "hat", c.hat || "top", [["top", "🎩 Top hat"], ["beanie", "🧢 Beanie"], ["crown", "👑 Crown"], ["pot", "🪴 Flower pot"], ["none", "No hat"]]) + '<h3>Nose</h3>' + chipRow("sm", "nose", c.nose || "carrot", [["carrot", "🥕 Carrot"], ["cherry", "🍒 Cherry"], ["candy", "🍬 Candy"], ["coal", "⚫ Button"]]) + '<h3>Scarf</h3>' + swr("sm", "scarf", c.scarf || "#e23b3b", PAL.slice(0, 10)) + '<div class="row"><button class="btn" data-act="close">Done</button><button class="btn alt" data-act="smnew">🔨 Build a new one</button></div>', true); }
+function zoomTo(x, z, msg) { if (zone) { outdoorLook(); zone = null; } if (riding) dismount(); pl.x = x; pl.z = z; pl.vx = pl.vz = 0; pl.ice = null; setBlades(pl, false); snap = true; closeModal(); SFX.swish(); toast(msg); }
+function startFight(i) { closeModal(); if (mode !== "play" || !outside()) return; const ok = pals.filter(F => F.mode === "wander" || F.mode === "follow"); if (!ok.length) return toast("Your friends are busy right now. Try again soon!");
+  ok.sort((a, b) => Math.hypot(a.x - pl.x, a.z - pl.z) - Math.hypot(b.x - pl.x, b.z - pl.z)); const first = i === undefined ? null : pals[+i]; if (first && ok.includes(first)) { ok.splice(ok.indexOf(first), 1); ok.unshift(first); }
+  const foes = ok.slice(0, 3); foes.forEach((F, j) => { F.was = F.mode; F.mode = "fight"; F.in = null; if (Math.hypot(F.x - pl.x, F.z - pl.z) > 12) { const a = pl.hdg + (j - 1) * .9; F.x = pl.x + Math.sin(a) * 7; F.z = pl.z + Math.cos(a) * 7; } F.ft = 0; F.th = 1.5 + j; F.stun = 0; F.tx = F.x; F.tz = F.z; });
+  SF = { t: 45, hits: 0, got: 0, balls: [], foes, cool: 0 }; mode = "snowfight"; $("timer").hidden = false; pop("Snowball fight! ❄️"); toast("Press ❄️ THROW to throw snowballs at " + foes.map(F => F.n).join(", ") + ". Keep running so they miss you!", 5000); }
+function fightMove(F, dt) { if (!SF) { F.mode = F.was || "wander"; return 0; } const dxp = pl.x - F.x, dzp = pl.z - F.z, dp = Math.hypot(dxp, dzp);
+  if (F.stun > 0) { F.stun -= dt; F.hdg += dt * 9; return 0; }
+  F.th -= dt; if (F.th <= 0 && dp < 14) { F.th = rnd(2.2, 4); F.hdg = Math.atan2(dxp, dzp); throwBall(F.x, F.z, pl.x + rnd(-.75, .75), pl.z + rnd(-.75, .75), false); }
+  F.ft -= dt; if (dp > 13) { F.tx = pl.x; F.tz = pl.z; } else if (F.ft <= 0) { F.ft = rnd(1.4, 2.8); const a = rnd(0, 6.283), r = rnd(5, 8.5); F.tx = pl.x + Math.cos(a) * r; F.tz = pl.z + Math.sin(a) * r; }
+  const dx = F.tx - F.x, dz = F.tz - F.z, d = Math.hypot(dx, dz); if (d < .4) return 0; const sp = dp > 13 ? 6 : 3.2; F.x += dx / d * sp * dt; F.z += dz / d * sp * dt; palBlock(F); F.hdg += wrap(Math.atan2(dx, dz) - F.hdg) * (1 - Math.exp(-dt * 8)); return .8; }
+function throwBall(x, z, tx, tz, mine) { const dx = tx - x, dz = tz - z, d = Math.max(1, Math.hypot(dx, dz)), tf = Math.max(.35, d / 13), m = M(ballGeo, "#ffffff", x, 1.3, z, scene, true); SF.balls.push({ m, vx: dx / tf, vz: dz / tf, vy: -.3 / tf + 7 * tf, mine }); SFX.swish(); }
+function playerThrow() { const f = SF; if (!f || f.cool > 0) return; f.cool = .45; let best = null, bd = 15; for (const F of f.foes) { const dx = F.x - pl.x, dz = F.z - pl.z, d = Math.hypot(dx, dz); if (d < bd && Math.abs(wrap(Math.atan2(dx, dz) - pl.hdg)) < 1.3) { bd = d; best = F; } }
+  const tx = best ? best.x : pl.x + Math.sin(pl.hdg) * 9, tz = best ? best.z : pl.z + Math.cos(pl.hdg) * 9; pl.hdg = Math.atan2(tx - pl.x, tz - pl.z); pl.throwT = .3; throwBall(pl.x, pl.z, tx, tz, true); }
+function updateFight(dt) { const f = SF; f.t -= dt; f.cool -= dt;
+  f.balls = f.balls.filter(b => { b.vy -= 14 * dt; const p = b.m.position; p.x += b.vx * dt; p.y += b.vy * dt; p.z += b.vz * dt; let gone = p.y <= 0;
+    if (b.mine) { for (const F of f.foes) if (!gone && F.stun <= 0 && p.y < 1.9 && Math.hypot(p.x - F.x, p.z - F.z) < .8) { gone = true; f.hits++; F.stun = .9; pop("Got " + F.n + "! ❄️"); SFX.land(2); } }
+    else if (!gone && p.y < 1.8 && Math.hypot(p.x - pl.x, p.z - pl.z) < .6) { gone = true; f.got++; pop("Splat! ❄️"); noise(.2, .2, 500); }
+    if (gone) scene.remove(b.m); return !gone; });
+  if (pl.throwT > 0) { pl.throwT -= dt; pl.armR.rotation.x = -2.6 + (.3 - pl.throwT) * 6; }
+  if (f.t <= 0) { f.balls.forEach(b => scene.remove(b.m)); f.foes.forEach(F => { F.mode = F.was || "wander"; F.wait = 1; F.tx = F.x; F.tz = F.z; }); SF = null; mode = "play"; $("timer").hidden = true; const pay = 5 + f.hits * 2; earn(pay); SFX.yay();
+    openModal('<h2>❄️ What a snowball fight!</h2><p>You hit your friends <b>' + f.hits + '</b> ' + (f.hits === 1 ? "time" : "times") + '. They got you <b>' + f.got + '</b> ' + (f.got === 1 ? "time" : "times") + '.</p><p>Everybody is laughing and covered in snow. You earned <b>$' + pay + '</b>!</p>' + DONE); } }
+
+/* ------------------------------ decorating your tree and your cabin ------------------------------ */
+const ORN = { rainbow: RB, redgold: ["#e23b3b", "#ffd23e"], ice: ["#9fd8ff", "#ffffff"], pink: ["#ff8fd8", "#c69bff"], candy: ["#e23b3b", "#ffffff"] };
+const LIT = { rainbow: [0xff4b4b, 0xffd23e, 0x4ade80, 0x5ec8ff, 0xff8fd8], warm: [0xffe9a8], redgreen: [0xff4b4b, 0x4ade80], ice: [0x9fd8ff, 0xffffff], pink: [0xff8fd8, 0xc69bff] };
+const litGeo = new THREE.SphereGeometry(.11, 8, 6), litMats = {};
+const litMat = c => litMats[c] || (litMats[c] = new THREE.MeshBasicMaterial({ color: c, fog: false }));
+function cane(g, x, z) { cyl(.05, .05, .9, "#ffffff", x, .45, z, g, 8); tor(.11, .05, "#ffffff", x + .11, .9, z, g, Math.PI); for (let k = 0; k < 4; k++) flat(tor(.052, .018, "#e23b3b", x, .2 + k * .2, z, g)); }
+function drawDeco() {
+  const d = S.deco, top = d.top || "star"; if (decoG) scene.remove(decoG); if (litG) scene.remove(litG);
+  const g = decoG = new THREE.Group(); g.position.set(500 - 1.4, 0, -3.9); scene.add(g);
+  const oc = ORN[d.orn] || RB; for (let i = 0; i < 18; i++) { const t = (i + .5) / 18, a = i * 2.4 + .6, r = .8 * (1 - t) + .16; sph(.065, oc[i % oc.length], Math.cos(a) * r, .62 + t * 1.95, Math.sin(a) * r, g).castShadow = false; }
+  if (cabinStar) cabinStar.visible = top === "star";
+  if (top === "angel") { cone(.14, .3, "#ffffff", 0, 2.92, 0, g, 10); sph(.075, "#f0c9a4", 0, 3.12, 0, g); for (const s of [-1, 1]) sph(.1, "#fff6c8", s * .13, 3, -.04, g).scale.set(1, .7, .25); flat(tor(.06, .012, "#ffd23e", 0, 3.22, 0, g)); }
+  else if (top === "bow") { for (const s of [-1, 1]) sph(.15, "#e23b3b", s * .14, 2.9, 0, g).scale.set(1, .75, .5); sph(.07, "#ffd23e", 0, 2.9, .04, g); }
+  else if (top === "snowflake") for (let k = 0; k < 3; k++) M(new THREE.BoxGeometry(.56, .05, .05), glow(0xffffff), 0, 2.98, 0, g, true).rotation.z = k * Math.PI / 3;
+  else if (top === "heart") { for (const s of [-1, 1]) sph(.11, "#ff5fa2", s * .08, 3, 0, g); cone(.17, .22, "#ff5fa2", 0, 2.86, 0, g, 12).rotation.x = Math.PI; }
+  // lights and yard things outside the cabin (its front wall is at x = -20.5)
+  const L = litG = new THREE.Group(); scene.add(L); const lm = (LIT[d.lights] || LIT.rainbow).map(litMat); let n = 0; const lb = (y, z) => M(litGeo, lm[n++ % lm.length], -20.36, y, z, L, true);
+  for (let i = 0; i <= 19; i++) { const z = -13.8 + i * .4; if (Math.abs(z + 10) > 1) lb(.22, z); }
+  for (let i = 0; i < 5; i++) { lb(.35 + i * .45, -10.9); lb(.35 + i * .45, -9.1); } for (let i = 0; i < 5; i++) lb(2.3, -10.8 + i * .4);
+  for (const wz of [-12.48, -7.52]) for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; lb(1.7 + Math.max(-.7, Math.min(.7, Math.sin(a) * 1.1)), wz + Math.max(-.78, Math.min(.78, Math.cos(a) * 1.2))); }
+  const y = d.yard;
+  if (y.canes) for (let j = 0; j < 3; j++) for (const s of [-1, 1]) cane(L, -19.5 + j * 1.3, -10 + s * 1.5);
+  if (y.deer) { const D = makeDeer("#fff3d6", true); D.g.position.set(-18.2, 0, -13.4); D.g.rotation.y = 1.9; L.add(D.g); for (let k = 0; k < 6; k++) M(litGeo, lm[k % lm.length], -18.2 + Math.sin(1.9) * (k * .22 - .5), 1.28, -13.4 + Math.cos(1.9) * (k * .22 - .5), L, true).scale.setScalar(.6); }
+  if (y.bow) { for (const s of [-1, 1]) { sph(.5, "#e23b3b", -19.95, 4.6, -10 + s * .46, L).scale.set(.45, .7, 1); box(.12, .8, .26, "#e23b3b", -19.95, 3.95, -10 + s * .22, L).rotation.x = s * .25; } sph(.2, "#ffd23e", -19.85, 4.6, -10, L); }
+}
+function treeMenu() { openModal('<h2>🎄 My Christmas tree</h2><div class="row"><button class="hcard" data-act="mypresents"><span>🎁</span>My presents</button><button class="hcard" data-act="deco" data-arg="tree"><span>🎄</span>Decorate my tree</button><button class="hcard" data-act="deco" data-arg="out"><span>🏡</span>Decorate outside</button></div>' + DONE); }
+function decoMenu(tab) { curShop = () => decoMenu(tab); const d = S.deco;
+  openModal(tab === "tree" ? '<h2>🎄 Decorate my tree</h2><h3>Ornaments</h3>' + chipRow("dec", "orn", d.orn || "rainbow", [["rainbow", "🌈 Rainbow"], ["redgold", "Red and gold"], ["ice", "Icy blue"], ["pink", "Pink and purple"], ["candy", "Candy cane"]]) + '<h3>On the very top</h3>' + chipRow("dec", "top", d.top || "star", [["star", "⭐ Star"], ["angel", "😇 Angel"], ["bow", "🎀 Bow"], ["snowflake", "❄️ Snowflake"], ["heart", "💖 Heart"]]) + DONE
+    : '<h2>🏡 Decorate outside my cabin</h2><h3>Lights</h3>' + chipRow("dec", "lights", d.lights || "rainbow", [["rainbow", "🌈 Rainbow"], ["warm", "Warm white"], ["redgreen", "Red and green"], ["ice", "Icy blue"], ["pink", "Pink and purple"]]) + '<h3>In the yard</h3><div class="row">' + [["canes", "🍭 Candy canes"], ["deer", "🦌 Light-up reindeer"], ["bow", "🎀 Giant bow"]].map(o => '<button class="chip' + (d.yard[o[0]] ? " on" : "") + '" data-act="yard" data-arg="' + o[0] + '">' + o[1] + '</button>').join("") + '</div><p>Go outside to see it. It looks extra pretty at night!</p>' + DONE, tab === "tree"); }
+
+/* ------------------------------ baking cookies ------------------------------ */
+const ING = [["🌾", "Flour"], ["🍚", "Sugar"], ["🧈", "Butter"], ["🥚", "Egg"], ["🍫", "Choc chips"]], SHAPES = [["⭐", "star"], ["🎄", "tree"], ["❤️", "heart"], ["🧍", "gingerbread"], ["❄️", "snowflake"]], ICING = ["#ffffff", "#ff8fb8", "#e23b3b", "#2f8f4e", "#4aa6f0", "#ffd23e"];
+function kitchenMenu() { openModal('<h2>🍳 The kitchen</h2><div class="row"><button class="hcard" data-act="bake"><span>🍪</span>Bake Christmas cookies</button><button class="hcard" data-act="cook"><span>🍳</span>Cook something yummy</button></div><p>Cookies in your cookie jar: <b>' + S.cookies + '</b></p><div class="row">' + (S.cookies ? '<button class="btn" data-act="eatcookie">😋 Eat a cookie</button>' : "") + '<button class="btn alt" data-act="close">Close</button></div>'); }
+function drawBake() { const c = CK, row = h => '<div class="row">' + h + '</div>'; let h = '<h2>🍪 Baking Christmas cookies</h2>';
+  if (c.step === 0) h += '<p><b>Step 1.</b> Put everything in the bowl!</p>' + row(ING.map((g, i) => '<button class="hcard" style="flex:1 1 84px' + (c.mix[i] ? ";opacity:.45" : "") + '" data-act="bk" data-arg="mix|' + i + '"><span>' + (c.mix[i] ? "✅" : g[0]) + '</span>' + g[1] + '</button>').join("")) + (c.mix.filter(Boolean).length === 5 ? row('<button class="btn" data-act="bk" data-arg="stir|0">🥄 Stir it all up!</button>') : "");
+  else if (c.step === 1) h += '<p><b>Step 2.</b> Pick a cookie cutter!</p>' + row(SHAPES.map((s, i) => '<button class="hcard" style="flex:1 1 84px" data-act="bk" data-arg="shape|' + i + '"><span>' + s[0] + '</span>' + s[1] + '</button>').join(""));
+  else if (c.step === 2) h += '<p><b>Step 3.</b> They are in the oven! Take them out when the red line is in the <b>green box</b>.</p><div id="bake"><div class="zone"></div><i></i></div>' + row('<button class="btn red" data-act="bk" data-arg="out|0">🧤 Take them out!</button>');
+  else if (c.step === 3) h += '<p>' + c.q + '</p><p><b>Step 4.</b> Decorate them!</p><div class="row">' + [0, 1, 2, 3, 4, 5].map(() => '<span class="ck" style="box-shadow:inset 0 0 0 8px ' + c.ice + '">' + SHAPES[c.shape][0] + (c.spr === "none" ? "" : '<small>' + { rainbow: "🌈", stars: "✨", choc: "🍫" }[c.spr] + '</small>') + '</span>').join("") + '</div><h3>Icing</h3>' + swr("bk", "ice", c.ice, ICING) + '<h3>Sprinkles</h3>' + chipRow("bk", "spr", c.spr, [["rainbow", "🌈 Rainbow"], ["stars", "✨ Stars"], ["choc", "🍫 Chocolate"], ["none", "None"]]) + row('<button class="btn" data-act="bk" data-arg="done|0">🍪 All done!</button>');
+  else h += '<p style="font-size:34px">' + "🍪".repeat(6) + '</p><p>You baked <b>6 ' + SHAPES[c.shape][1] + ' cookies</b>! They are in your cookie jar now.</p><p>Eat them in your kitchen, or <b>give one to a friend</b> when you talk to them.</p>' + DONE;
+  const st = $("modalCard").scrollTop; openModal(h + (c.step < 4 ? row('<button class="btn alt" data-act="close">Stop baking</button>') : "")); $("modalCard").scrollTop = st; }
+
+/* ------------------------------ reindeer and Santa's sleigh ------------------------------ */
+const DEER_SPOTS = [[-33, 12, "behind the magic garden"], [-12, -41, "behind the stores"], [44, -5, "past the ice rink"], [14, 37, "between the big prize houses"], [35, -11, "near the ski lodge"], [-36, 31, "in the trees past the Ice Castle"], [13, 20, "in the snow near the big tree"], [-33, -18, "between your cabin and the friends' street"]];
+const deerI = () => (S.days * 3 + 1) % DEER_SPOTS.length;
+function makeDeer(col, red) { const g = new THREE.Group(), D = { g, legs: [], hop: 0 }, c2 = "#f3e2c8";
+  cyl(.27, .27, .95, col, 0, .95, 0, g).rotation.x = Math.PI / 2; sph(.28, col, 0, .95, .47, g); sph(.28, col, 0, .95, -.47, g); sph(.1, c2, 0, 1.08, -.74, g);
+  cyl(.12, .17, .55, col, 0, 1.3, .62, g).rotation.x = .5; sph(.19, col, 0, 1.6, .82, g).scale.set(.9, .9, 1.3); sph(.1, c2, 0, 1.54, 1.04, g);
+  M(new THREE.SphereGeometry(.06, 10, 8), red ? glow(0xff2b2b) : mat("#222222"), 0, 1.57, 1.14, g, true);
+  for (const s of [-1, 1]) { sph(.03, "#222222", s * .12, 1.66, .95, g); sph(.07, col, s * .2, 1.7, .72, g).scale.set(1.4, .6, .5);
+    cyl(.022, .028, .42, "#7a4a22", s * .13, 1.92, .72, g, 6).rotation.z = -s * .4; cyl(.018, .02, .2, "#7a4a22", s * .26, 2, .72, g, 6).rotation.z = -s * 1.2; cyl(.018, .02, .18, "#7a4a22", s * .17, 2.1, .78, g, 6).rotation.x = .7;
+    for (const z of [-.36, .36]) { const p = new THREE.Group(); p.position.set(s * .15, .78, z); g.add(p); cyl(.05, .04, .76, col, 0, -.38, 0, p, 8); cyl(.045, .05, .08, "#3a2a20", 0, -.74, 0, p, 8); D.legs.push(p); } }
+  return D; }
+function placeDeer() { if (!deer) return; const p = DEER_SPOTS[deerI()]; deer.g.position.set(p[0], 0, p[1]); deerHot.x = p[0]; deerHot.z = p[1]; }
+function deerAct() { if (S.deerFed === S.days) { pop("💕"); SFX.land(3); return toast("🦌 The reindeer nuzzled your mitten. It will hide somewhere new tomorrow!"); }
+  S.deerFed = S.days; S.deer++; earn(25); deer.hop = 2.2; pop("🦌 +$25"); SFX.yay(); toast("🥕 Crunch crunch! The reindeer loved the carrot. You have found it " + S.deer + (S.deer === 1 ? " time!" : " times!"), 4800); }
+function buildSleigh() { const g = new THREE.Group(), RD = "#c8202a", GD = "#ffd23e", deerL = [];
+  box(1.5, .5, 2.3, RD, 0, .62, 0, g); box(1.5, .9, .18, RD, 0, 1.05, -1.1, g); box(1.5, .55, .16, RD, 0, .95, 1.1, g); box(1.3, .12, .6, "#7a1f1f", 0, .9, .05, g);
+  for (const s of [-1, 1]) { box(.1, .6, 2.3, RD, s * .75, .95, 0, g); box(.08, .08, 3, GD, s * .62, .1, .1, g); tor(.26, .04, GD, s * .62, .36, 1.6, g, Math.PI).rotation.y = Math.PI / 2; for (const z of [-.7, .7]) box(.06, .3, .06, GD, s * .62, .25, z, g); box(.025, .025, 3.4, GD, s * .3, 1.25, 2.9, g); }
+  sph(.5, "#8a5a3a", 0, 1.35, -.72, g); box(.3, .3, .3, "#2f8f4e", -.2, 1.85, -.7, g); box(.26, .26, .26, "#ffd23e", .22, 1.8, -.62, g);
+  const P = makePerson({ skin: "#f3cba5", hair: ["#ffffff"], style: "short", eye: "#2a1c12", head: "beanie", acc: "none", coat: RD, scarf: "#ffffff", hat: RD, pants: RD, boots: "#222222", mitt: "#ffffff", scale: 1.12 });
+  sph(.17, "#ffffff", 0, -.12, .12, P.head).scale.set(1.1, 1, .7); P.g.position.set(-.36, .96 - .62 * 1.12, .05); applyPose(P, RIDE_POSE, 1); g.add(P.g);
+  [[-.55, 2.9], [.55, 2.9], [0, 4.7]].forEach((p, i) => { const D = makeDeer("#9a6a3c", i === 2); D.g.position.set(p[0], 0, p[1]); g.add(D.g); deerL.push(D); });
+  sleigh = { g, deer: deerL, home: { x: -10, z: 17, h: 2.2 } }; g.position.set(-10, 0, 17); g.rotation.y = 2.2; g.visible = false; scene.add(g);
+  hot(-11, 15.6, 2.7, "🎅 Ride in Santa's sleigh", sleighIntro).on = () => night > .5;
+}
+function sleighIntro() { openModal('<h2>🎅 Santa needs your help!</h2><p>Fly Santa\'s sleigh over the village and drop a present down <b>every chimney</b>.</p><p>Steer <b>left and right</b>. Push up to go faster. Press <b>🎁 DROP</b> when you are right over a house with a <b>gold star</b>.</p><div class="row"><button class="btn red" data-act="sleigh">🦌 Up, up and away!</button><button class="btn alt" data-act="close">Not now</button></div>'); }
+function startSleigh() { closeModal(); if (mode !== "play") return; if (riding) dismount(); mode = "sleigh"; const H = sleigh.home, s = pl.L.scale || 1; if (pet) pet.M.g.visible = false; pl.ice = null; setBlades(pl, false);
+  SL = { x: H.x, z: H.z, y: 0, hdg: H.h, v: 0, t: 120, n: 0, cool: 0, drops: [] };
+  HOMES.forEach(h => { h.done = false; h.mark = M(new THREE.OctahedronGeometry(.8), glow(0xffd23e), h.x, h.h + 3, h.z, scene, true); });
+  sleigh.g.add(pl.g); pl.g.position.set(.36, .96 - .62 * s, .05); pl.g.rotation.set(0, 0, 0);
+  cine = { pos: camera.position.clone(), look: new THREE.Vector3(H.x, 2, H.z) }; $("timer").hidden = false; SFX.yay(); [659, 659, 659, 659, 659, 659, 659, 784, 523, 587, 659].forEach((f, i) => tone(f, .14, "triangle", .05, 0, i * .16));
+  X = { upd: sleighUpd }; }
+function sleighUpd(dt) { const K = SL, inp = $("modal").hidden ? getInput() : { x: 0, y: 0 }; K.t -= dt; K.cool -= dt;
+  K.hdg -= inp.x * 1.5 * dt; if (Math.hypot(K.x, K.z) > 78) K.hdg += wrap(Math.atan2(-K.x, -K.z) - K.hdg) * Math.min(1, dt * 2);
+  K.v += ((inp.y > .3 ? 17 : inp.y < -.3 ? 8 : 12.5) - K.v) * Math.min(1, dt * 2); K.y += (16 - K.y) * Math.min(1, dt * 1.2);
+  K.x += Math.sin(K.hdg) * K.v * dt; K.z += Math.cos(K.hdg) * K.v * dt; pl.x = K.x; pl.z = K.z;
+  const g = sleigh.g, sn = Math.sin(K.hdg), cs = Math.cos(K.hdg); g.position.set(K.x, K.y, K.z); g.rotation.set(0, K.hdg, -inp.x * .2);
+  sleigh.deer.forEach((D, i) => D.legs.forEach((l, j) => l.rotation.x = Math.sin(tNow * 10 + i + (j % 2) * Math.PI) * .7));
+  applyPose(pl, RIDE_POSE, dt); cine.pos.set(K.x - sn * 12, K.y + 6.5, K.z - cs * 12); cine.look.set(K.x + sn * 7, K.y - 3, K.z + cs * 7);
+  K.drops = K.drops.filter(d => { d.vy -= 18 * dt; const p = d.m.position; p.x += d.vx * dt; p.z += d.vz * dt; p.y += d.vy * dt; d.m.rotation.x += dt * 4;
+    if (p.y < 6) { const h = HOMES.find(o => !o.done && Math.hypot(o.x - p.x, o.z - p.z) < 6.5); if (h) { h.done = true; scene.remove(h.mark); h.mark = null; K.n++; pop("🎁 " + K.n + " of " + HOMES.length + "!"); SFX.coin(); scene.remove(d.m); return false; } }
+    if (p.y <= 0) { scene.remove(d.m); return false; } return true; });
+  if (K.t <= 0 || K.n >= HOMES.length) endSleigh(); }
+function dropGift() { const K = SL; if (!K || K.cool > 0) return; K.cool = .4; const g = new THREE.Group(), c = PAL[Math.floor(Math.random() * 9)]; box(.7, .6, .7, c, 0, 0, 0, g); box(.74, .62, .16, "#ffffff", 0, 0, 0, g); box(.16, .62, .74, "#ffffff", 0, 0, 0, g); g.position.set(K.x, K.y - .4, K.z); scene.add(g);
+  K.drops.push({ m: g, vx: Math.sin(K.hdg) * K.v * .3, vz: Math.cos(K.hdg) * K.v * .3, vy: 0 }); SFX.swish(); }
+function endSleigh() { const K = SL, all = K.n >= HOMES.length, pay = K.n * 10 + (all ? 100 : 0), H = sleigh.home; K.drops.forEach(d => scene.remove(d.m)); HOMES.forEach(h => { if (h.mark) scene.remove(h.mark); h.mark = null; });
+  scene.add(pl.g); sleigh.g.position.set(H.x, 0, H.z); sleigh.g.rotation.set(0, H.h, 0); pl.x = -11; pl.z = 15.4; pl.y = 0; pl.vx = pl.vz = 0; pl.hdg = 0; pl.g.rotation.set(0, 0, 0); if (pet) { pet.M.g.visible = true; pet.x = pl.x + 1.5; pet.z = pl.z + 1.5; }
+  SL = null; X = null; cine = null; mode = "play"; snap = true; camYaw = 0; $("timer").hidden = true; earn(pay); SFX.yay(); if (all) gotGift(["🔔", "sleigh bell"], "Santa 🎅");
+  openModal('<h2>🎅 Ho ho ho!</h2><p>You delivered <b>' + K.n + ' of ' + HOMES.length + '</b> presents' + (all ? ". That is every single house!" : ".") + '</p><p>Santa gave you <b>$' + pay + '</b>' + (all ? " and his very own <b>sleigh bell</b> 🔔" : "") + '. Merry Christmas!</p>' + DONE); }
+
+/* ------------------------------ caroling and wrapping presents ------------------------------ */
+const CAROL = "EEEEEEEGCDEFFFFFEEEEDDEDG".split(""), BELLS = [["C", "#e23b3b"], ["D", "#ffb03e"], ["E", "#2f8f4e"], ["F", "#4aa6f0"], ["G", "#9b6cff"]];
+function houseMenu(i) { const F = pals[i]; if (F.mode === "sleep" || F.mode === "fight") return toast(F.n + " is busy playing right now!");
+  openModal('<h2>🏠 ' + esc(F.n) + "'s house</h2>" + '<div class="row"><button class="hcard" data-act="visit" data-arg="' + i + '"><span>🚪</span>Go inside</button><button class="hcard" data-act="carol" data-arg="' + i + '"><span>🎶</span>Sing a Christmas carol</button></div><div class="row"><button class="btn alt" data-act="close">Not now</button></div>'); }
+function drawCarol() { const c = CR, nx = CAROL[c.pos];
+  openModal('<h2>🎶 Caroling at ' + esc(pals[c.i].n) + "'s door</h2><p>Tap the <b>glowing bell</b> to play the song!</p>" + '<div class="row">' + BELLS.map(b => '<button class="bell' + (b[0] === nx ? " on" : "") + '" style="background:' + b[1] + '" data-q="1" data-act="bell" data-arg="' + b[0] + '">🔔</button>').join("") + '</div><p>🎵 ' + c.pos + ' of ' + CAROL.length + '</p><div class="row"><button class="btn alt" data-act="close">Stop singing</button></div>'); }
+function drawWrap() { curShop = drawWrap; const w = WR, g = GIFTS[+w.a.split("|")[1]];
+  openModal('<h2>🎁 Wrap the ' + g[1] + ' ' + g[0] + '</h2><div class="gbox" style="background:' + w.paper + '"><i style="background:' + w.bow + '"></i><b style="background:' + w.bow + '"></b><u style="background:' + w.bow + '"></u></div><h3>Wrapping paper</h3>' + swr("wrapc", "paper", w.paper, PAL) + '<h3>Ribbon and bow</h3>' + swr("wrapc", "bow", w.bow, PAL) + '<div class="row"><button class="btn red" data-act="gift" data-arg="' + w.a + '">🎁 Give it!</button><button class="btn alt" data-act="close">Not now</button></div>'); }
+
+/* ------------------------------ make your own character ------------------------------ */
+const SKINS = ["#fce0c2", "#f3cba5", "#f0c9a4", "#e8b98f", "#e0ac69", "#c68642", "#8d5524", "#5c3a21"], EYES = ["#2a1c12", "#5a3a1a", "#2a5a8c", "#2f8f4e", "#7a4fc8"];
+let mkTab = "face";
+function rdName() { const e = $("mkName"); if (e && S.mine) S.mine.name = e.value.trim().slice(0, 12); }
+function makerHTML() { const m = MINE; let h = '<div class="row">' + [["face", "😊 Face"], ["hair", "💇 Hair"], ["clothes", "🧥 Clothes"], ["extra", "✨ Extras"]].map(t => '<button class="chip' + (t[0] === mkTab ? " on" : "") + '" data-act="mktab" data-arg="' + t[0] + '">' + t[1] + '</button>').join("") + '</div>';
+  if (mkTab === "face") h += '<div class="row"><input id="mkName" maxlength="12" placeholder="Name" value="' + esc(S.mine.name || "") + '"></div><h3>Skin</h3>' + swr("mk", "skin", m.skin, SKINS) + '<h3>Eyes</h3>' + swr("mk", "eye", m.eye, EYES);
+  else if (mkTab === "hair") h += chipRow("mk", "style", m.style, [["long", "Long"], ["shoulder", "Shoulder"], ["bob", "Bob"], ["pony", "Ponytail"], ["pigtails", "Pigtails"], ["short", "Short"]]) + chipRow("mk", "bangs", m.bangs ? "1" : "", [["1", "Bangs"], ["", "No bangs"]]) + swr("mk", "hairCol", m.hair[0], HAIRCOLS);
+  else if (mkTab === "clothes") h += '<h3>Coat</h3>' + swr("mk", "coat", m.coat, PAL) + '<h3>Hat</h3>' + chipRow("mk", "head", m.head, [["beanie", "🧢 Beanie"], ["muffs", "🎧 Earmuffs"]]) + swr("mk", "hat", m.hat, PAL) + '<h3>Scarf and mittens</h3>' + swr("mk", "scarf", m.scarf, PAL);
+  else h += '<h3>Something special</h3>' + chipRow("mk", "acc", m.acc, [["none", "Nothing"], ["crown", "👑 Crown"], ["bow", "🎀 Bow"], ["elf", "🧝 Elf ears"], ["antlers", "🦌 Antlers"], ["star", "⭐ Star"], ["foxears", "🦊 Fox ears"], ["horn", "🦄 Horn"], ["panda", "🐼 Panda ears"]]) + '<h3>Size</h3>' + chipRow("mk", "scale", String(m.scale), [["0.84", "Small"], ["0.95", "Medium"], ["1.05", "Tall"]]) + '<h3>Flower clips</h3>' + chipRow("mk", "clips", m.clips ? "1" : "", [["1", "Yes"], ["", "No"]]);
+  return h; }
+
+/* ------------------------------ building it all, and what happens every frame ------------------------------ */
+function buildPart4() {
+  buildSky(); buildShops(); cols.push(smCol);
+  petBed = new THREE.Group(); box(.95, .14, .8, "#9b6cff", 0, .07, 0, petBed); box(.75, .1, .6, "#ffffff", 0, .17, 0, petBed); petBed.visible = false; scene.add(petBed);
+  cyl(.06, .06, 1.7, "#6b4a35", SPOT.x + 2, .85, SPOT.z - 1.4); const sg = makeSign("⛄ Snowman Spot", 2.4, .5, "#eaf4ff", "#3d6fb3"); sg.position.set(SPOT.x + 2, 1.75, SPOT.z - 1.33); scene.add(sg);
+  hot(SPOT.x, SPOT.z, 2.3, () => SB ? (SB.r >= BALLR[S.snowman.n] - .005 ? "⬆ Put the snowball on" : "⛄ Keep rolling! Walk around to make it bigger") : S.snowman.n >= 3 ? "🎩 Dress up my snowman" : S.snowman.n ? "⛄ Roll the next snowball" : "⛄ Build a snowman", snowAct);
+  buildSleigh(); deer = makeDeer("#b07a48", true); scene.add(deer.g); deerHot = hot(0, 0, 2.6, () => S.deerFed === S.days ? "🦌 Pet the reindeer" : "🥕 Feed the reindeer a carrot", deerAct);
+  placeDeer(); drawDeco(); drawSnowman();
+}
+function updatePart4(dt) {
+  updateSky(dt); if (SF) updateFight(dt);
+  if (SB) { if (zone || riding) { scene.remove(ballM); ballM = null; SB = null; toast("Your snowball rolled away! Start a new one at the snowman spot. ⛄"); }
+    else if (mode === "play") { const sp = Math.hypot(pl.vx, pl.vz), tg = BALLR[S.snowman.n], was = SB.r; SB.r = Math.min(tg, SB.r + sp * dt * .024); if (was < tg && SB.r >= tg) { pop("Big enough! ⛄"); SFX.coin(); toast("Now roll it back to your snowman spot!"); }
+      ballM.scale.setScalar(SB.r); ballM.position.set(pl.x + Math.sin(pl.hdg) * (SB.r + .4), SB.r, pl.z + Math.cos(pl.hdg) * (SB.r + .4)); ballM.rotation.x += sp * dt / Math.max(.2, SB.r); } }
+  if (deer) { if (deer.hop > 0) deer.hop -= dt; deer.g.position.y = deer.hop > 0 ? Math.abs(Math.sin(tNow * 9)) * .5 : 0; if (pl && !zone) { const dx = pl.x - deer.g.position.x, dz = pl.z - deer.g.position.z; if (dx * dx + dz * dz < 144) deer.g.rotation.y += wrap(Math.atan2(dx, dz) - deer.g.rotation.y) * Math.min(1, dt * 3); } }
+  if (zone && zone.keeper) applyPose(zone.keeper, poseIdle(zone.keeper, tNow), dt);
+  if (zone && zone.wags) zone.wags.forEach((m, i) => { if (m.tail) m.tail.rotation.y = Math.sin(tNow * (i ? 3 : 9)) * .5; });
+}
+Object.assign(ACTS, {
+  fun: funMenu, sleep: sleepIn, angel: snowAngel, fight: startFight, goSnowman: () => zoomTo(SPOT.x + 2.6, SPOT.z + 1.4, "⛄ Zoom! This is your snowman spot."),
+  cup: k => { cup[k] = !cup[k]; SFX.coin(); reshop(); }, sipit: () => { if (X && X.sip) X.sip(); }, sipdone: () => { if (X && X.done) X.done(); },
+  sm: a => { const [k, v] = a.split("|"); S.snowman[k] = v; save(); drawSnowman(); SFX.coin(); reshop(); }, smnew: () => { S.snowman = { n: 0 }; save(); drawSnowman(); closeModal(); toast("⛄ Poof! Roll three new snowballs to build another snowman."); },
+  deco: decoMenu, dec: a => { const [k, v] = a.split("|"); S.deco[k] = v; save(); drawDeco(); SFX.coin(); reshop(); }, yard: k => { S.deco.yard[k] = !S.deco.yard[k]; save(); drawDeco(); SFX.coin(); reshop(); },
+  kitchen: kitchenMenu, cook: () => { closeModal(); SFX.coin(); toast("You cooked " + YUM[Math.floor(Math.random() * YUM.length)] + ". Yum!"); },
+  bake: () => { CK = { step: 0, mix: [], shape: 0, ice: "#ffffff", spr: "rainbow", q: "", perfect: false, t0: 0 }; drawBake(); },
+  eatcookie: () => { if (S.cookies > 0) { S.cookies--; save(); SFX.coin(); pop("😋 Yum!"); } kitchenMenu(); },
+  bk: a => { const [k, v] = a.split("|"), c = CK; if (!c) return;
+    if (k === "mix") c.mix[+v] = 1; else if (k === "stir") { c.step = 1; SFX.swish(); } else if (k === "shape") { c.shape = +v; c.step = 2; c.t0 = performance.now(); }
+    else if (k === "out") { const ph = ((performance.now() - c.t0) / 1600) % 2, p = ph < 1 ? ph : 2 - ph; c.perfect = p > .52 && p < .8; c.q = c.perfect ? "✨ Perfect! Golden and yummy." : p <= .52 ? "They are soft and gooey. Yum!" : "They are extra crunchy. Yum!"; c.step = 3; SFX.land(c.perfect ? 4 : 2); }
+    else if (k === "ice") c.ice = v; else if (k === "spr") c.spr = v; else if (k === "done") { c.step = 4; S.cookies += 6; earn(c.perfect ? 12 : 6); SFX.yay(); }
+    drawBake(); },
+  cookie: i => { const F = pals[+i]; if (!F || S.cookies < 1) return; S.cookies--; earn(3); SFX.yay(); openModal('<h2>🍪 A cookie for ' + esc(F.n) + '</h2><div class="bub">Mmm! Did you bake this yourself, ' + esc(pl.L.name) + '? It is the best cookie ever! 💕</div><p>Cookies left in your jar: <b>' + S.cookies + '</b></p>' + DONE); },
+  sleigh: startSleigh, visit: i => { closeModal(); visit(+i); }, carol: i => { CR = { i: +i, pos: 0 }; drawCarol(); },
+  bell: n => { const c = CR; if (!c) return; if (n !== CAROL[c.pos]) { tone(150, .15, "sawtooth", .05); return; } tone(NOTE[n] * 2, .32, "triangle", .1); c.pos++;
+    if (c.pos < CAROL.length) return drawCarol(); const F = pals[c.i]; CR = null; earn(20); SFX.yay();
+    openModal('<h2>🎶 Beautiful singing!</h2><div class="bub">That was the best carol ever, ' + esc(pl.L.name) + '! Merry Christmas! 🎄</div><p>' + esc(F.n) + ' clapped and gave you <b>$20</b> and a candy cane 🍭.</p>' + DONE); },
+  palgift: i => openModal('<h2>🎁 Pick a present for ' + esc(pals[i].n) + '</h2><div class="row">' + GIFTS.map((g, k) => '<button class="hcard" style="flex:1 1 100px" data-act="wrapit" data-arg="' + i + "|" + k + '"><span>' + g[0] + '</span>' + g[1] + '</button>').join("") + '</div><div class="row"><button class="btn alt" data-act="close">Not now</button></div>'),
+  wrapit: a => { WR = { a, paper: "#e23b3b", bow: "#ffd23e" }; drawWrap(); }, wrapc: a => { const [k, v] = a.split("|"); WR[k] = v; reshop(); },
+  pettrick: k => { if (!pet) return; closeModal(); pet.trick = { k, t: 0 }; SFX.swish(); },
+  chip: i => { rdName(); pickI = +i; drawPick(); }, mktab: t => { rdName(); mineSync(); mkTab = t; drawPick(); },
+  mk: a => { rdName(); const i = a.indexOf("|"), k = a.slice(0, i), v = a.slice(i + 1); S.mine[k] = k === "scale" ? +v : (k === "bangs" || k === "clips") ? !!v : v; mineSync(); drawPick(); },
+});
+SHOPS[2] = cocoaMenu;
+
 /* ------------------------------ every frame ------------------------------ */
 function rinkAt() { for (const R of rinks) if (Math.abs(pl.x - R.cx) < R.a + 4 && Math.abs(pl.z - R.cz) < R.b + 4) return R; return null; }
 function updatePlayer(dt) {
+  if (X) return X.upd(dt);
   if (zone && zone.ski) return skiUpdate(dt);
   const inp = (pl.fall > 0 || (C && C.count > 0) || mode === "judging" || mode === "judgejob" || !$("modal").hidden) ? { x: 0, y: 0 } : getInput();
   const yaw = zone ? 0 : camYaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
@@ -1068,7 +1448,7 @@ function updatePlayer(dt) {
 }
 function updateCamera(dt) {
   const k = snap ? 1 : 1 - Math.exp(-dt * 8); snap = false;
-  if (mode === "title" || mode === "pick") { if (mode === "title") { const a = tNow * .12; _p.set(Math.sin(a) * 19, 6.5, Math.cos(a) * 19 + 2); camera.position.lerp(_p, k * .5); camera.lookAt(0, 4.2, 0); } else { camera.position.lerp(_p.set(0, 1.35, 11.4), k); camera.lookAt(0, 1.0, 9); if (preview) { preview.g.rotation.y = Math.sin(tNow * .8) * .5; applyPose(preview, poseIdle(preview, tNow), dt); } } return; }
+  if (mode === "title" || mode === "pick") { if (mode === "title") { const a = tNow * .12; _p.set(Math.sin(a) * 19, 6.5, Math.cos(a) * 19 + 2); camera.position.lerp(_p, k * .5); camera.lookAt(0, 4.2, 0); } else { camera.position.lerp(_p.set(0, 1.25, 12.4), k); camera.lookAt(0, .45, 9); if (preview) { preview.g.rotation.y = Math.sin(tNow * .8) * .5; applyPose(preview, poseIdle(preview, tNow), dt); } } return; }
   if (cine) { camera.position.lerp(cine.pos, k); camera.lookAt(cine.look); return; }
   const h = 1.25 * (pl.L.scale || 1);
   if (zone && zone.ski) { _p.set(pl.x, pl.y + 4.6, pl.z + 9.5); camera.position.lerp(_p, k); camera.lookAt(pl.x, pl.y + .6, pl.z - 7); }
@@ -1081,7 +1461,7 @@ function updateWorld(dt) {
       if (y < 0) y += 26; if (x < cx - 35) x += 70; else if (x > cx + 35) x -= 70; if (z < cz - 35) z += 70; else if (z > cz + 35) z -= 70; a.setXYZ(i, x, y, z); } a.needsUpdate = true; }
   if (fireMesh) { fireMesh.scale.y = 1 + Math.sin(tNow * 13) * .18; fireLight.intensity = .8 + Math.sin(tNow * 17) * .15 + Math.sin(tNow * 7.3) * .1; }
   const onSki = zone && zone.ski; sky.position.copy(camera.position); if (!onSki) sky.position.y = 0; snow.position.y = onSki ? camera.position.y - 12 : 0;
-  updatePet(dt); updateGarden(); updateFriends(dt);
+  updatePet(dt); updateGarden(); updateFriends(dt); updatePart4(dt);
   const f = pl || { x: 0, z: 0 }, fy = f.y || 0; sun.position.set(f.x + 22, fy + 34, f.z + 16); sun.target.position.set(f.x, fy, f.z);
   judges.forEach(j => applyPose(j, poseIdle(j, tNow), dt)); chefs.forEach(c => applyPose(c, { lL: 0, lR: 0, aL: -.9 + Math.sin(tNow * 6 + c.ph) * .25, aR: -.9 - Math.sin(tNow * 6 + c.ph) * .25, az: .1, tilt: .05, y: 0 }, dt));
   // the other skaters glide around the rink, or stand and watch during the contest
@@ -1089,13 +1469,16 @@ function updateWorld(dt) {
 }
 function updateUI() {
   curHot = null;
-  if (mode === "play" && $("modal").hidden) { let best = 1e9; for (const h of hots) { const d = Math.hypot(pl.x - h.x, pl.z - h.z); if (d < h.r && d < best) { best = d; curHot = h; } } }
+  if (mode === "play" && $("modal").hidden) { let best = 1e9; for (const h of hots) { if (h.on && !h.on()) continue; const d = Math.hypot(pl.x - h.x, pl.z - h.z); if (d < h.r && d < best) { best = d; curHot = h; } } }
   if (mode === "play" && $("modal").hidden && !curHot && !riding && !pl.ice) { let bd = 1.9; pals.forEach((F, i) => { const d = Math.hypot(pl.x - F.x, pl.z - F.z); if (d < bd) { bd = d; curHot = { label: "💬 Talk to " + F.n, fn: () => talk(i) }; } }); }
   if (mode === "job" && JOB) $("timer").textContent = "⏱ " + Math.ceil(JOB.t) + "   ❄️ " + JOB.got + "/12";
   if (mode === "play" && $("modal").hidden && pet) { if (riding) curHot = { label: "⬇ Get off " + petName(), fn: dismount }; else if (!pl.ice && !curHot && Math.hypot(pl.x - pet.x, pl.z - pet.z) < (PETS[pet.id].big ? 2.7 : 1.6)) curHot = { label: PETS[pet.id].e + " " + petName(), fn: petMenu }; }
   if (mode === "ski") $("timer").textContent = "⏱ " + SKI.time.toFixed(1) + (SKI.sled ? "   🛷" : SKI.race ? "   🚩 " + SKI.pass + "/18" + (SKI.miss ? "   ❌ " + SKI.miss : "") : "");
   const a = $("act"); if (curHot && !pl.ice) { a.hidden = false; const t = typeof curHot.label === "function" ? curHot.label() : curHot.label; if (a.textContent !== t) a.textContent = t; } else { a.hidden = true; if (pl && pl.ice) curHot = null; }
-  $("trick").hidden = !(pl && pl.ice && (mode === "play" || mode === "contest") && $("modal").hidden);
+  $("trick").hidden = !(pl && $("modal").hidden && ((pl.ice && (mode === "play" || mode === "contest")) || mode === "sleigh" || mode === "snowfight"));
+  const tl = mode === "sleigh" ? "🎁 DROP" : mode === "snowfight" ? "❄️ THROW" : "✨ TRICK"; if ($("trick").textContent !== tl) $("trick").textContent = tl;
+  if (mode === "sleigh" && SL) $("timer").textContent = "🎁 " + SL.n + "/" + HOMES.length + "   ⏱ " + Math.ceil(SL.t);
+  if (mode === "snowfight" && SF) $("timer").textContent = "⏱ " + Math.ceil(SF.t) + "   ❄️ You " + SF.hits + "   Friends " + SF.got;
   if (C && mode === "contest") $("timer").textContent = C.count > 0 ? "Get ready!" : "⏱ " + Math.ceil(C.t) + "   ⭐ " + C.score + "   Next: " + TRICKS[trickI % TRICKS.length].name;
 }
 let lastT = performance.now();
