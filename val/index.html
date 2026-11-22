@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Val Training Academy — by Jules</title>
+<style>
+  :root { --sat: env(safe-area-inset-top, 10px); --sab: env(safe-area-inset-bottom, 10px); --font:"Avenir Next","Trebuchet MS",Arial,sans-serif;
+    --ink:#2f2450; --main:#7a4fd0; --mainD:#5a35a8; --soft:#f1eaff; --softD:#d9cbf7; --go:#2fa85a; --goD:#1f8245; }
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#7fc4ff; font-family:var(--font);
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; touch-action:none; }
+  canvas#game { display:block; width:100vw; height:100vh; touch-action:none; }
+  button { font-family:var(--font); cursor:pointer; }
+  [hidden] { display:none !important; }
+  .ov { position:fixed; inset:0; z-index:40; background:rgba(30,20,60,.42); display:flex; align-items:center; justify-content:center; padding:10px; }
+  .ov.low { background:none; align-items:flex-end; pointer-events:none; padding-bottom:max(12px, var(--sab)); }
+  .ov.low .card { pointer-events:auto; max-height:50vh; }
+  .card { background:rgba(255,255,255,.97); border-radius:24px; width:min(560px, 96vw); max-height:min(90vh, 780px); overflow:auto; box-shadow:0 20px 60px rgba(20,10,50,.5);
+    padding:18px; box-sizing:border-box; color:var(--ink); -webkit-overflow-scrolling:touch; text-align:center; touch-action:pan-y; }
+  .card h1 { margin:0 0 4px; font-size:34px; color:var(--main); letter-spacing:-.02em; }
+  .card h2 { margin:0 0 6px; font-size:23px; color:var(--main); }
+  .card h3 { margin:12px 0 2px; font-size:13px; color:var(--mainD); text-transform:uppercase; letter-spacing:.06em; }
+  .card p { margin:6px 0; font-size:16px; line-height:1.4; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; justify-content:center; }
+  .btn { border:0; border-radius:14px; padding:12px 18px; font:800 16px var(--font); background:var(--go); color:#fff; box-shadow:0 4px 0 var(--goD); }
+  .btn:active { transform:translateY(3px); box-shadow:none; }
+  .btn.alt { background:var(--soft); color:var(--mainD); box-shadow:0 4px 0 var(--softD); }
+  .btn.mag { background:var(--main); box-shadow:0 4px 0 var(--mainD); }
+  .btn.red { background:#d63a3a; box-shadow:0 4px 0 #a12525; }
+  .btn[disabled] { opacity:.45; }
+  .x { position:sticky; top:0; float:right; border:0; background:var(--soft); color:var(--mainD); width:36px; height:36px; border-radius:50%; font:800 17px var(--font); z-index:2; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:8px; margin:10px 0; }
+  .it { border:0; border-radius:16px; padding:10px 6px; background:var(--soft); color:var(--ink); font:800 14px var(--font); box-shadow:0 4px 0 var(--softD); }
+  .it span { display:block; font-size:34px; line-height:1.15; }
+  .it small { display:block; font-weight:700; font-size:12px; color:#6a5e96; margin-top:2px; }
+  .it.magic { background:linear-gradient(140deg,#ffe9fb,#e6efff); }
+  .it[disabled] { opacity:.5; }
+  .sw { width:38px; height:38px; border-radius:50%; border:3px solid #fff; box-shadow:0 0 0 2px var(--softD); padding:0; }
+  .sw.on { box-shadow:0 0 0 4px var(--main); }
+  .chip { border:3px solid transparent; border-radius:999px; padding:8px 13px; font:800 14px var(--font); background:var(--soft); color:var(--mainD); }
+  .chip.on { border-color:var(--main); background:#fff; }
+  input { -webkit-user-select:text; user-select:text; font:700 17px var(--font); padding:10px 12px; border-radius:12px; border:2px solid var(--softD); width:190px; text-align:center; }
+  .bub { margin:6px 0; padding:9px 13px; border-radius:16px; background:var(--soft); text-align:left; max-width:84%; width:fit-content; font-size:15px; }
+  .bar { height:14px; border-radius:7px; background:var(--soft); overflow:hidden; margin:3px 0 8px; }
+  .bar i { display:block; height:100%; background:linear-gradient(90deg,#ff8fc0,#ffb74a); border-radius:7px; }
+  #map { position:relative; width:min(100%, 380px); aspect-ratio:1; margin:8px auto; background:linear-gradient(#dff5d2,#c9ecc0); border-radius:18px; overflow:hidden; border:3px solid var(--softD); }
+  #map button { position:absolute; transform:translate(-50%,-50%); border:0; background:#fff; border-radius:12px; padding:4px 7px; font:800 12px var(--font); box-shadow:0 2px 6px rgba(0,0,0,.2); color:var(--ink); }
+  #map button span { font-size:20px; display:block; }
+  #map i { position:absolute; transform:translate(-50%,-100%); font-style:normal; font-size:24px; pointer-events:none; z-index:2; }
+  #hud { position:fixed; left:10px; top:max(10px, var(--sat)); z-index:20; display:flex; gap:6px; flex-wrap:wrap; max-width:66vw; }
+  #hud .pill, #hud button { background:rgba(40,30,80,.6); color:#fff; border:2px solid rgba(255,255,255,.5); border-radius:999px; padding:7px 12px; font:800 14px var(--font); }
+  #act { position:fixed; left:50%; bottom:max(22px, calc(var(--sab) + 10px)); transform:translateX(-50%); z-index:25; border:0; border-radius:18px; padding:14px 22px;
+    font:800 18px var(--font); background:#fff; color:var(--mainD); box-shadow:0 6px 0 #d4c8ee, 0 10px 30px rgba(0,0,0,.3); max-width:70vw; }
+  #act:active { transform:translateX(-50%) translateY(4px); box-shadow:0 2px 0 #d4c8ee; }
+  #pad { position:fixed; right:16px; bottom:max(22px, calc(var(--sab) + 10px)); z-index:25; display:flex; flex-direction:column; gap:10px; align-items:flex-end; }
+  #pad button { width:78px; height:78px; border-radius:50%; border:4px solid #fff; color:#fff; font:800 14px var(--font); background:radial-gradient(circle at 35% 30%, #b99cff, #7a4fd0); box-shadow:0 6px 0 #4d2c95, 0 10px 24px rgba(0,0,0,.3); touch-action:none; }
+  #pad button:active { transform:translateY(4px); box-shadow:0 2px 0 #4d2c95; }
+  #pad button span { display:block; font-size:24px; line-height:1; }
+  #pop { position:fixed; left:50%; top:30%; transform:translate(-50%,-50%); z-index:70; color:#fff; font:800 40px var(--font); text-shadow:0 4px 0 var(--mainD), 0 8px 24px rgba(0,0,0,.5); pointer-events:none; text-align:center; white-space:nowrap; opacity:0; }
+  #pop.show { animation:pop 1s ease-out forwards; }
+  @keyframes pop { 0% { opacity:0; transform:translate(-50%,-30%) scale(.6); } 20% { opacity:1; transform:translate(-50%,-50%) scale(1.1); } 80% { opacity:1; } 100% { opacity:0; transform:translate(-50%,-90%) scale(1); } }
+  #toast { position:fixed; left:50%; top:calc(var(--sat) + 58px); transform:translateX(-50%); z-index:60; background:rgba(40,30,80,.92); color:#fff;
+    border-radius:16px; padding:10px 16px; font:700 15px var(--font); max-width:84vw; text-align:center; transition:opacity .3s; pointer-events:none; }
+  #joyB { position:fixed; z-index:22; width:110px; height:110px; margin:-55px 0 0 -55px; border-radius:50%; background:rgba(255,255,255,.18); border:2px solid rgba(255,255,255,.5); pointer-events:none; }
+  #joyK { position:fixed; z-index:23; width:52px; height:52px; margin:-26px 0 0 -26px; border-radius:50%; background:rgba(255,255,255,.75); pointer-events:none; }
+  #verlink { position:fixed; right:10px; top:max(10px, env(safe-area-inset-top)); z-index:30; font-family:var(--font); }
+  #gamesBtn { font:800 14px var(--font); color:#fff; background:rgba(40,30,80,.6); border:2px solid rgba(255,255,255,.55); border-radius:999px; padding:7px 14px; }
+  #gamesMenu { position:absolute; right:0; top:calc(100% + 6px); background:#fff; border-radius:14px; padding:8px; min-width:176px; max-height:80vh; overflow:auto;
+    box-shadow:0 12px 40px rgba(0,0,0,.35); display:flex; flex-direction:column; touch-action:pan-y; }
+  #gamesMenu b { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#8a94a6; margin:6px 8px 2px; font-weight:800; }
+  #gamesMenu a { display:block; padding:7px 10px; border-radius:9px; color:#2a3a55; text-decoration:none; font-weight:700; font-size:14px; }
+  #gamesMenu a:hover, #gamesMenu a:active { background:#eef3fb; }
+  #gamesMenu a.here { background:#ffd166; color:#7a4b12; }
+  #dark { position:fixed; inset:0; z-index:30; background:#fff; opacity:0; pointer-events:none; transition:opacity .4s; }
+  #tr { position:relative; height:54px; border-radius:27px; background:var(--soft); margin:14px 6px; overflow:hidden; }
+  #tr .zone { position:absolute; top:0; bottom:0; left:38%; width:24%; background:#8fe3a6; }
+  #tr .mk { position:absolute; top:4px; bottom:4px; width:14px; margin-left:-7px; border-radius:7px; background:var(--main); }
+  .stars { font-size:34px; letter-spacing:4px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="verlink">
+  <button id="gamesBtn" type="button">🎮 Games</button>
+  <nav id="gamesMenu" hidden>
+    <a href="../" style="background:linear-gradient(90deg,#ffe8f4,#e6f0ff);color:#5b3fa8">🏠 All Games</a>
+    <b>Super Young Sisters</b>
+    <a href="../classic/">🕹 Classic</a><a href="../hd/">✨ HD</a><a href="../fortnite/">⚡ Battle</a><a href="../realistic/">🌿 Real</a>
+    <b>More magic</b>
+    <a href="../magic/">🌈 Magic Heroes</a><a href="../bubble/">🫧 Bubble</a><a href="../life/">🏡 Magic Life</a><a href="../kart/">🏎 Magic Kart</a><a href="../tennis/">🎾 Magic Tennis</a>
+    <b>Jules's city</b>
+    <a href="../city/">🏙 Jules City</a><a href="../newcity/">✨ New City</a><a href="../surf/">🏄 Surfing Summer</a><a href="../cheer/">🎄 Christmas Cheer</a><a class="here" href="./">🦄 Val Academy</a>
+    <b>Nora's new world</b>
+    <a href="../zombie/">🧟 Zombie Night</a>
+    <b>Dad's work</b>
+    <a href="../faceplant/">🍔 Face Plant</a>
+  </nav>
+<script src="../players.js"></script>
+<script>window.Arcade = window.Arcade || { key: function (k) { return k; }, mountMenu: function () {} };</script>
+</div>
+
+<div id="hud" hidden></div>
+<button id="act" type="button" hidden></button>
+<div id="pad" hidden></div>
+<div id="pop"></div>
+<div id="dark"></div>
+<div id="joyB" hidden></div><div id="joyK" hidden></div>
+<div id="toast" hidden></div>
+<div id="modal" class="ov" hidden><div class="card" id="modalCard"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="world.js"></script>
+<script src="creatures.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

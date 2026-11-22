@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#08081a">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="description" content="Super Young Sisters — a little arcade of 14 games built by Jules and Nora. Platformers, kart racing, tennis, city life, zombie survival and more. No downloads, no ads, just tap and play.">
+<meta name="description" content="Super Young Sisters — a little arcade of 15 games built by Jules and Nora. Platformers, kart racing, tennis, city life, zombie survival and more. No downloads, no ads, just tap and play.">
 <title>Super Young Sisters — The Arcade</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
 <style>
@@ -337,15 +337,15 @@
   <div class="shell">
 
     <div class="hero">
-      <div class="eyebrow"><span class="dot"></span> 14 games · newest: Christmas Cheer</div>
+      <div class="eyebrow"><span class="dot"></span> 15 games · newest: Val Training Academy</div>
       <h1 class="wordmark">Super Young<br>Sisters</h1>
       <p class="sub">A little arcade built by two sisters, one game at a time. Platformers, kart racing, doubles tennis, a whole city, and a night full of zombies — <em>all in your browser</em>, nothing to download.</p>
       <div class="cta">
         <a class="btn primary" id="playNewest" href="cheer/">▶ Play the newest game</a>
-        <a class="btn ghost" href="#games">Browse all 14 →</a>
+        <a class="btn ghost" href="#games">Browse all 15 →</a>
       </div>
       <div class="stats">
-        <div class="stat"><b>14</b><span>Games</span></div>
+        <div class="stat"><b>15</b><span>Games</span></div>
         <div class="stat"><b>11</b><span>Heroes</span></div>
         <div class="stat"><b>5</b><span>Worlds</span></div>
         <div class="stat"><b>0</b><span>Downloads</span></div>
@@ -510,6 +510,12 @@
       tags:["3D","By Jules & Nora","Pets & contests"],
       art:"linear-gradient(140deg,#ffc9cf,#b99be0 45%,#3a3f92)" },
 
+    { href:"val/",       short:"🦄 Val Academy",    emoji:"🦄",  title:"Val Training Academy",
+      group:"Jules's City", menuGroup:"Jules's city", kind:"3D farm sim", featured:"Newest",
+      blurb:"Buy a magic farm in 3D. Raise horses, unicorns, a firebird, a winter dragon and a windfire, ride and fly them, teach them tricks and magic, grow moon flowers and candy canes, and welcome visitors through all four seasons.",
+      tags:["3D","By Jules","Magic creatures"],
+      art:"linear-gradient(140deg,#b9f0c8,#8fb8ff 45%,#7a4fd0)" },
+
     { href:"zombie/",    short:"🧟 Zombie Night",   emoji:"🧟",  title:"Zombie Night",
       group:"Nora's World", menuGroup:"Nora's new world", kind:"Survival", featured:"Nora's world",
       blurb:"Chop trees, build a house, rescue lost pets and hold the fence until sunrise. Your world saves itself for tomorrow.",
@@ -525,7 +531,7 @@
 
   var HEROES = ["PRINCESS ROSALINA","SPARKLE","ICY","MISTY","CUTIE","SQUISHY","APPY","BAMBOO","CHUN MI","NORTHERN LIGHT","NORA","JULES","PEACH THE PUG"];
 
-  var FEATURED = ["cheer/", "surf/", "zombie/"];
+  var FEATURED = ["val/", "cheer/", "zombie/"];
   var pn = document.getElementById("playNewest"); if (pn) pn.href = FEATURED[0];
 
   function el(tag, cls, html) {
