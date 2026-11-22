@@ -89,6 +89,7 @@ function trailZ(x) { return 17 + 24 * Math.sin((x - 70) * .05); }
 function segDist(px, pz, a) { const dx = a[2] - a[0], dz = a[3] - a[1], t = clamp(((px - a[0]) * dx + (pz - a[1]) * dz) / (dx * dx + dz * dz), 0, 1); return Math.hypot(px - a[0] - dx * t, pz - a[1] - dz * t); }
 function pathDist(x, z) { let d = 99; for (const p of PATHS) d = Math.min(d, segDist(x, z, p)); if (x > 68 && x < 152) d = Math.min(d, Math.abs(z - trailZ(x)) * .9); return d; }
 function hgt(x, z) {
+  if (z < -300) return 0;   /* inside the farmhouse room */
   const d = Math.hypot(x, z), s = sstep(60, 120, d);
   let h = s * (Math.sin(x * .045) * Math.cos(z * .04) * 5 + Math.sin(x * .09 + z * .06) * 1.6 + 2);
   const pd = Math.hypot(x - POND.x, z - POND.z); h -= 1.7 * sstep(POND.r + 2.5, POND.r - 4, pd);
@@ -179,7 +180,7 @@ function paintPlants() {
 /* trees: round ones change with the seasons, pines stay green */
 const TREES = [];
 (function () { const r = srand(2026);
-  const ok = (x, z) => !onFarmStuff(x, z) && pathDist(x, z) > 5.5 && Math.hypot(x, z - 10) > 66;
+  const ok = (x, z) => !onFarmStuff(x, z) && pathDist(x, z) > 5.5 && Math.hypot(x, z - 10) > 66 && !(x > 16 && x < 56 && z > 52 && z < 94) && Math.hypot(x + 34, z - 72) > 20;
   for (let i = 0; i < 2400 && TREES.length < 300; i++) { const x = 66 + r() * 96, z = -150 + r() * 300; if (ok(x, z) && TREES.every(t => Math.hypot(t.x - x, t.z - z) > 5.2)) TREES.push({ x, z, s: .9 + r() * .9, pine: r() < .38, k: r() }); }
   for (let i = 0; i < 900 && TREES.length < 400; i++) { const a = r() * TAU, d = 88 + r() * 70, x = Math.cos(a) * d, z = Math.sin(a) * d; if (x < 64 && Math.abs(x) > 9 && ok(x, z) && TREES.every(t => Math.hypot(t.x - x, t.z - z) > 8)) TREES.push({ x, z, s: 1 + r() * 1, pine: r() < .5, k: r() }); }
   [[-36, -22], [-10, -40], [-34, -40], [12, -46], [-56, 8], [-60, 52], [-20, 50], [20, 52], [58, 2], [-52, -8]].forEach((p, i) => TREES.push({ x: p[0], z: p[1], s: 1.3, pine: false, k: (i * .37) % 1 }));
@@ -251,10 +252,10 @@ function fence(pts, closed, color, skip) {
     [.55, 1].forEach(h => { const r = add(g, G.box, mat, (a[0] + b[0]) / 2, hgt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) + h, (a[1] + b[1]) / 2, len, .13, .1); r.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]); }); }
   return g;
 }
-let gateSign = null, saleSign = null;
+let gateSign = null, houseG = null, barnG = null;
 function buildFarm() {
   /* farmhouse */
-  const h = grp(scene, HOUSE.x, 0, HOUSE.z);
+  const h = houseG = grp(scene, HOUSE.x, 0, HOUSE.z);
   add(h, G.box, M(0xfff4dc), 0, 2.4, 0, 11, 4.8, 8); add(h, G.box, M(0xe9dcc0), 0, .25, 0, 11.6, .5, 8.6);
   roof(h, 11, 8, 3.4, 4.8, 0xc4566a);
   add(h, G.box, M(0x9b5f3c), 0, 1.4, 4.02, 1.5, 2.8, .12); add(h, G.sph, M(0xffd24a, { metalness: .6, roughness: .3 }), .5, 1.4, 4.12, .09);
@@ -265,7 +266,7 @@ function buildFarm() {
   [-2.2, 2.2].forEach(x => add(h, G.cyl, M(0xffffff), x, 1.9, 6.3, .14, 3, .14)); add(h, G.box, M(0xc4566a), 0, 3.5, 5.4, 5.4, .2, 2.9);
   COL.push({ x: HOUSE.x, z: HOUSE.z, r: 6.2 }, { x: HOUSE.x - 3.5, z: HOUSE.z, r: 5 }, { x: HOUSE.x + 3.5, z: HOUSE.z, r: 5 });
   /* the big red barn */
-  const b = grp(scene, BARN.x, 0, BARN.z);
+  const b = barnG = grp(scene, BARN.x, 0, BARN.z);
   add(b, G.box, M(0xc8423a), 0, 3.2, 0, 15, 6.4, 11); roof(b, 15, 11, 4.6, 6.4, 0x6b4a5c);
   add(b, G.box, M(0x7a3a30), 0, 2.2, 5.52, 4.6, 4.4, .12);
   [[-1.15, 0], [1.15, 0]].forEach(p => { add(b, G.box, M(0xffffff), p[0], 2.2, 5.6, 2.1, .16, .1); add(b, G.box, M(0xffffff), p[0], 4.3, 5.6, 2.1, .16, .1); add(b, G.box, M(0xffffff), p[0], .15, 5.6, 2.1, .16, .1);

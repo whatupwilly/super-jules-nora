@@ -5,6 +5,10 @@
    =========================================================================== */
 let mode = "title", tNow = 0, camYaw = 0, camPitch = .32, hot = null, saveT = 0, visT = 8, TR = null, makeCam = false;
 const DAYLEN = 300, PROD_T = 70;
+/* part two plugs in here */
+let HOT_PRE = null, HOT_MORE = null, STEP_MORE = null, SERVE_MORE = null, WANT_MORE = null, JUMP_CB = null;
+const PHONE = [["map", "🗺️", "Map"], ["shop", "🛒", "Animal shop"], ["texts", "💬", "Texts"], ["tractor", "🚜", "Get my tractor"], ["seasons", "🌦️", "Seasons"], ["make", "👗", "My look"], ["saveNow", "💾", "Save my game"], ["askReset", "🔄", "Start over"]];
+function CAP() { return S.barn2 ? 80 : 45; }
 const animals = [], plots = [], visitors = [], poops = [], starM = [];
 const pl = { g: grp(scene), body: null, x: S.px, z: S.pz, hdg: Math.PI, ph: 0, ride: null, drive: false, alt: 0, vy: 0, boost: 0, up: false, down: false };
 pl.g.scale.setScalar(.9);
@@ -141,7 +145,7 @@ ACT.show = () => { const a = cardA, opts = TRICKS.slice(0, a.d.tr); closeM(); if
 ACT.rename = () => askName(cardA, "What is its name?");
 function askName(a, title) { cardA = a; openM("<h2>" + aEmoji(a) + " " + esc(title) + "</h2><input id='an' maxlength='14' value='" + esc(a.d.name) + "'><div class='row'><button class='btn' data-a='named'>✓ OK</button></div>"); }
 ACT.named = () => { const v = $("an").value.trim(); if (v) cardA.d.name = v; setTag(cardA); closeM(); save(); };
-ACT.baby = () => { const a = cardA; if (animals.length >= 45) return toast("The farm is full!"); const b = newAnimal(a.d.sp, "Baby " + a.d.name, a.d.c, a.d.word); b.d.baby = 1; b.d.born = S.day; const n = respawn(b); n.x = n.tx = a.x + 1.5; n.z = n.tz = a.z + 1; a.d.love = Math.max(20, a.d.love - 20);
+ACT.baby = () => { const a = cardA; if (animals.length >= CAP()) return toast("The farm is full!"); const b = newAnimal(a.d.sp, "Baby " + a.d.name, a.d.c, a.d.word); b.d.baby = 1; b.d.born = S.day; const n = respawn(b); n.x = n.tx = a.x + 1.5; n.z = n.tz = a.z + 1; a.d.love = Math.max(20, a.d.love - 20);
   closeM(); SFX.magic(); pop("A baby " + aKind(a).toLowerCase() + "! 🍼"); burst(n.x, 1.5, n.z, [0xff9ecb, 0xffffff, 0xfff3a8], 30, 2.5, 3, .5); setTimeout(() => askName(n, "A baby was born! Name it:"), 1200); };
 ACT.dress = () => { const a = cardA, w = a.d.wear, col = (key) => '<div class="row"><button class="chip' + (!w[key] ? " on" : "") + '" data-a="wear" data-v="' + key + ':0">None</button>' + A_COL.map((c, i) => '<button class="sw' + (w[key] === i + 1 ? " on" : "") + '" data-a="wear" data-v="' + key + ":" + (i + 1) + '" style="background:#' + c.toString(16).padStart(6, "0") + '"></button>').join("") + "</div>";
   openM(X + "<h2>👒 Dress up " + esc(a.d.name) + "</h2><h3>Hat</h3><div class='row'>" + A_HATS.map((h, i) => '<button class="chip' + (w.hat === i ? " on" : "") + '" data-a="wear" data-v="hat:' + i + '">' + h + "</button>").join("") + "</div><h3>Scarf</h3>" + col("scarf") + "<h3>Saddle blanket</h3>" + col("saddle") + "<div class='row'><button class='btn' data-a='close'>✓ Done</button></div>", true); };
@@ -181,7 +185,8 @@ ACT.candy = () => { S.inv.candycane--; pl.boost = 45; closeM(); SFX.magic(); pop
 function visitorWant() {
   const o = []; if (animals.some(a => a.sp.ride && !a.d.baby)) o.push("lesson", "lesson"); if (animals.some(a => a.d.sp === "bunny")) o.push("bunny"); if (animals.some(a => a.d.sp === "chicken" || a.d.sp === "duck")) o.push("birds");
   const have = Object.keys(S.inv).filter(k => S.inv[k] > 0); for (let i = 0; i < 5; i++) o.push("buy");
-  const t = pick(o);
+  if (WANT_MORE) WANT_MORE(o); const t = pick(o);
+  if (typeof t === "object") return t;
   if (t === "lesson") { const m = animals.some(a => a.sp.ride && a.sp.magic && !a.d.baby) && Math.random() < .5; return { t, pay: m ? 80 : 40, magic: m, bub: m ? "🦄🏇" : "🏇", say: m ? "a ride on a magical creature" : "a horse riding lesson" }; }
   if (t === "bunny") return { t, pay: 22, bub: "🐰💗", say: "to cuddle the bunnies" };
   if (t === "birds") return { t, pay: 16, bub: "🐔🌾", say: "to feed the chickens" };
@@ -198,7 +203,7 @@ function spawnVisitor() {
 }
 function leave(v, msg) { v.state = "out"; v.tx = rnd(-1.5, 1.5); v.tz = 104; if (v.bub) { v.g.remove(v.bub); v.bub = null; } if (msg) toast(msg); }
 function serve(v) {
-  const w = v.want;
+  const w = v.want; if (SERVE_MORE && SERVE_MORE(v)) return;
   if (w.t === "buy") { if ((S.inv[w.id] || 0) < w.n) { SFX.no(); return toast(v.name + " wants " + w.say + ". " + (CROPS[w.id] ? "Grow some in the field!" : "Collect some from your animals!")); } S.inv[w.id] -= w.n; money(w.pay, v.x, 2, v.z); leave(v, v.name + ": Thank you! 💛"); }
   else if (w.t === "lesson") { const a = animals.find(a => a.sp.ride && !a.d.baby && a !== pl.ride && !a.lesson && (!w.magic || a.sp.magic)); if (!a) return toast("Your riding animals are all busy!"); v.state = "busy"; a.lesson = { v, t: 0 }; if (S.follow === a.d.id) S.follow = 0; a.act = null; v.g.remove(v.bub); v.bub = null; seat(v.g, a, v.sc); animPerson(v.g, 0, 0, true); toast(v.name + " is riding " + a.d.name + " in the arena! 🏇"); SFX.good(); }
   else { const a = animals.find(a => w.t === "bunny" ? a.d.sp === "bunny" : (a.d.sp === "chicken" || a.d.sp === "duck")); if (!a) return; v.state = "visit"; v.pet = a; v.t = 0; toast(v.name + " is going to see " + a.d.name + "."); }
@@ -231,7 +236,7 @@ function updateStars(dt) { STARS.forEach((s, i) => { const m = starM[i]; if (!m.
   if (mode === "play" && Math.hypot(pl.x - s[0], pl.z - s[1]) < 2.6) { m.visible = false; S.starGot.push(i); burst(s[0], 1.6, s[1], [0xfff3a8, 0xffffff, 0xffd23f], 18, 2.5, 3, .5); if (S.starGot.length === STARS.length) { money(40); toast("⭐ You found every forest star today! Bonus!"); SFX.magic(); } else money(5); } }); }
 
 /* ------------------------------ phone ------------------------------ */
-ACT.phone = () => openM(X + "<h2>📱 Phone</h2><div class='grid'>" + [["map", "🗺️", "Map"], ["shop", "🛒", "Animal shop"], ["texts", "💬", "Texts"], ["tractor", "🚜", "Get my tractor"], ["seasons", "🌦️", "Seasons"], ["make", "👗", "My look"], ["saveNow", "💾", "Save my game"], ["askReset", "🔄", "Start over"]].map(a => '<button class="it" data-a="' + a[0] + '"><span>' + a[1] + "</span>" + a[2] + "</button>").join("") + "</div>");
+ACT.phone = () => openM(X + "<h2>📱 Phone</h2><div class='grid'>" + PHONE.map(a => '<button class="it" data-a="' + a[0] + '"><span>' + a[1] + "</span>" + a[2] + "</button>").join("") + "</div>");
 const PLACES = [["🏠", "House", HOUSE.x, HOUSE.z + 9], ["🐴", "Barn", BARN.x, BARN.z + 9], ["🥕", "Field", -27, 20], ["🛍️", "Stand", STAND.x, STAND.z - 4], ["🐟", "Pond", POND.x + 15, POND.z], ["🏇", "Arena", ARENA.x - 16, ARENA.z], ["🌲", "Forest", 82, trailZ(82)], ["🚪", "Gate", 0, 40]];
 ACT.map = () => { const px = x => (x + 75) / 230 * 100, pz = z => (z + 80) / 230 * 100;
   openM(X + "<h2>🗺️ Map</h2><p>Tap a place to go there.</p><div id='map'>" + PLACES.map((p, i) => '<button data-a="goto" data-v="' + i + '" style="left:' + px(p[2]) + "%;top:" + pz(p[3]) + '%"><span>' + p[0] + "</span>" + p[1] + "</button>").join("") + '<i style="left:' + px(pl.x) + "%;top:" + pz(pl.z) + '%">📍</i></div>'); };
@@ -239,8 +244,8 @@ ACT.goto = i => { const p = PLACES[i]; pl.x = p[2]; pl.z = p[3]; pl.alt = 0; clo
 ACT.shop = () => openM(X + "<h2>🛒 Animal shop</h2><p>You have <b>$" + S.money + "</b></p><div class='grid'>" + SHOP_ORDER.map(k => { const s = SPECIES[k]; return '<button class="it' + (s.magic ? " magic" : "") + '" data-a="buyA" data-v="' + k + '"' + (S.money < s.cost ? " disabled" : "") + "><span>" + s.e + "</span>" + s.n + "<small>$" + s.cost + "</small></button>"; }).join("") +
   "</div><h3>Any animal you want</h3><p>Type any animal and buy it for $150.</p><div class='row'><input id='any' maxlength='16' placeholder='cow, panda, parrot…'><button class='btn mag' data-a='buyAny'" + (S.money < 150 ? " disabled" : "") + ">Buy it</button></div>");
 function arrive(a) { a.x = rnd(-2, 2); a.z = 44; a.wait = 0; closeM(); SFX.good(); pop("Welcome, " + aKind(a) + "!"); hud(); save(); setTimeout(() => askName(a, "Your new " + aKind(a).toLowerCase() + " is walking in from the gate! Name it:"), 900); }
-ACT.buyA = k => { if (animals.length >= 45) return toast("The farm is full!"); const s = SPECIES[k]; if (S.money < s.cost) return; S.money -= s.cost; arrive(newAnimal(k)); };
-ACT.buyAny = () => { const w = $("any").value.trim().replace(/[<>&"]/g, "").toLowerCase(); if (!w) return toast("Type an animal first!"); if (animals.length >= 45) return toast("The farm is full!"); S.money -= 150; arrive(newAnimal("custom", null, 0, w)); };
+ACT.buyA = k => { if (animals.length >= CAP()) return toast("The farm is full!"); const s = SPECIES[k]; if (S.money < s.cost) return; S.money -= s.cost; arrive(newAnimal(k)); };
+ACT.buyAny = () => { const w = $("any").value.trim().replace(/[<>&"]/g, "").toLowerCase(); if (!w) return toast("Type an animal first!"); if (animals.length >= CAP()) return toast("The farm is full!"); S.money -= 150; arrive(newAnimal("custom", null, 0, w)); };
 ACT.texts = () => openM(X + "<h2>💬 Texts</h2>" + (S.texts.length ? S.texts.map(t => "<div class='bub'>" + esc(t) + "</div>").join("") : "<p>No texts yet. Friends and family will text when they are coming to visit!</p>"));
 ACT.tractor = () => { closeM(); if (pl.drive) return; T.x = pl.x + Math.sin(pl.hdg) * 4; T.z = pl.z + Math.cos(pl.hdg) * 4; T.hdg = pl.hdg; burst(T.x, 1.5, T.z, [0xffffff, 0xffd23f], 20, 3, 2, .5); toast("Your tractor is ready! 🚜"); };
 ACT.seasons = () => openM(X + "<h2>🌦️ Seasons</h2><p>The seasons change by themselves every " + SEASON_LEN + " days. You can also jump to the one you want:</p><div class='grid'>" + SEASONS.map((s, i) => '<button class="it" data-a="season" data-v="' + i + '"><span>' + s.e + "</span>" + s.n + (i === S.season ? "<small>now</small>" : "") + "</button>").join("") + "</div>");
@@ -251,14 +256,16 @@ function newDay() { S.day++; initStars(); animals.slice().forEach(a => { if (a.d
 
 /* ------------------------------ what the big button does ------------------------------ */
 function findHot() {
+  if (HOT_PRE) { const h = HOT_PRE(); if (h !== undefined) return h; }
   if (pl.ride) return { label: "Hop off " + pl.ride.d.name, fn: dismount }; if (pl.drive) return { label: "Hop off the tractor", fn: leaveTractor };
   let best = null, bd = 99; const tryIt = (d, o) => { if (d < bd) { bd = d; best = o; } };
   for (const p of poops) { const d = Math.hypot(p.position.x - pl.x, p.position.z - pl.z); if (d < 2) tryIt(d - 1, { label: "Scoop the poop 💩", fn: () => { scene.remove(p); poops.splice(poops.indexOf(p), 1); SFX.plop(); money(3, p.position.x, .5, p.position.z); } }); }
-  for (const v of visitors) { if (v.state !== "wait") continue; const d = Math.hypot(v.x - pl.x, v.z - pl.z); if (d < 3.4) { const w = v.want; tryIt(d - .5, { label: w.t === "buy" ? "Sell " + w.bub + " to " + v.name + " ($" + w.pay + ")" : w.t === "lesson" ? "Give " + v.name + " a riding lesson ($" + w.pay + ")" : w.t === "bunny" ? "Let " + v.name + " cuddle the bunnies ($" + w.pay + ")" : "Let " + v.name + " feed the chickens ($" + w.pay + ")", fn: () => serve(v) }); } }
+  for (const v of visitors) { if (v.state !== "wait") continue; const d = Math.hypot(v.x - pl.x, v.z - pl.z); if (d < 3.4) { const w = v.want; tryIt(d - .5, { label: w.t === "buy" ? "Sell " + w.bub + " to " + v.name + " ($" + w.pay + ")" : w.t === "lesson" ? "Give " + v.name + " a riding lesson ($" + w.pay + ")" : w.t === "bunny" ? "Let " + v.name + " cuddle the bunnies ($" + w.pay + ")" : w.t === "birds" ? "Let " + v.name + " feed the chickens ($" + w.pay + ")" : w.label.replace("{n}", v.name), fn: () => serve(v) }); } }
   for (const a of animals) { if (a.lesson) continue; const fish = a.sp.home === "pond", d = fish ? Math.max(.5, Math.hypot(POND.x - pl.x, POND.z - pl.z) - POND.r - 1.5) : Math.hypot(a.x - pl.x, a.z - pl.z) - a.g.userData.r * a.sc; if (d < 1.9) tryIt(d, fish && S.wishDay !== S.day ? { label: "Make a wish with " + a.d.name + " 🌟", fn: () => wish(a) } : { label: (a.d.rdy ? GOODS[a.sp.prod].e + " " : "") + "Say hi to " + a.d.name, fn: () => showCard(a) }); }
   for (const p of plots) { const d = Math.max(Math.abs(p.x - pl.x), Math.abs(p.z - pl.z)); if (d < 3) { const c = p.d.c && CROPS[p.d.c]; tryIt(d - 1.2, !c ? { label: "Plant seeds 🌱", fn: () => showSeeds(p) } : p.d.g >= 1 ? { label: "Pick the " + c.n.toLowerCase().replace(" tree", "s") + " " + c.e, fn: () => harvest(p) } : !p.d.w ? { label: "Water the " + c.n.toLowerCase() + " 💧", fn: () => waterPlot(p) } : { label: c.e + " growing… " + Math.round(p.d.g * 100) + "%", fn: () => toast("It is growing! Come back soon.") }); } }
   const td = Math.hypot(T.x - pl.x, T.z - pl.z); if (td < 3.6) tryIt(td - 1.5, { label: "Drive the tractor 🚜", fn: driveTractor });
-  const bd2 = Math.hypot(BARN.x - pl.x, BARN.z + 7 - pl.z); if (bd2 < 4 && S.stallDay !== S.day) tryIt(bd2, { label: "Clean the stables 🧹", fn: cleanStalls });
+  const bd2 = Math.hypot(BARN.x - pl.x, BARN.z + 7 - pl.z); if (bd2 < 4) tryIt(bd2, { label: S.stallDay !== S.day ? "Go in and clean the stable 🧹" : "Go inside the stable 🐴", fn: goStable });
+  if (HOT_MORE) HOT_MORE(tryIt);
   return best;
 }
 function cleanStalls() { S.stallDay = S.day; $("dark").style.opacity = 1; setTimeout(() => { $("dark").style.opacity = 0; burst(BARN.x, 3, BARN.z + 7, [0xffffff, 0xfff3a8, 0xbfe9ff], 40, 4, 4, .6); animals.forEach(a => a.d.love = clamp(a.d.love + 5, 0, 100)); money(15); toast("The stables are sparkling clean! All your animals are happier."); }, 500); SFX.water(); }
@@ -304,10 +311,10 @@ function updatePlayer(dt) {
   }
   if (a && a.sp.fly) { const up = pl.up || keys.Space, dn = pl.down || keys.ShiftLeft || keys.ShiftRight; pl.alt = clamp(pl.alt + (up ? 9 : dn ? -11 : 0) * dt, 0, 48); }
   else if (a) { if (pl.alt > 0 || pl.vy > 0) { pl.vy -= 20 * dt; pl.alt += pl.vy * dt; if (pl.alt <= 0) { pl.alt = 0; pl.vy = 0; } }
-    for (const h of HURDLES) { const d = Math.hypot(h.x - pl.x, h.z - pl.z); if (d < 1.7 && tNow > h.ok) { h.ok = tNow + 2.5; if (pl.alt > .75) { pop("Nice jump!"); money(6, h.x, 2, h.z); love(a, 2); } else { SFX.no(); toast("Oops! Press Jump just before the fence."); } } } }
+    for (const h of HURDLES) { const d = Math.hypot(h.x - pl.x, h.z - pl.z); if (d < 1.7 && tNow > h.ok) { h.ok = tNow + 2.5; if (pl.alt > .75) { pop("Nice jump!"); money(6, h.x, 2, h.z); love(a, 2); if (JUMP_CB) JUMP_CB(); } else { SFX.no(); toast("Oops! Press Jump just before the fence."); } } } }
   else pl.alt = 0;
-  if (pl.alt < 3) { const r = pl.drive ? 1.5 : a ? 1 : .45; for (const c of COL) { const dx = pl.x - c.x, dz = pl.z - c.z, d = Math.hypot(dx, dz), m = c.r + r; if (d < m && d > .001) { pl.x = c.x + dx / d * m; pl.z = c.z + dz / d * m; } } }
-  pl.x = clamp(pl.x, -160, 160); pl.z = clamp(pl.z, -160, 160);
+  if (pl.alt < 3 && !pl.inside) { const r = pl.drive ? 1.5 : a ? 1 : .45; for (const c of COL) { const dx = pl.x - c.x, dz = pl.z - c.z, d = Math.hypot(dx, dz), m = c.r + r; if (d < m && d > .001) { pl.x = c.x + dx / d * m; pl.z = c.z + dz / d * m; } } }
+  if (!pl.inside) { pl.x = clamp(pl.x, -160, 160); pl.z = clamp(pl.z, -160, 160); }
   if (!a && !pl.drive) { pl.g.position.set(pl.x, hgt(pl.x, pl.z) - (Math.hypot(pl.x - POND.x, pl.z - POND.z) < POND.r ? 0 : 0), pl.z); pl.g.rotation.y = pl.hdg; animPerson(pl.body, pl.ph, pl.moving ? .7 : 0); }
 }
 function updateCamera(dt) {
@@ -327,6 +334,7 @@ function step(dt) {
   updateSky(pl.x, pl.z); updateFall(dt, tNow, camera.position.x, camera.position.z); updateCamera(dt);
   winMat.emissiveIntensity = (1 - dayF) * 1.3; water.position.y = -.42 + Math.sin(tNow * .8) * .03; clouds.forEach((c, i) => { c.position.x += dt * (1 + i % 3) * .6; if (c.position.x > 340) c.position.x = -340; });
   if (TR && $("trm")) { TR.pos += TR.dir * TR.sp * dt; if (TR.pos > 100) { TR.pos = 100; TR.dir = -1; } if (TR.pos < 0) { TR.pos = 0; TR.dir = 1; } $("trm").style.left = TR.pos + "%"; }
+  if (STEP_MORE) STEP_MORE(dt);
   if (mode === "play") { hot = $("modal").hidden ? findHot() : null; const b = $("act"); if (hot) { if (b.textContent !== hot.label) b.textContent = hot.label; b.hidden = false; } else b.hidden = true; setPad(); if (Math.floor(tNow * 2) !== Math.floor((tNow - dt) * 2)) hud(); } else { $("act").hidden = true; $("pad").hidden = true; $("pad").dataset.k = ""; }
 }
 let last = performance.now();
