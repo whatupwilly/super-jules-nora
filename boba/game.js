@@ -404,7 +404,7 @@ function updatePlayer(dt) {
   const inp = getInput(); doorCool -= dt;
   if (pl.sell) { const p = toWorld(2.1, -.5); pl.x = p.x; pl.z = p.z; pl.m.position.set(p.x, 0, p.z); pl.m.rotation.y = tr.a + Math.PI / 2; animChar(pl.m, 0, T); return; }
   if (pl.drive) {
-    tr.v = lerp(tr.v, inp.y * (inp.y < 0 ? 8 : 21), 1 - Math.exp(-dt * 2)); tr.a += inp.x * dt * 1.7 * clamp(tr.v / 6, -1, 1);
+    tr.v = lerp(tr.v, inp.y * (inp.y < 0 ? 8 : 21), 1 - Math.exp(-dt * 2)); tr.a -= inp.x * dt * 1.5 * Math.max(.45, Math.min(1, Math.abs(tr.v) / 6));   /* left is always left, even backing up or standing still */
     const p = { x: tr.x + Math.sin(tr.a) * tr.v * dt, z: tr.z + Math.cos(tr.a) * tr.v * dt }; if (pushOut(p, 2.4, OBS)) tr.v *= .5; tr.x = clamp(p.x, -170, 118); tr.z = clamp(p.z, -170, 170); pl.x = tr.x; pl.z = tr.z;
   } else {
     const yaw = pl.inside ? 0 : camYaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw), dx = rx * inp.x + fx * inp.y, dz = rz * inp.x + fz * inp.y, l = Math.hypot(dx, dz);
