@@ -56,7 +56,7 @@ function flash() { const d = $("dark"); d.style.transition = "none"; d.style.opa
 function openM(html, low) { $("modalCard").innerHTML = html; $("modal").className = low ? "ov low" : "ov"; $("modal").hidden = false; $("modalCard").scrollTop = 0; }
 function closeM() { $("modal").hidden = true; mk = null; }
 const X = '<button class="x" data-a="close">✕</button>';
-function hud() { const n = deliv ? (deliv.state === "new" ? " ❗" : " 🧋") : ""; $("hud").innerHTML = '<span class="pill">💰 <b>$' + S.money + '</b></span><button data-a="shop">🛒 Shop</button><button data-a="book">📖 Recipes</button><button data-a="phone">📱 Phone' + n + "</button>"; }
+function hud() { const n = deliv ? (deliv.state === "new" ? " ❗" : " 🧋") : ""; $("hud").innerHTML = '<span class="pill">💰 <b>$' + S.money + '</b></span><button data-a="shop">🛒 Shop</button><button data-a="book">📖 Recipes</button><button data-a="phone">📱 Phone' + n + '</button><button data-a="saveGame">💾 Save Game</button><button data-a="redo">🔄 Redo</button>'; }
 function earn(n, why) { S.money += n; pop("+$" + n + (why ? " " + why : "")); SFX.coin(); hud(); save(); }
 function pay(n) { if (S.money < n) { SFX.no(); toast("You need $" + n + ". Sell some more drinks first!"); return false; } S.money -= n; SFX.coin(); hud(); return true; }
 const sw = (c, on, a) => '<button class="sw' + (on ? " on" : "") + '" style="background:' + hex(c) + '" data-a="' + a + '" data-v="' + c + '"></button>';
@@ -71,7 +71,7 @@ const pl = { x: 0, z: IZ + 1.5, ry: 0, inside: 1, drive: 0, sell: null, place: n
 const SKINS = [0xffe0c4, 0xf6cfa8, 0xe0ac7e, 0xc68a5c, 0x8d5a3b, 0x5c3a26], HAIRS = [0x2c2230, 0x6b4226, 0xa86a3a, 0xf2d16b, 0xff7f50, 0xff8fd0, 0x9a6bff, 0x5fc8f0, 0x7fdc8c, 0xffffff];
 const APRONS = [0xff7fb0, 0xb99bff, 0x7fd0ff, 0x8fdc9c, 0xffd84a, 0xff9a5a, 0xffffff], STYLES = { pig: "Pigtails", pony: "Ponytail", long: "Long", bun: "Bun", short: "Short" };
 const WALLS = [0xffe3ef, 0xe6dcff, 0xdff3ff, 0xe3f7df, 0xfff3c9, 0xffd9c4], FLOORS = [0xf3d9b0, 0xffd9ea, 0xd9ecff, 0xe0d0c0, 0xcdeccd], TRUCKC = [0xff8fc0, 0xb99bff, 0x7fd0ff, 0x8fdc9c, 0xffd84a, 0xff9a5a, 0xffffff, 0x5fd0c0];
-function buildPlayer() { const had = pl.m && pl.m.userData.hold ? carryCol : null; if (pl.m) scene.remove(pl.m); const c = S.ch; pl.m = c.type === "animal" ? mkChar({ kind: c.animal, apron: c.apron }) : mkChar({ skin: c.skin, hair: c.hair, style: c.style, apron: c.apron }); scene.add(pl.m); if (had != null) giveCup(pl.m, had); }
+function buildPlayer() { const had = pl.m && pl.m.userData.hold ? carryCol : null; if (pl.m) scene.remove(pl.m); const c = S.ch; pl.m = c.type === "animal" ? mkChar({ kind: c.animal, apron: c.apron }) : mkChar({ skin: c.skin, hair: c.hair, style: c.style, apron: c.apron }); scene.add(pl.m); pl.m.position.set(pl.x, 0, pl.z); if (had != null) giveCup(pl.m, had); }
 let carryCol = null;
 const PETS = { pug: "Peach", kitten: "Biscuit", bunny: "Clover", panda: "Bamboo" };
 let pet = null;
@@ -336,6 +336,8 @@ ACT.phone = () => {
 };
 ACT.mkDeliv = () => { if (!pl.inside || pl.place) return toast("Put that down first."); openMaker("deliv", deliv.order, null); };
 ACT.home = () => { closeM(); if (pl.place) return toast("Put that down first."); if (pl.sell) endSell(0); if (pl.drive) { pl.drive = 0; pl.m.visible = true; } tr.x = TRUCK_HOME.x; tr.z = TRUCK_HOME.z; tr.a = TRUCK_HOME.a; tr.v = 0; goInside(); };
+ACT.saveGame = () => { save(); SFX.yay(); pop("💾 Saved!"); toast("Your game is saved, " + S.ch.name + ". It also saves by itself as you play."); };
+ACT.redo = () => openM(X + '<h2>🔄 Redo</h2><p>What do you want to redo?</p><div class="grid"><button class="it" data-a="look"><span>🎨</span>My character<small>keep my shop and money</small></button><button class="it" data-a="reset"><span>🧹</span>The whole game<small>start over from the beginning</small></button></div>');
 ACT.reset = () => openM(X + '<h2>Start over?</h2><p>This erases your shop, your money and your recipes.</p><div class="row"><button class="btn red" data-a="reset2">Yes, start over</button><button class="btn alt" data-a="close">No, keep my shop</button></div>');
 ACT.reset2 = () => { S = fresh(); save(); location.reload(); };
 
@@ -345,8 +347,8 @@ function title() {
   openM("<h1>🧋 Bubble Tea Town</h1><p><b>A boba shop game by Nora</b></p><p>Cook pearls, pour tea, shake it up and serve friends, animals and magic creatures. Invent your own drinks, find secret recipes, decorate your shop and drive a boba truck!</p>" +
     '<div class="row">' + (S.made ? '<button class="btn big" data-a="play">▶ Play</button>' : '<button class="btn big" data-a="who">▶ Start</button>') + "</div>");
 }
-ACT.who = () => openM('<h2>Who runs the shop?</h2><div class="grid"><button class="it" data-a="pickWho" data-v="nora"><span>👧</span>Nora</button><button class="it" data-a="pickWho" data-v="me"><span>🎨</span>Make my own</button><button class="it" data-a="pickWho" data-v="animal"><span>🐾</span>An animal</button></div>', 1);
-ACT.look = () => { closeM(); if (pl.drive || pl.sell || !pl.inside) return toast("Go inside your shop to change your look."); mode = "title"; $("act").hidden = true; ACT.who(); };
+ACT.who = () => { if (pl.inside) { pl.x = 1.3; pl.z = IZ + RM.cz + 1.4; pl.ry = 0; pl.m.position.set(pl.x, 0, pl.z); camSnap = 1; } openM('<h2>Who runs the shop?</h2><div class="grid"><button class="it" data-a="pickWho" data-v="nora"><span>👧</span>Nora</button><button class="it" data-a="pickWho" data-v="me"><span>🎨</span>Make my own</button><button class="it" data-a="pickWho" data-v="animal"><span>🐾</span>An animal</button></div>' + (S.made ? '<div class="row"><button class="btn alt" data-a="play">Keep my character</button></div>' : ""), 1); };
+ACT.look = () => { closeM(); if (pl.place) return toast("Put that down first."); if (pl.sell) endSell(0); if (pl.drive) hopOut(); pl.m.position.set(pl.x, 0, pl.z); mode = "title"; $("act").hidden = true; toastT = .01; ACT.who(); };
 ACT.pickWho = v => { if (v === "nora") { S.ch = Object.assign({}, NORA); buildPlayer(); return ACT.play(); } S.ch.type = v; if (S.ch.name === "Nora") S.ch.name = ""; buildPlayer(); lookCard(); };
 function lookCard() {
   const c = S.ch; let h = "<h2>" + (c.type === "animal" ? "🐾 Pick your animal" : "🎨 Make your character") + '</h2><div class="row"><input id="chName" maxlength="14" placeholder="Your name" value="' + esc(c.name) + '"></div>';
@@ -425,11 +427,10 @@ function updateMisc(dt) {
     pet.m.userData.legs.forEach((l, i) => { l.rotation.x = pet.mv ? Math.sin(T * 14 + (i % 3 ? 0 : 3.14)) * .6 : 0; }); pet.m.userData.tail.rotation.z = Math.sin(T * 9) * .4;
   }
   const h = hot(), l = h ? h.l : ""; if (l !== actLabel) { actLabel = l; $("act").textContent = l; } $("act").hidden = !h || !$("modal").hidden;
-  if (toastT > 0) { toastT -= dt; if (toastT <= 0) $("toast").style.opacity = 0; }
 }
 const camT = new THREE.Vector3(), camL = new THREE.Vector3(), camLook = new THREE.Vector3();
 function updateCam(dt) {
-  if (mode === "title" && S.ch.type !== "nora" && !$("modal").hidden && $("modal").className.includes("low")) { camT.set(pl.x, 2.4, pl.z + 5.2); camL.set(pl.x, 1.5, pl.z); pl.m.rotation.y = Math.sin(T * .8) * .5; }
+  if (mode === "title" && (S.ch.type !== "nora" || S.made) && !$("modal").hidden && $("modal").className.includes("low")) { camT.set(pl.x, 1.5, pl.z + 7); camL.set(pl.x, -.5, pl.z); pl.m.rotation.y = Math.sin(T * .8) * .5; }
   else if (pl.sell) { const p = toWorld(9, 13); camT.set(p.x, 7, p.z); const q = toWorld(5, -.5); camL.set(q.x, 1.4, q.z); }
   else if (pl.drive) { camT.set(tr.x - Math.sin(tr.a) * 13, 7.5, tr.z - Math.cos(tr.a) * 13); camL.set(tr.x + Math.sin(tr.a) * 4, 1.6, tr.z + Math.cos(tr.a) * 4); }
   else if (pl.inside) { const a = camera.aspect < 1 ? 1.5 : 1; camT.set(pl.x * .55, (7 + RM.D * .32) * a, IZ + RM.D / 2 + (4.5 + RM.D * .22) * a); camL.set(pl.x * .55, 1, IZ - .8); }
@@ -443,6 +444,7 @@ function step(dt) {
   T += dt;
   if (mode === "play") { updatePlayer(dt); updateCust(dt); updateMisc(dt); } else animChar(pl.m, 0, T);
   if (mk) mkTick(dt);
+  if (toastT > 0) { toastT -= dt; if (toastT <= 0) $("toast").style.opacity = 0; }
   rings.forEach((r, i) => { const s = 1 + Math.sin(T * 3 + i) * .08; r.scale.set(s, s, 1); });
   updateCam(dt); renderer.render(scene, camera);
 }
