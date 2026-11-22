@@ -116,8 +116,10 @@ function paintRoom() { roomFloor.material.map = floorTex(S.room.floor); roomFloo
   [[-.35, -.3], [.35, -.3], [-.35, .3], [.35, .3]].forEach(p => add(g, G.cyl, M(0x2a2a33), 5.6 + p[0], 1.94, -5.1 + p[1], .22, .03, .22)); add(g, G.cyl, M(0xe8413a, { roughness: .3 }), 5.25, 2.15, -5.4, .25, .36, .25); bx(g, 0xbfe6ff, 7.2, 1.8, -5.1, 1.3, 3.6, 1.3); bx(g, 0xd9dde6, 6.62, 2.2, -4.42, .06, .8, .06);
   const L = new THREE.PointLight(0xfff0d8, .55, 30); L.position.set(0, 5, 0); g.add(L);
 })();
-function goInside() { if (pl.ride) dismount(); if (pl.drive) leaveTractor(); flash(() => { pl.inside = 1; pl.x = ROOM.x; pl.z = ROOM.z + 4.2; pl.hdg = Math.PI; camYaw = 0; camPitch = .5; snapCam(); toast("Your room! Tap Decorate my room to make it yours."); }); SFX.tap(); }
-function goOutside() { flash(() => { pl.inside = 0; pl.x = HOUSE.x; pl.z = HOUSE.z + 8.5; pl.hdg = 0; camYaw = Math.PI; camPitch = .32; snapCam(); }); }
+let doorCool = 0;
+function bringRide() { if (pl.ride) { S.follow = pl.ride.d.id; dismount(); } }
+function goInside() { doorCool = tNow + 2.5; bringRide(); if (pl.drive) leaveTractor(); flash(() => { pl.inside = 1; pl.x = ROOM.x; pl.z = ROOM.z + 4.2; pl.hdg = Math.PI; camYaw = 0; camPitch = .5; snapCam(); toast("Your room! Tap Decorate my room to make it yours."); }); SFX.tap(); }
+function goOutside() { doorCool = tNow + 2.5; flash(() => { pl.inside = 0; pl.x = HOUSE.x; pl.z = HOUSE.z + 11; pl.hdg = 0; camYaw = Math.PI; camPitch = .32; snapCam(); }); }
 
 /* ------------------------------ dream barn and dream farmhouse ------------------------------ */
 let barn2G = null, house2G = null;
@@ -259,15 +261,20 @@ S.stalls = S.stalls || { day: 0, st: [0, 0, 0, 0, 0, 0] };
   const L = new THREE.PointLight(0xfff0d8, .6, 34); L.position.set(0, 5.5, 0); g.add(L);
 })();
 function paintStalls() { if (S.stalls.day !== S.day) S.stalls = { day: S.day, st: [0, 0, 0, 0, 0, 0] }; stalls.forEach(s => { const v = S.stalls.st[s.i]; s.pp.forEach(p => p.visible = v < 1); s.bed.material.color.setHex(v < 2 ? 0x6e5a32 : v < 3 ? 0xb9a07a : 0xf2d98a); s.straw.forEach(m => m.visible = v >= 3); }); }
-function goStable() { if (pl.ride) dismount(); if (pl.drive) leaveTractor(); SFX.tap(); flash(() => { paintStalls(); pl.inside = 2; pl.x = STAB.x; pl.z = STAB.z + 8; pl.hdg = Math.PI; camYaw = 0; camPitch = .55; snapCam(); const n = S.stalls.st.filter(v => v < 3).length; toast(n ? "Phew, " + n + " stalls need cleaning! Scoop, sweep, then fresh straw." : "The stable is already sparkling clean today! ✨"); }); }
-function leaveStable() { flash(() => { pl.inside = 0; pl.x = BARN.x; pl.z = BARN.z + 10; pl.hdg = 0; camYaw = Math.PI; camPitch = .32; snapCam(); }); }
+function goStable() { doorCool = tNow + 2.5; bringRide(); if (pl.drive) leaveTractor(); SFX.tap(); flash(() => { paintStalls(); pl.inside = 2; pl.x = STAB.x; pl.z = STAB.z + 8; pl.hdg = Math.PI; camYaw = 0; camPitch = .55; snapCam(); const n = S.stalls.st.filter(v => v < 3).length; toast(n ? "Phew, " + n + " stalls need cleaning! Scoop, sweep, then fresh straw." : "The stable is sparkling clean today! Animals that follow you can stay in a stall. ✨"); }); }
+function leaveStable() { doorCool = tNow + 2.5; flash(() => { pl.inside = 0; pl.x = BARN.x; pl.z = BARN.z + 11.5; pl.hdg = 0; camYaw = Math.PI; camPitch = .32; snapCam(); }); }
 function cleanStep(s) { const v = ++S.stalls.st[s.i]; paintStalls();
   if (v === 1) { SFX.plop(); burst(s.x, .8, s.z, [0xb9a07a, 0xffffff], 12, 1.5, 2, .4); toast("Scooped! Now sweep it out. 🧹"); }
   if (v === 2) { SFX.water(); burst(s.x, .5, s.z, [0xd9c9a8, 0xffffff], 20, 2.5, 1.2, .45); toast("All swept! Now put down fresh straw. 🌾"); }
   if (v === 3) { SFX.good(); burst(s.x, 1, s.z, [0xfff3a8, 0xffffff, 0xf2d06a], 26, 2.5, 3, .5); money(5, s.x, 1.5, s.z); const left = S.stalls.st.filter(x => x < 3).length;
     if (!left) { S.stallDay = S.day; setTimeout(() => { SFX.magic(); pop("Sparkling clean! ✨"); money(20); animals.forEach(a => a.d.love = clamp(a.d.love + 6, 0, 100)); toast("Every stall is clean! All your animals are happier."); for (let i = 0; i < 6; i++) burst(STAB.x + rnd(-5, 5), rnd(1, 4), STAB.z + rnd(-8, 8), [0xffffff, 0xfff3a8, 0xbfe9ff], 14, 3, 3, .6); }, 900); } else toast("One stall done! " + left + " to go."); }
   save(); }
-function stableHot() { let best = null, bd = 99; for (const s of stalls) { const v = S.stalls.st[s.i]; if (v >= 3) continue; const dd = near(s.x, s.z); if (dd < 3.6 && dd < bd) { bd = dd; best = { label: ["Scoop the poop 💩", "Sweep the stall 🧹", "Put down fresh straw 🌾"][v], fn: () => cleanStep(s) }; } }
+function animalHot(tryIt) { for (const a of animals) { if (a.lesson || a.sp.home === "pond") continue; const d = Math.hypot(a.x - pl.x, a.z - pl.z) - a.g.userData.r * a.sc; if (d < 1.7) tryIt(d, { label: (a.d.rdy ? GOODS[a.sp.prod].e + " " : "") + "Say hi to " + a.d.name, fn: () => showCard(a) }); } }
+function stableBtn(a, b) { if (a.sp.home === "pond") return ""; if (a.d.in) return b("stOut", "🌳 Go back outside"); return pl.inside === 2 ? b("stIn", "🏠 Stay in the stable", "") : ""; }
+ACT.stIn = () => { const a = cardA, used = animals.map(x => x.d.in), free = stalls.filter(s => !used.includes(s.i + 1)).sort((p, q) => near(p.x, p.z) - near(q.x, q.z))[0]; closeM(); if (!free) return toast("Every stall has an animal in it! Send one back outside first.");
+  a.d.in = free.i + 1; if (S.follow === a.d.id) S.follow = 0; a.tx = free.x; a.tz = free.z; a.wait = 0; love(a, 4); SFX.good(); toast(a.d.name + " is cozy in the stable now. 🏠"); save(); };
+ACT.stOut = () => { const a = cardA; a.d.in = 0; closeM(); if (pl.inside) { S.follow = a.d.id; toast(a.d.name + " will follow you back outside."); } else { const h = homeSpot(a); a.x = a.tx = h[0]; a.z = a.tz = h[1]; toast(a.d.name + " is back in the paddock."); } save(); };
+function stableHot() { let best = null, bd = 99; animalHot((d, o) => { if (d + 1.6 < bd) { bd = d + 1.6; best = o; } }); for (const s of stalls) { const v = S.stalls.st[s.i]; if (v >= 3) continue; const dd = near(s.x, s.z); if (dd < 3.6 && dd + .6 < bd) { bd = dd + .6; best = { label: ["Scoop the poop 💩", "Sweep the stall 🧹", "Put down fresh straw 🌾"][v], fn: () => cleanStep(s) }; } }
   if (near(STAB.x, STAB.z + 9.6) < 2.4) return { label: "Go outside 🚪", fn: leaveStable }; if (best) return best;
   const left = S.stalls.st.filter(x => x < 3).length; return { label: left ? "🧹 " + left + " stalls left to clean" : "The stable is sparkling ✨", fn: () => toast(left ? "Walk into a messy stall to clean it." : "Come back tomorrow, it will be messy again!") }; }
 
@@ -281,21 +288,25 @@ HOT_PRE = () => {
   if (carry) return { label: "Put the " + carry.c.n.toLowerCase() + " here", fn: dropItem };
   if (C) return { label: "Stop the contest", fn: () => endContest("You stopped the contest.") };
   if (!pl.inside) return undefined;
+  if (pl.ride) return { label: "Hop off " + pl.ride.d.name, fn: dismount };
   if (pl.inside === 2) return stableHot();
   let best = { label: "Decorate my room 🛋️", fn: ACT.roomShop }, bd = 1.6; const tryIt = (d, o) => { if (d < bd) { bd = d; best = o; } };
   tryIt(near(ROOM.x, ROOM.z + 5.6) - 1, { label: "Go outside 🚪", fn: goOutside }); tryIt(near(ROOM.x + 5.5, ROOM.z - 4.2) - 1, { label: "Cook 🍳", fn: ACT.cook });
   for (const it of placed) if (it.inside) tryIt(near(it.d.x, it.d.z) - (it.c.bed ? 1.2 : .6), { label: it.c.bed ? "Bed 🛏️" : it.c.e + " " + it.c.n, fn: () => itemMenu(it) });
+  animalHot(tryIt);
   return best;
 };
-HOT_MORE = tryAny => {
-  const tryIt = (d, o) => { if (d < 1.9) tryAny(d, o); };
-  tryIt(near(HOUSE.x, HOUSE.z + 7.5) - 1.2, { label: "Go inside your house 🏠", fn: goInside });
+HOT_MORE = tryAnyRaw => {
+  const tryAny = (d, o) => { if (o) tryAnyRaw(d, o); }, tryIt = (d, o) => { if (d < 1.9) tryAny(d, o); };
+  tryAny(Math.max(0, near(HOUSE.x, HOUSE.z + 8) - 4) * .5 + .3, near(HOUSE.x, HOUSE.z + 8) < 6 ? { label: "Go inside your house 🏠", fn: goInside } : null);
   tryIt(near(FAIR.x, FAIR.z, 2) , { label: "Enter the country fair 🎡", fn: ACT.fair });
   const pd = near(POND.x, POND.z); if (pd > POND.r - 2 && pd < POND.r + 3.5) tryIt(1.2, { label: "Go fishing 🎣", fn: ACT.fish });
   if (mazeGoal.visible) tryIt(near(mazeGoal.position.x, mazeGoal.position.z) - .8, { label: "Take the golden corn 🌽", fn: () => { S.mazeDay = S.day; SFX.magic(); pop("You solved the maze!"); money(50, mazeGoal.position.x, 2, mazeGoal.position.z); save(); } });
   for (const it of placed) if (!it.inside) tryIt(near(it.d.x, it.d.z) + .4, { label: it.c.e + " " + it.c.n, fn: () => itemMenu(it) });
 };
 STEP_MORE = dt => {
+  if (mode === "play" && !pl.inside && !pl.drive && !carry && !C && tNow > doorCool && $("modal").hidden) { if (near(HOUSE.x, HOUSE.z + 7.3) < 1.7) goInside(); else if (near(BARN.x, BARN.z + 7.4) < 1.9) goStable(); }
+  doorMarks.forEach((m, i) => { m.position.y = m.userData.y + Math.sin(tNow * 2.5 + i) * .25; m.visible = !pl.inside; });
   if (pl.inside) { const R = pl.inside === 2 ? STAB : ROOM; pl.x = clamp(pl.x, R.x - R.w / 2 + .6, R.x + R.w / 2 - .6); pl.z = clamp(pl.z, R.z - R.d / 2 + .6, R.z + R.d / 2 - .6); if (!pl.ride && !pl.drive) pl.g.position.set(pl.x, 0, pl.z); fall.visible = false; }
   if (carry) { const d = carry.d; d.x = pl.x + Math.sin(pl.hdg) * 2.2; d.z = pl.z + Math.cos(pl.hdg) * 2.2; d.r = pl.hdg + Math.PI; if (carry.inside) { d.x = clamp(d.x, ROOM.x - ROOM.w / 2 + .8, ROOM.x + ROOM.w / 2 - .8); d.z = clamp(d.z, ROOM.z - ROOM.d / 2 + .8, ROOM.z + ROOM.d / 2 - .8); } carry.g.position.set(d.x, hgt(d.x, d.z) + .35 + Math.sin(tNow * 5) * .08, d.z); carry.g.rotation.y = d.r; if (!!carry.inside !== (pl.inside === 1)) dropItem(); }
   if (FISHING && $("fsay")) { if (FISHING.state === 0 && tNow > FISHING.bite) { FISHING.state = 1; FISHING.until = tNow + 1.3; $("fsay").innerHTML = "<b style='font-size:26px'>❗ A bite! Pull!</b>"; SFX.plop(); } else if (FISHING.state === 1 && tNow > FISHING.until) { FISHING.state = 2; $("fsay").textContent = "It got away… tap Pull to try again."; } } else if (FISHING && $("modal").hidden) FISHING = null;
@@ -303,4 +314,6 @@ STEP_MORE = dt => {
   mazeGoal.visible = S.mazeDay !== S.day; mazeGoal.rotation.y += dt * 1.5; lampMat.emissiveIntensity = .5 + (1 - dayF) * .9;
   updateHelpers(dt); updateHay(); updateContest(dt);
 };
+const doorMarks = [["🏠 Walk in here", HOUSE.x, 5.2, HOUSE.z + 7.2], ["🐴 Stable: walk in", BARN.x, 6.2, BARN.z + 7.4]].map(p => { const t = textSprite(p[0], { h: .9, bg: "rgba(122,79,208,.92)" }); t.position.set(p[1], p[2], p[3]); t.userData.y = p[2]; scene.add(t); const ring = add(scene, G.cyl, Mu(0xfff3a8, { emissive: 0xffe27a, emissiveIntensity: .9, transparent: true, opacity: .75 }), p[1], .06, p[3], 1.6, .05, 1.6); ring.castShadow = false; return t; });
+animals.forEach(a => { if (a.d.in) { const h = homeSpot(a); a.x = a.tx = h[0]; a.z = a.tz = h[1]; } });
 S.room.items.forEach(d => putItem(d, 1)); S.decor.forEach(d => putItem(d, 0)); Object.keys(S.help).forEach(k => { if (S.help[k] && HELP[k]) spawnHelper(k); }); paintRoom(); upgrades();

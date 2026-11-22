@@ -71,6 +71,7 @@ function startPlay() { mode = "play"; hud(); save(); }
 function aKind(a) { return a.d.sp === "custom" ? a.d.word.charAt(0).toUpperCase() + a.d.word.slice(1) : a.sp.n; }
 function aEmoji(a) { return a.d.sp === "custom" ? customInfo(a.d.word).e : a.sp.e; }
 function homeSpot(a) {
+  if (a.d.in && typeof stalls !== "undefined" && stalls[a.d.in - 1]) { const s = stalls[a.d.in - 1]; return [s.x + rnd(-.8, .8), s.z + rnd(-1.4, 1.4)]; }
   if (a.sp.home === "pond") { const an = rnd(TAU), r = rnd(2, POND.r - 3); return [POND.x + Math.cos(an) * r, POND.z + Math.sin(an) * r]; }
   if (a.sp.home === "coop") { const an = rnd(TAU), r = rnd(1, 7); return [clamp(COOP.x - 5 + Math.cos(an) * r, PADDOCK.x0 + 1, PADDOCK.x1 - 1), clamp(COOP.z + 4 + Math.sin(an) * r, PADDOCK.z0 + 1, PADDOCK.z1 - 1)]; }
   return [rnd(PADDOCK.x0 + 2, PADDOCK.x1 - 4), rnd(PADDOCK.z0 + 2, PADDOCK.z1 - 2)];
@@ -108,11 +109,12 @@ function updateAnimals(dt) {
     else {
       let sp = fish ? 1.5 : a.sp.hop ? 2.2 : u.kind === "bird" && !a.sp.ride ? 1.3 : 1.7;
       if (S.follow === d.id && !fish && mode === "play") { const bx = pl.x - Math.sin(pl.hdg) * 1.5 + Math.cos(pl.hdg) * 2.8, bz = pl.z - Math.cos(pl.hdg) * 1.5 - Math.sin(pl.hdg) * 2.8, dd = Math.hypot(bx - a.x, bz - a.z); a.tx = bx; a.tz = bz; a.wait = 0; sp = dd > 2.2 ? Math.min(pl.ride ? 20 : 9, 2 + dd * 1.2) : 0; if (dd > 60) { a.x = bx; a.z = bz; } }
+      if (Math.hypot(a.tx - a.x, a.tz - a.z) > 90) { a.x = a.tx; a.z = a.tz; }
       const dx = a.tx - a.x, dz = a.tz - a.z, dd = Math.hypot(dx, dz);
       if (a.wait > 0) a.wait -= dt; else if (dd < .5 || sp === 0) { if (S.follow !== d.id || fish) { const h = homeSpot(a); a.tx = h[0]; a.tz = h[1]; a.wait = fish ? 0 : rnd(2, 8); } }
       else { const th = Math.atan2(dx, dz); let df = th - a.hdg; while (df > Math.PI) df -= TAU; while (df < -Math.PI) df += TAU; a.hdg += clamp(df, -4 * dt, 4 * dt); a.x += Math.sin(a.hdg) * sp * dt; a.z += Math.cos(a.hdg) * sp * dt; moving = true; if (a.sp.hop) hop = Math.abs(Math.sin(tNow * 9)) * .22; }
       a.alt = Math.max(0, a.alt - 8 * dt);
-      if (!fish && a.sp !== SPECIES.custom || !fish) { a.poopT -= dt; if (a.poopT < 0) { a.poopT = rnd(90, 200); if (poops.length < 10 && !a.sp.magic && mode === "play") { const p = buildPoop(); p.position.set(a.x - Math.sin(a.hdg), hgt(a.x, a.z), a.z - Math.cos(a.hdg)); scene.add(p); poops.push(p); } } }
+      if (!fish && a.sp !== SPECIES.custom || !fish) { a.poopT -= dt; if (a.poopT < 0) { a.poopT = rnd(90, 200); if (poops.length < 10 && !a.sp.magic && !a.d.in && a.z > -300 && mode === "play") { const p = buildPoop(); p.position.set(a.x - Math.sin(a.hdg), hgt(a.x, a.z), a.z - Math.cos(a.hdg)); scene.add(p); poops.push(p); } } }
     }
     let y = hgt(a.x, a.z) + a.alt + hop;
     if (fish) { const j = Math.sin(tNow * .5 + d.id) > .96 ? Math.sin((Math.sin(tNow * .5 + d.id) - .96) / .04 * Math.PI) * 1.4 : 0; y = -.75 + j; if (j > .3 && Math.random() < .3) burst(a.x, -.3, a.z, [0xbfe9ff, 0xffffff], 2, 1.5, 2, .3); }
@@ -131,7 +133,7 @@ function showCard(a) {
   openM(X + "<h2>" + aEmoji(a) + " " + esc(d.name) + "</h2><p>" + (d.baby ? "Baby " : "") + aKind(a) + (a.sp.magic ? " · magical ✨" : "") + (hungry ? " · <b>hungry!</b>" : "") + "</p><h3>Love</h3><div class='bar'><i style='width:" + d.love + "%'></i></div>" +
     (d.tr || d.mg ? "<p>Knows: " + TRICKS.slice(0, d.tr).concat(d.mg ? [magicName(a)] : []).join(", ") + "</p>" : "") +
     "<div class='row'>" + (d.rdy ? b("collect", "Collect " + GOODS[a.sp.prod].e, "") : "") + b("feed", "🍎 Feed", hungry ? "" : "alt") + b("pet", "💗 Pet") + b("brush", "🪮 Brush") +
-    (a.sp.ride && !d.baby ? b("ride", "🏇 Ride", "mag") : "") + (a.sp.home !== "pond" ? b("follow", S.follow === d.id ? "✋ Stay here" : "🚶 Follow me") : "") + "</div><div class='row'>" +
+    (a.sp.ride && !d.baby ? b("ride", "🏇 Ride", "mag") : "") + (a.sp.home !== "pond" ? b("follow", S.follow === d.id ? "✋ Stay here" : "🚶 Follow me") : "") + (typeof stableBtn === "function" ? stableBtn(a, b) : "") + "</div><div class='row'>" +
     (!d.baby ? b("train", "🎓 Train", "mag") : "") + (d.tr || d.mg ? b("show", "✨ Do a trick") : "") + b("dress", "👒 Dress up") + b("rename", "✏️ Name") + (mate ? b("baby", "🍼 Have a baby", "alt", d.love < 50) : "") + "</div>" + (mate && d.love < 50 ? "<p><small>Fill the love bar halfway to have a baby.</small></p>" : ""));
 }
 function magicName(a) { return (a.d.mg >= 3 ? "Super " : "") + (a.d.mg >= 2 ? a.sp.magic : "Sparkles"); }
